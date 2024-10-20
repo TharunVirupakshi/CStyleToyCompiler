@@ -78,11 +78,18 @@ for(int a=2, b=2; a<b ; b++){
     for(a=2, b=3, 1+1, -(2+3);;); // for_init with only exp_list
     for(;;){
         while(1);
+        return;
     }
+
+    return a;
 }
 
 // Empty statement
 ;
+
+// return 
+return ;
+return 1;
 
 // Empty block
 { }

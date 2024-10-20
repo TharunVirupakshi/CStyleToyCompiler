@@ -48,8 +48,16 @@ stmt:
     | cond_stmt
     | block_stmt
     | loop_stmt
+    | ret_stmt
     | ';'
     ;
+
+ret_stmt:
+    RETURN ret_val ';'
+    ;
+ret_val:
+    expr | ;
+
 
 assgn_stmt:
     assgn_expr ';'
