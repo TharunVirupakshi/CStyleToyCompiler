@@ -39,6 +39,10 @@ digit [0-9]
 "<"     { return LT; }
 ">"     { return GT; }
 
+"&&"    { return AND;}
+"||"    { return OR;}
+"!"     { return NOT;}
+
 "="     { return ASSIGN; }
 
 \/\/.*                      { /* Ignore single line comments */ ; }

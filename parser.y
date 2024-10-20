@@ -3,6 +3,10 @@
     #include<stdlib.h>
     #include<string.h>
 
+    // Global variables to track line and character numbers
+    int current_line = 1;
+    int current_char = 0;
+
     void yyerror(const char* s);
     int yylex(void);    
 %}
@@ -17,10 +21,13 @@
 %token IF ELSE WHILE FOR RETURN INT FLOAT CHAR VOID STRING
 %token PLUS MINUS MULT DIV INC DEC
 %token EQ NEQ LEQ GEQ LT GT ASSIGN
+%token AND OR NOT
 
-%right ASSIGN
+%right ASSIGN NOT
 %left EQ NEQ
 %left LT GT LEQ GEQ
+%left AND
+%left OR
 %left PLUS MINUS
 %left MULT DIV
 %nonassoc UNARY
@@ -184,8 +191,12 @@ expr:
     | expr GT expr
     | expr LEQ expr
     | expr GEQ expr
+    | expr AND expr
+    | expr OR expr
+    | NOT expr                  { $$ = $2; }
     | MINUS expr %prec UNARY    { $$ = -$2; } /* unary minus */
     | ID                        { $$ = 0; /* placeholder */ }
+    | func_call                 { $$ = 0;}    
     | INC expr   %prec UNARY    { $$ = 0;}  
     | DEC expr   %prec UNARY    { $$ = 0;}  
     | expr INC   %prec UNARY    { $$ = 0;}  
