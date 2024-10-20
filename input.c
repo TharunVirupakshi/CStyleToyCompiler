@@ -93,3 +93,24 @@ return 1;
 
 // Empty block
 { }
+
+
+// Functions
+void main(){
+
+}
+
+int foo();
+int foo(int a);
+int foo(int a, char b){
+    a = a + 1;
+
+    if(a == 1) return 2;
+    foo();
+    return a + -(2);
+};
+
+foo();
+foo(1);
+foo(a, 2+2, b);
+foo(a, 2+2*(3), b, 'c');

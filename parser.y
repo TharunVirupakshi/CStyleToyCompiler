@@ -49,6 +49,8 @@ stmt:
     | block_stmt
     | loop_stmt
     | ret_stmt
+    | func_decl
+    | func_call_stmt
     | ';'
     ;
 
@@ -58,6 +60,9 @@ ret_stmt:
 ret_val:
     expr | ;
 
+func_call_stmt:
+    func_call ';'
+    ;
 
 assgn_stmt:
     assgn_expr ';'
@@ -118,6 +123,33 @@ var :
     | ID ASSIGN STR_LITERAL
     | ID '[' INT_LITERAL ']'
     ;
+
+func_decl:
+    type_spec ID '(' params ')' stmt
+    | VOID ID '(' params ')' stmt
+    ;
+
+func_call:
+    ID '(' arg_list ')'
+    ;
+
+arg_list:
+    expr ',' arg_list
+    | expr
+    | 
+    ;
+
+
+
+params:
+    param ',' params
+    | param 
+    | 
+    ;
+
+param:
+    type_spec ID ;
+
 
 expr_stmt:
     expr ';'
