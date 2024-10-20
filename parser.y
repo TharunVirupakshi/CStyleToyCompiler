@@ -3,9 +3,9 @@
     #include<stdlib.h>
     #include<string.h>
 
-    // Global variables to track line and character numbers
-    int current_line = 1;
-    int current_char = 0;
+    // Declare extern to access the variables defined in lexer
+    extern int cur_line;
+    extern int cur_char;
 
     void yyerror(const char* s);
     int yylex(void);    
@@ -209,7 +209,7 @@ expr:
 
 
 void yyerror(const char* s) {
-    fprintf(stderr, "Error: %s\n", s);
+    fprintf(stderr, "Error: %s at line %d, character %d\n", s, cur_line, cur_char);
     exit(0);
 }
 

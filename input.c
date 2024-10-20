@@ -125,14 +125,15 @@ int foo(int a, char b) {
 // Additional function definitions
 void bar() {
     // Simple function to test nested function calls
-    int result = foo(5);
+    int result = 1 && foo(5);
     if (result > 2) {
-        return;
+        return foo() && 1;
     }
 }
 
 // More complex conditional
-if (x < y && y > z) {
+// here, although the else if parses correctly, the dangling if-else problem still exists
+if (x < y && !(y > ++z)) {
     x = x * 2;
 } else if (x == y || z == 0) {
     x = y + z;
