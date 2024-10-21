@@ -1,4 +1,5 @@
 %{
+    #include "ast.h"
     #include "y.tab.h"
     #define COUNT() (cur_char+=yyleng) 
 
