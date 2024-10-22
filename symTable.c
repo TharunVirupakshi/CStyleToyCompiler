@@ -50,7 +50,7 @@ void addSymbol(SymbolTable* table, symbol* sym) {
         }
     }
     table->symbols[table->size++] = sym;
-    printf("Added symbol: %s\n", sym->name);  // Add this
+    // printf("Added symbol: %s\n", sym->name);  // Add this
 }
 
 // Look up a symbol in the symbol table by name

@@ -2,6 +2,7 @@
 #define AST_H
 
 #include "symTable.h"
+#include <stdbool.h>
 typedef enum NodeType {
     NODE_PROGRAM,       // Represents the entire program
     NODE_STMT_LIST,     // List of statements
@@ -165,9 +166,8 @@ typedef struct ASTNode {
 
         // Block statement (contains multiple statements)
         struct {
-            struct ASTNode** stmt_list;  // Array of statements (children)
-            int statement_count;          // Number of statements in the block
-        } block_data;
+            struct ASTNode* stmt_list;  // Array of statements (children)
+        } block_stmt_data;
 
         
         // Return node data (for return statements in functions)
@@ -185,7 +185,7 @@ typedef struct ASTNode {
 
 // Function prototypes for AST operations
 ASTNode* createASTNode(NodeType);
-void printAST(ASTNode* node, int indent);
+void printAST(ASTNode* node, int indent, bool isLast);
 void freeAST(ASTNode* node);
 
 

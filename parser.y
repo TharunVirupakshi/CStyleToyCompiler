@@ -16,6 +16,7 @@ SymbolTable* symTable;
 ASTNode* root;
 ASTNode* createProgramNode(ASTNode* stmt_list);
 ASTNode* createStmtListNode(ASTNode* stmtList, ASTNode* stmt);
+ASTNode* createBlockStmtNode(ASTNode* stmt_list);
 ASTNode* createReturnNode(ASTNode* return_value);
 ASTNode* createBinaryExpNode(ASTNode* left, ASTNode* right, const char* op);
 ASTNode* createUnaryExpNode(ASTNode* left, const char* op);
@@ -111,7 +112,7 @@ assgn_expr:
 
 // Block statement
 block_stmt:
-    '{' stmt_list '}' 
+    '{' stmt_list '}'   { $$ = createBlockStmtNode($2); } 
     ;
 
 // Conditional statement
@@ -269,7 +270,7 @@ int main(){
 
     printf("\nPARSING SUCCESS\n");
     printf("\n\n");
-    printAST(root, 0);
+    printAST(root, 0, false);
     printf("\n\n");
     printSymbolTable(symTable);
     freeAST(root);
@@ -293,6 +294,13 @@ ASTNode* createStmtListNode(ASTNode* stmt, ASTNode* stmt_list) {
     ASTNode* node = createASTNode(NODE_STMT_LIST);
     node->stmt_list_data.stmt = stmt;
     node->stmt_list_data.stmt_list = stmt_list; // Pointer to the next statement or NULL
+    return node;
+}
+
+ASTNode* createBlockStmtNode(ASTNode* stmt_list){
+    ASTNode* node = createASTNode(NODE_BLOCK_STMT);
+    node->block_stmt_data.stmt_list = stmt_list;
+    
     return node;
 }
 
