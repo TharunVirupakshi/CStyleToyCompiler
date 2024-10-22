@@ -22,13 +22,16 @@ typedef enum NodeType {
     NODE_VAR_LIST,      // Variable declaration
     NODE_VAR,           // Variable (identifier)
     NODE_TYPE_SPEC,     // Type specification (int, char, etc.)
-    NODE_EXPR,          // General expression node
+    NODE_EXPR_BINARY,          // General expression Node
+    NODE_EXPR_UNARY,
+    NODE_EXPR_TERM,    
     NODE_OP,            // All operations (binary, logical, comparison, etc.)
     NODE_UNARY_OP,      // Unary operations (e.g., -, ++, --)
     NODE_INT_LITERAL,   // Integer literal
     NODE_CHAR_LITERAL,  // Character literal
     NODE_STR_LITERAL,   // String literal
     NODE_ID,            // Identifier (variable names)
+    NODE_ID_REF,        // Identifier Reference node 
     NODE_ARG_LIST,      // Argument list for function calls
     NODE_ARRAY_DECL,
     NODE_PARAM_LIST,    // Parameter list for function declarations
@@ -92,7 +95,7 @@ typedef struct ASTNode {
             const char* op;               // Operator, e.g. "+", "-", "=="
             struct ASTNode* left;         // Left operand
             struct ASTNode* right;        // Right operand
-        } op_data;
+        } expr_data;
 
         // If-Else node data (for conditional statements)
         struct {
@@ -140,6 +143,11 @@ typedef struct ASTNode {
         struct {
             symbol* sym;                  // The referenced variable symbol
         } id_data;
+
+        struct {
+            const char *name;
+            symbol* ref;
+        } id_ref_data;
         
         struct {
             struct ASTNode* left;

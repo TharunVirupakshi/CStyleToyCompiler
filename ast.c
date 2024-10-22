@@ -64,6 +64,14 @@ void printAST(ASTNode* node, int indent) {
             printAST(node->return_data.return_value, indent + 2); // Recursively print the return value
             break;
 
+        case NODE_INT_LITERAL:
+            printf("LITERAL (type: Int, value: %d)\n", node->literal_data.value.int_value);
+            break;
+
+        case NODE_CHAR_LITERAL:
+            printf("LITERAL (type: Char, value: %c)\n", node->literal_data.value.char_value);
+            break;
+
         case NODE_STR_LITERAL:
             printf("LITERAL (type: String, value: %s)\n", node->literal_data.value.str_value);
             break;
@@ -113,6 +121,18 @@ void printAST(ASTNode* node, int indent) {
             printf("ID (name: %s)\n", node->id_data.sym->name);
             break;
 
+        case NODE_ID_REF:
+            printf("ID REF (name: %s)\n", node->id_ref_data.name);
+            break;
+            
+        case NODE_EXPR_BINARY:
+        case NODE_EXPR_UNARY:
+        case NODE_EXPR_TERM:
+            printf("EXPR (op: %s)\n", node->expr_data.op ? node->expr_data.op : "None");
+            printAST(node->expr_data.left, indent + 1);
+            printAST(node->expr_data.right, indent + 1);
+            break;
+
         // case NODE_LITERAL:
         //     printf("Literal: ");
         //     if (node->literal_data.str_value) {
@@ -122,11 +142,7 @@ void printAST(ASTNode* node, int indent) {
         //     }
         //     break;
 
-        case NODE_OP:
-            printf("Binary Operator: %s\n", node->op_data.op);
-            printAST(node->op_data.left, indent + 1);                // Print the left operand
-            printAST(node->op_data.right, indent + 1);               // Print the right operand
-            break;
+     
 
         case NODE_IF_ELSE:
             printf("If-Else Statement\n");

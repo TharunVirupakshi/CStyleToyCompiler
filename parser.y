@@ -17,14 +17,19 @@ ASTNode* root;
 ASTNode* createProgramNode(ASTNode* stmt_list);
 ASTNode* createStmtListNode(ASTNode* stmtList, ASTNode* stmt);
 ASTNode* createReturnNode(ASTNode* return_value);
-ASTNode* createBinaryOpNode(ASTNode* left, ASTNode* right, char* op);
-ASTNode* createIdentifierNode(char* id);
-ASTNode* createStrLiteralNode(char* s);
+ASTNode* createBinaryExpNode(ASTNode* left, ASTNode* right, const char* op);
+ASTNode* createUnaryExpNode(ASTNode* left, const char* op);
+ASTNode* createTermExpNode(ASTNode* term);
+ASTNode* createIdentifierNode(const char* id);
+ASTNode* createIdRefNode(const char* id);
+ASTNode* createIntLiteralNode(int i);
+ASTNode* createCharLiteralNode(char c);
+ASTNode* createStrLiteralNode(const char* s);
 ASTNode* createTypeNode(char* type);
 ASTNode* createDeclNode(ASTNode* type_spec, ASTNode* var_list);
 void setVarListType(ASTNode* typeNode, ASTNode* var_list);
-ASTNode* createVarNode(char* id);
-ASTNode* createVarAssgnNode(char* id, ASTNode* value);
+ASTNode* createVarNode(const char* id);
+ASTNode* createVarAssgnNode(const char* id, ASTNode* value);
 ASTNode* createVarListNode(ASTNode* var_list, ASTNode* var);
 %}
 
@@ -32,7 +37,7 @@ ASTNode* createVarListNode(ASTNode* var_list, ASTNode* var);
 
 %union {
     int ival;
-    char* strval;     
+    const char* strval;     
     ASTNode* node;
 }
 
@@ -222,30 +227,32 @@ expr_stmt:
 
 // Expressions
 expr:
-    expr PLUS expr              { $$ = createBinaryOpNode($1, $3, "+"); }              
-    | expr MINUS expr           
-    | expr MULT expr            
-    | expr DIV expr             
-    | expr EQ expr              
-    | expr NEQ expr             
-    | expr LT expr              
-    | expr GT expr              
-    | expr LEQ expr             
-    | expr GEQ expr             
-    | expr AND expr             
-    | expr OR expr              
-    | NOT expr                  { $$ = $2; }
-    | MINUS expr %prec UNARY    { $$ = $2; }
-    | ID                        { $$ = 0; } 
+    expr PLUS expr              { $$ = createBinaryExpNode($1, $3, "+"); }              
+    | expr MINUS expr           { $$ = createBinaryExpNode($1, $3, "-"); }
+    | expr MULT expr            { $$ = createBinaryExpNode($1, $3, "*"); }
+    | expr DIV expr             { $$ = createBinaryExpNode($1, $3, "/"); }
+    | expr EQ expr              { $$ = createBinaryExpNode($1, $3, "=="); }
+    | expr NEQ expr             { $$ = createBinaryExpNode($1, $3, "!="); }
+    | expr LT expr              { $$ = createBinaryExpNode($1, $3, "<"); }
+    | expr GT expr              { $$ = createBinaryExpNode($1, $3, ">"); }
+    | expr LEQ expr             { $$ = createBinaryExpNode($1, $3, "<="); }
+    | expr GEQ expr             { $$ = createBinaryExpNode($1, $3, ">="); }
+    | expr AND expr             { $$ = createBinaryExpNode($1, $3, "&&"); }
+    | expr OR expr              { $$ = createBinaryExpNode($1, $3, "||"); }
+    | NOT expr                  { $$ = createUnaryExpNode($2, "!"); }
+    | MINUS expr %prec UNARY    { $$ = createUnaryExpNode($2, "-"); }
+    | INC expr   %prec UNARY    { $$ = createUnaryExpNode($2, "PRE_INC"); }
+    | DEC expr   %prec UNARY    { $$ = createUnaryExpNode($2, "PRE_DEC"); }
+    | expr INC   %prec UNARY    { $$ = createUnaryExpNode($1, "POST_INC"); }
+    | expr DEC   %prec UNARY    { $$ = createUnaryExpNode($1, "POST_DEC"); }
+    | ID                        { $$ = createTermExpNode(createIdRefNode($1)); } 
+    | INT_LITERAL               { $$ = createTermExpNode(createIntLiteralNode($1)); }
+    | CHAR_LITERAL              { $$ = createTermExpNode(createCharLiteralNode($1)); }
     | func_call                 { $$ = $1; }
-    | INC expr   %prec UNARY    
-    | DEC expr   %prec UNARY    
-    | expr INC   %prec UNARY    
-    | expr DEC   %prec UNARY    
-    | INT_LITERAL               
-    | CHAR_LITERAL              
     | '(' expr ')'              { $$ = $2; }
     ;
+
+
 
 %%
 
@@ -296,23 +303,57 @@ ASTNode* createReturnNode(ASTNode* return_value){
     return node;
 }
 
-ASTNode* createBinaryOpNode(ASTNode* left, ASTNode* right, char* op) {
-    ASTNode* node = createASTNode(NODE_OP);
-    node->op_data.left = left;
-    node->op_data.right = right;
-    node->op_data.op = strdup(op);  // Store the operation
+ASTNode* createBinaryExpNode(ASTNode* left, ASTNode* right, const char* op) {
+    ASTNode* node = createASTNode(NODE_EXPR_BINARY);
+    node->expr_data.left = left;
+    node->expr_data.right = right;
+    node->expr_data.op = strdup(op);  // Store the operation
     return node;
 }
 
-ASTNode* createIdentifierNode(char* id) {
+ASTNode* createUnaryExpNode(ASTNode* left, const char* op){
+    ASTNode* node = createASTNode(NODE_EXPR_UNARY);
+    node->expr_data.left = left;
+    node->expr_data.right = NULL;
+    node->expr_data.op = strdup(op);  // Store the operation
+    return node;
+}
+
+ASTNode* createTermExpNode(ASTNode* term){
+    ASTNode* node = createASTNode(NODE_EXPR_TERM);
+    node->expr_data.left = term;
+    node->expr_data.right = NULL;
+    node->expr_data.op = NULL;
+    return node;
+}
+
+ASTNode* createIdentifierNode(const char* id) {
     ASTNode* node = createASTNode(NODE_ID);
-    symbol* sym = createSymbol(id, NULL, 0, -1, 0);
+    symbol* sym = createSymbol(id, NULL, 0, -1, 0, node);
     node->id_data.sym = sym;
     addSymbol(symTable, sym);
     return node;
 }
 
-ASTNode* createStrLiteralNode(char* s){
+ASTNode* createIdRefNode(const char* id){
+    ASTNode* node = createASTNode(NODE_ID_REF);
+    node->id_ref_data.name = id;
+    node->id_ref_data.ref = NULL;
+
+    return node;
+}
+
+ASTNode* createIntLiteralNode(int i){
+    ASTNode* node = createASTNode(NODE_INT_LITERAL);
+    node->literal_data.value.int_value = i;
+    return node;
+}
+ASTNode* createCharLiteralNode(char c){
+    ASTNode* node = createASTNode(NODE_CHAR_LITERAL);
+    node->literal_data.value.char_value = c;
+    return node;
+}
+ASTNode* createStrLiteralNode(const char* s){
     ASTNode* node = createASTNode(NODE_STR_LITERAL);
     node->literal_data.value.str_value = s;
     return node;
@@ -340,14 +381,14 @@ ASTNode* createVarListNode(ASTNode* var_list, ASTNode* var){
     return node;
 }
 
-ASTNode* createVarNode(char* id) {
+ASTNode* createVarNode(const char* id) {
     ASTNode* node = createASTNode(NODE_VAR);
     node->var_data.id = createIdentifierNode(id);  // Simple variable
     node->var_data.value = NULL;
     return node;
 }
 
-ASTNode* createVarAssgnNode(char* id, ASTNode* value){
+ASTNode* createVarAssgnNode(const char* id, ASTNode* value){
    ASTNode* node = createASTNode(NODE_VAR);
    node->var_data.id = createIdentifierNode(id);
    node->var_data.value = value;

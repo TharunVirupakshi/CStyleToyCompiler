@@ -20,7 +20,7 @@ SymbolTable* createSymbolTable(int initial_capacity) {
 }
 
 // Create a new symbol
-symbol* createSymbol(char* name, char* type, int scope, int location, int is_function) {
+symbol* createSymbol(const char* name, char* type, int scope, int location, int is_function, ASTNode* ref) {
     // printf("Creating symbol: %s\n", name);  
     symbol* sym = (symbol*)malloc(sizeof(symbol));
     if (!sym) {
@@ -33,6 +33,7 @@ symbol* createSymbol(char* name, char* type, int scope, int location, int is_fun
     sym->scope = scope;          // Assign the current scope
     sym->location = location;          // Placeholder for memory location
     sym->is_function = is_function;        // Set as variable (not a function initially)
+    sym->ast_node = ref;
     // printf("Created symbol: %s\n", name);   
     return sym;
 }
@@ -65,7 +66,7 @@ symbol* lookupSymbol(SymbolTable* table, char* name) {
 // Free the memory allocated for the symbol table
 void freeSymbolTable(SymbolTable* table) {
     for (int i = 0; i < table->size; i++) {
-        free(table->symbols[i]->name);
+        free((char*)table->symbols[i]->name);
         free(table->symbols[i]->type);
         free(table->symbols[i]);
     }
