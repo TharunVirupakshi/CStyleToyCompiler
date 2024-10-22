@@ -1,4 +1,5 @@
 %{
+#include "symTable.h"
 #include "ast.h"
 #include<stdio.h>
 #include<stdlib.h>
@@ -10,11 +11,21 @@ extern int cur_char;
 void yyerror(const char* s);
 int yylex(void);
 
-
-
+SymbolTable* symTable;
 
 ASTNode* root;
 ASTNode* createProgramNode(ASTNode* stmt_list);
+ASTNode* createStmtListNode(ASTNode* stmtList, ASTNode* stmt);
+ASTNode* createReturnNode(ASTNode* return_value);
+ASTNode* createBinaryOpNode(ASTNode* left, ASTNode* right, char* op);
+ASTNode* createIdentifierNode(char* id);
+ASTNode* createStrLiteralNode(char* s);
+ASTNode* createTypeNode(char* type);
+ASTNode* createDeclNode(ASTNode* type_spec, ASTNode* var_list);
+void setVarListType(ASTNode* typeNode, ASTNode* var_list);
+ASTNode* createVarNode(char* id);
+ASTNode* createVarAssgnNode(char* id, ASTNode* value);
+ASTNode* createVarListNode(ASTNode* var_list, ASTNode* var);
 %}
 
 
@@ -48,15 +59,15 @@ ASTNode* createProgramNode(ASTNode* stmt_list);
 
 // Program structure
 program: 
-    stmt_list  { $$ = createProgramNode($1); }
+    stmt_list  { $$ = createProgramNode($1); root = $$; }
     ;
 
 // List of statements
 stmt_list:
-    stmt_list stmt  
-    |               
+    stmt_list stmt      { $$ = createStmtListNode($1, $2); } 
+    |                   { $$ = NULL;}  
     ;
-
+            
 // Different types of statements
 stmt:
     decl_stmt           { $$ = $1; }
@@ -68,13 +79,13 @@ stmt:
     | ret_stmt          { $$ = $1; }
     | func_decl         { $$ = $1; }
     | func_call_stmt    { $$ = $1; }
-    | ';'               
+    | ';'               { $$ = NULL; }
     ;
 
 // Return statement
 ret_stmt:
-    RETURN expr ';'     
-    | RETURN ';'        
+    RETURN expr ';'     { $$ = createReturnNode($2); }   
+    | RETURN ';'        { $$ = createReturnNode(NULL);}
     ;
 
 
@@ -133,34 +144,36 @@ for_expr:
 
 // Declaration statement
 decl_stmt:
-    decl ';'        
+    decl ';'        { $$ = $1; } 
     ;
 
 // Declaration
 decl:
-    type_spec var_list  
+    type_spec var_list  { 
+        setVarListType($1, $2); 
+        $$ = createDeclNode($1, $2); 
+    }
     ;
 
 // Type specifications
 type_spec:
-    INT                 
-    | CHAR              
-    | FLOAT             
-    | STRING            
+    INT       { $$ = createTypeNode("int"); }               
+    | CHAR    { $$ = createTypeNode("char"); }     
+    | FLOAT   { $$ = createTypeNode("float"); }          
+    | STRING  { $$ = createTypeNode("string"); }           
     ;
 
 // Variable list for declarations
 var_list:
-    var_list ',' var    
-    | var               { $$ = $1; }
+    var_list ',' var    { $$ = createVarListNode($1, $3); }
+    | var               { $$ = createVarListNode(NULL, $1); }
     ;             
 
 // Variable definitions
 var:
-    ID                      
-    | ID ASSIGN expr        
-    | ID ASSIGN STR_LITERAL 
-    | ID '[' INT_LITERAL ']' 
+    ID                          { $$ = createVarNode($1); } 
+    | ID ASSIGN expr            { $$ = createVarAssgnNode($1, $3); }
+    | ID ASSIGN STR_LITERAL     { $$ = createVarAssgnNode($1, createStrLiteralNode($3)); }
     ;
 
 // Function declarations
@@ -209,7 +222,7 @@ expr_stmt:
 
 // Expressions
 expr:
-    expr PLUS expr              
+    expr PLUS expr              { $$ = createBinaryOpNode($1, $3, "+"); }              
     | expr MINUS expr           
     | expr MULT expr            
     | expr DIV expr             
@@ -243,35 +256,122 @@ void yyerror(const char* s) {
 }
 
 int main(){
+    symTable = createSymbolTable(100);
+    
     yyparse();
 
-    printf("PARSING SUCCESS\n");
+    printf("\nPARSING SUCCESS\n");
+    printf("\n\n");
+    printAST(root, 0);
+    printf("\n\n");
+    printSymbolTable(symTable);
+    freeAST(root);
+    freeSymbolTable(symTable);
 }
+
+
 
 // Wrapper function to create a program node with a list of statements
 ASTNode* createProgramNode(ASTNode* stmt_list) {
     // Create a node for the root of the program
-    ASTNode* programNode = createASTNode(NODE_PROGRAM, 1);
-    
+    ASTNode* programNode = createASTNode(NODE_PROGRAM);
+    programNode->program_data.stmt_list = stmt_list;
     // Attach the statement list as the child
-    programNode->children[0] = stmt_list;
+    /* programNode->children[0] = stmt_list; */
     
     return programNode;
 }
 
-ASTNode* createStmtListNode(ASTNode* stmtList, ASTNode* stmt) {
-    if (stmtList == NULL) {
-        // First statement in the list, create a new stmt_list node
-        ASTNode* stmtListNode = createASTNode(NODE_STMT_LIST, 1);
-        stmtListNode->children[0] = stmt;
-        stmtListNode->child_count = 1;
-        return stmtListNode;
-    } else {
-        // Add a new statement to the existing stmt_list
-        int newCount = stmtList->child_count + 1;
-        stmtList->children = realloc(stmtList->children, newCount * sizeof(ASTNode*));
-        stmtList->children[stmtList->child_count] = stmt;
-        stmtList->child_count = newCount;
-        return stmtList;
+ASTNode* createStmtListNode(ASTNode* stmt, ASTNode* stmt_list) {
+    ASTNode* node = createASTNode(NODE_STMT_LIST);
+    node->stmt_list_data.stmt = stmt;
+    node->stmt_list_data.stmt_list = stmt_list; // Pointer to the next statement or NULL
+    return node;
+}
+
+ASTNode* createReturnNode(ASTNode* return_value){
+    ASTNode* node = createASTNode(NODE_RETURN);
+    node->return_data.return_value = return_value;
+
+    return node;
+}
+
+ASTNode* createBinaryOpNode(ASTNode* left, ASTNode* right, char* op) {
+    ASTNode* node = createASTNode(NODE_OP);
+    node->op_data.left = left;
+    node->op_data.right = right;
+    node->op_data.op = strdup(op);  // Store the operation
+    return node;
+}
+
+ASTNode* createIdentifierNode(char* id) {
+    ASTNode* node = createASTNode(NODE_ID);
+    symbol* sym = createSymbol(id, NULL, 0, -1, 0);
+    node->id_data.sym = sym;
+    addSymbol(symTable, sym);
+    return node;
+}
+
+ASTNode* createStrLiteralNode(char* s){
+    ASTNode* node = createASTNode(NODE_STR_LITERAL);
+    node->literal_data.value.str_value = s;
+    return node;
+}
+
+ASTNode* createDeclNode(ASTNode* type_spec, ASTNode* var_list){
+    ASTNode* node = createASTNode(NODE_DECL);
+    node->decl_data.type_spec = type_spec;
+    node->decl_data.var_list = var_list;
+
+    return node;
+}
+
+ASTNode* createTypeNode(char* type){
+    ASTNode* node = createASTNode(NODE_TYPE_SPEC);
+    node->type_data.type = type;
+    return node;
+}
+
+ASTNode* createVarListNode(ASTNode* var_list, ASTNode* var){
+    ASTNode* node = createASTNode(NODE_VAR_LIST);
+    node->var_list_data.var_list = var_list;
+    node->var_list_data.var = var;
+
+    return node;
+}
+
+ASTNode* createVarNode(char* id) {
+    ASTNode* node = createASTNode(NODE_VAR);
+    node->var_data.id = createIdentifierNode(id);  // Simple variable
+    node->var_data.value = NULL;
+    return node;
+}
+
+ASTNode* createVarAssgnNode(char* id, ASTNode* value){
+   ASTNode* node = createASTNode(NODE_VAR);
+   node->var_data.id = createIdentifierNode(id);
+   node->var_data.value = value;
+   return node;
+}
+
+void setVarListType(ASTNode* typeNode, ASTNode* var_list) {
+    if (var_list == NULL) return;
+
+    const char* type = typeNode->type_data.type;
+
+    if (var_list->type == NODE_VAR_LIST) {
+        // If it's a var_list, recursively update both parts (var_list and individual var)
+        setVarListType(typeNode, var_list->var_list_data.var_list);
+        setVarListType(typeNode, var_list->var_list_data.var);
+    } else if (var_list->type == NODE_VAR) {
+        // For an individual variable, check if it's an assignment or just a declaration
+        if (var_list->var_data.id != NULL && var_list->var_data.id->id_data.sym != NULL) {
+            symbol* sym = var_list->var_data.id->id_data.sym;
+            if (sym->type == NULL) {
+                sym->type = strdup(type); // Assign the type to the variable's symbol
+            }
+        }
+
     }
 }
+

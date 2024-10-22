@@ -1,11 +1,14 @@
 #ifndef AST_H
 #define AST_H
 
+#include "symTable.h"
 typedef enum NodeType {
     NODE_PROGRAM,       // Represents the entire program
     NODE_STMT_LIST,     // List of statements
-    NODE_DECL_STMT,     // Declaration statement
+    NODE_STMT,
+    NODE_DECL,     // Declaration statement
     NODE_ASSIGN_STMT,   // Assignment statement
+    NODE_ASSGN,
     NODE_EXPR_STMT,     // Expression statement
     // NODE_COND_STMT,     // Conditional statement (if-else)
     NODE_IF,
@@ -16,7 +19,7 @@ typedef enum NodeType {
     NODE_WHILE,
     NODE_FUNC_DECL,     // Function declaration
     NODE_FUNC_CALL,     // Function call
-    NODE_VAR_DECL,      // Variable declaration
+    NODE_VAR_LIST,      // Variable declaration
     NODE_VAR,           // Variable (identifier)
     NODE_TYPE_SPEC,     // Type specification (int, char, etc.)
     NODE_EXPR,          // General expression node
@@ -38,20 +41,19 @@ typedef enum NodeType {
 
 
 
-typedef struct symbol {
-    char* name;      // Symbol name (e.g., variable or function name)
-    char* type;      // Symbol type (e.g., int, float, etc.)
-    int scope;       // Scope level (e.g., global = 0, local > 0)
-    int location;    // Memory location or offset in the stack
-    int is_function; // Whether the symbol is a function
-} symbol;
-
-
 
 typedef struct ASTNode {
     NodeType type;  // Type of the node (enum to identify node type)
 
     union {
+
+        struct {
+          struct ASTNode* stmt_list;
+        } program_data;
+
+
+
+
         // Function decl node data
         struct {
             symbol* sym;                    // Function symbol (name)
@@ -75,14 +77,15 @@ typedef struct ASTNode {
 
         // Literal node data (for integers, characters, strings, etc.)
         struct {
-            int int_value;
-            const char* str_value;            // Literal value as a string (or could store numeric types if needed)
+            union{
+                int int_value;
+                char char_value;            
+                const char* str_value;            // Literal value as a string (or could store numeric types if needed)
+            } value;
         } literal_data;
 
-        // Variable reference node data (for variable references)
-        struct {
-            symbol* sym;                  // The referenced variable symbol
-        } var_data;
+        
+        
 
         // Binary operator node data (for operations like +, -, *, /, etc.)
         struct {
@@ -111,29 +114,71 @@ typedef struct ASTNode {
             struct ASTNode* condition;    // The condition expression
             struct ASTNode* while_branch; // The body of the while loop
         } while_data;
+
+        // Declarations
+
+        struct {
+            struct ASTNode* type_spec;
+            struct ASTNode* var_list;
+        } decl_data;
+
+        struct{
+          struct ASTNode* var_list;
+          struct ASTNode* var;
+        } var_list_data;
+
+        struct{
+          struct ASTNode* id;
+          struct ASTNode* value;
+        } var_data;
+
         
+        struct{
+            const char* type;
+        } type_data;
+
+        struct {
+            symbol* sym;                  // The referenced variable symbol
+        } id_data;
+        
+        struct {
+            struct ASTNode* left;
+            struct ASTNode* right;
+        } assgn_data;
+        // Statements
+        struct {
+            struct ASTNode* stmt_list;
+            struct ASTNode* stmt;
+        } stmt_list_data;
+        
+        struct {
+            struct ASTNode* stmt;
+        } stmt_data;
+
         // Block statement (contains multiple statements)
         struct {
-            struct ASTNode** statements;  // Array of statements (children)
+            struct ASTNode** stmt_list;  // Array of statements (children)
             int statement_count;          // Number of statements in the block
         } block_data;
 
+        
         // Return node data (for return statements in functions)
         struct {
             struct ASTNode* return_value; // The expression being returned (can be NULL for "void" return)
         } return_data;
     };
 
-    // For nodes that need multiple children (e.g., block statements, function bodies)
-    struct ASTNode** children;
-    int child_count;
+    // // For nodes that need multiple children (e.g., block statements, function bodies)
+    // struct ASTNode** children;
+    // int child_count;
 
 } ASTNode;
 
 
 // Function prototypes for AST operations
-ASTNode* createASTNode(NodeType, int);
-
+ASTNode* createASTNode(NodeType);
+void printAST(ASTNode* node, int indent);
+void freeAST(ASTNode* node);
 
 
 #endif // AST_H
