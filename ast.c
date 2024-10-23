@@ -15,25 +15,7 @@ ASTNode* createASTNode(NodeType type) {
     }
 
     node->type = type;
-    // node->child_count = childCount;
-
-    // Allocate memory for children only if childCount > 0
-    // if (childCount > 0) {
-    //     node->children = (ASTNode**)malloc(sizeof(ASTNode*) * childCount);
-    //     if (!node->children) {
-    //         fprintf(stderr, "Memory allocation error\n");
-    //         free(node);
-    //         exit(1);
-    //     }
-    //     // Initialize children to NULL
-    //     for (int i = 0; i < childCount; i++) {
-    //         node->children[i] = NULL;
-    //     }
-    // } else {
-    //     node->children = NULL; // No children if count is zero
-    // }
-
-
+  
     return node;
 }
 
@@ -124,10 +106,16 @@ void printAST(ASTNode* node, int indent, bool isLast) {
             printf("ID REF (name: %s)\n", node->id_ref_data.name);
             break;
 
+        case NODE_ASSGN:
+            printf("ASSGN\n");
+            printAST(node->assgn_data.right, indent+1, true);
+            printAST(node->assgn_data.left, indent+1, true);
+            break;
+
         case NODE_EXPR_BINARY:
             printf("EXPR (op: %s)\n", node->expr_data.op);
-            printAST(node->expr_data.left, indent + 1, false);
             printAST(node->expr_data.right, indent + 1, true);
+            printAST(node->expr_data.left, indent + 1, false);
             break;
 
         case NODE_EXPR_UNARY:
@@ -138,6 +126,84 @@ void printAST(ASTNode* node, int indent, bool isLast) {
         case NODE_EXPR_TERM:
             printf("EXPR (term)\n");
             printAST(node->expr_data.left, indent + 1, true);
+            break;
+
+        case NODE_IF:
+            printf("IF\n");
+            printAST(node->if_else_data.if_branch, indent+1, true);
+            printAST(node->if_else_data.condition, indent+1, true);
+            break;
+
+        case NODE_IF_ELSE:
+            printf("IF ELSE\n");
+            printAST(node->if_else_data.else_branch, indent+1, true);
+            printAST(node->if_else_data.if_branch, indent+1, true);
+            printAST(node->if_else_data.condition, indent+1, true);
+            break;
+        
+        case NODE_IF_COND:
+            printf("IF COND\n");
+            printAST(node->if_cond_data.cond, indent+1, true);
+            break;
+
+        case NODE_IF_BRANCH:
+            printf("IF BRANCH\n");
+            printAST(node->if_else_branch.branch, indent+1, true);
+            break;
+
+        case NODE_ELSE_BRANCH:
+            printf("ELSE BRANCH\n");
+            printAST(node->if_else_branch.branch, indent+1, true);
+            break;
+
+        case NODE_WHILE:
+            printf("WHILE\n");
+            printAST(node->while_data.while_body, indent+1, true);
+            printAST(node->while_data.condition, indent+1, true);
+            break;
+
+        case NODE_WHILE_COND:   
+            printf("WHILE COND\n");
+            printAST(node->while_cond_data.cond, indent+1, true);
+            break;
+
+        case NODE_WHILE_BODY:   
+            printf("WHILE BODY\n");
+            printAST(node->while_body_data.body, indent+1, true);
+            break;
+
+        case NODE_FOR:
+            printf("FOR\n");
+            printAST(node->for_data.body, indent+1, true);
+            printAST(node->for_data.updation, indent+1, true);
+            printAST(node->for_data.condition, indent+1, true);
+            printAST(node->for_data.init, indent+1, true);
+            break;
+
+        case NODE_FOR_INIT:
+            printf("FOR_INIT\n");
+            printAST(node->for_init_data.init, indent+1, true);
+            break;
+
+        case NODE_FOR_COND:
+            printf("FOR_COND\n");
+            printAST(node->for_cond_data.cond, indent+1, true); 
+            break;
+
+        case NODE_FOR_UPDATION:
+            printf("FOR_UPDATION\n");
+            printAST(node->for_updation_data.updation, indent+1, true); 
+            break;
+
+        case NODE_FOR_BODY:
+            printf("FOR_BODY\n");
+            printAST(node->for_body_data.body, indent+1, true); 
+            break; 
+
+        case NODE_EXPR_COMMA_LIST:
+            printf("EXPR COMMA LIST\n");
+            printAST(node->expr_comma_list_data.expr_comma_list_item, indent+1, true);
+            printAST(node->expr_comma_list_data.expr_comma_list, indent+1, true);
             break;
 
         default:

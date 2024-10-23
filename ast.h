@@ -14,10 +14,20 @@ typedef enum NodeType {
     // NODE_COND_STMT,     // Conditional statement (if-else)
     NODE_IF,
     NODE_IF_ELSE,
+    NODE_IF_COND,
+    NODE_IF_BRANCH,
+    NODE_ELSE_BRANCH,
     NODE_BLOCK_STMT,    // Block statement (enclosed in {})
     NODE_LOOP_STMT,     // Loop statements (while, for)
     NODE_FOR,
+    NODE_FOR_INIT,
+    NODE_FOR_COND,
+    NODE_FOR_UPDATION,
+    NODE_FOR_BODY,
+    NODE_EXPR_COMMA_LIST,
     NODE_WHILE,
+    NODE_WHILE_COND,
+    NODE_WHILE_BODY,
     NODE_FUNC_DECL,     // Function declaration
     NODE_FUNC_CALL,     // Function call
     NODE_VAR_LIST,      // Variable declaration
@@ -105,19 +115,58 @@ typedef struct ASTNode {
             struct ASTNode* else_branch;  // Code to execute if condition is false (can be NULL)
         } if_else_data;
 
+        struct {
+            struct ASTNode* cond;
+        } if_cond_data;
+
+        struct {
+            struct ASTNode* branch;
+        } if_else_branch;
+
         // For loop node data
         struct {
             struct ASTNode* init;         // Initialization statement
             struct ASTNode* condition;    // Loop condition
-            struct ASTNode* increment;    // Increment statement
+            struct ASTNode* updation;    // Increment statement
             struct ASTNode* body;         // The body of the for loop
         } for_data;
+
+        struct{
+            struct ASTNode* init;
+        } for_init_data;
+
+        struct{
+            struct ASTNode* cond;
+        } for_cond_data;
+
+        struct{
+            struct ASTNode* updation;
+        } for_updation_data;
+
+        struct {
+            struct ASTNode* body;
+        } for_body_data;
+
+        // Expr Comma List
+
+        struct {
+            struct ASTNode* expr_comma_list;
+            struct ASTNode* expr_comma_list_item;
+        } expr_comma_list_data;
         
         // While loop node data
         struct {
             struct ASTNode* condition;    // The condition expression
-            struct ASTNode* while_branch; // The body of the while loop
+            struct ASTNode* while_body; // The body of the while loop
         } while_data;
+
+        struct {
+            struct ASTNode* cond;
+        } while_cond_data;
+
+        struct {
+            struct ASTNode* body;
+        } while_body_data;
 
         // Declarations
 

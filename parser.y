@@ -32,6 +32,12 @@ void setVarListType(ASTNode* typeNode, ASTNode* var_list);
 ASTNode* createVarNode(const char* id);
 ASTNode* createVarAssgnNode(const char* id, ASTNode* value);
 ASTNode* createVarListNode(ASTNode* var_list, ASTNode* var);
+ASTNode* createAssgnNode(const char* id, ASTNode* value);
+ASTNode* createIfElseNode(ASTNode* cond, ASTNode* if_branch, ASTNode* else_branch);
+ASTNode* createIfNode(ASTNode* cond, ASTNode* if_branch);
+ASTNode* createWhileNode(ASTNode* cond, ASTNode* body);
+ASTNode* createForNode(ASTNode* init, ASTNode* cond, ASTNode* updation, ASTNode* body);
+ASTNode* createCommaExprList(ASTNode* expr_list, ASTNode* expr_list_item);
 %}
 
 
@@ -106,8 +112,8 @@ assgn_stmt:
     assgn_expr ';'      { $$ = $1; }
     ;
 assgn_expr:
-    ID ASSIGN expr 
-    | ID ASSIGN STR_LITERAL 
+    ID ASSIGN expr              { $$ = createAssgnNode($1, $3); } 
+    | ID ASSIGN STR_LITERAL     { $$ = createAssgnNode($1, createStrLiteralNode($3)); }
     ;
 
 // Block statement
@@ -117,33 +123,37 @@ block_stmt:
 
 // Conditional statement
 cond_stmt:
-    IF '(' expr ')' stmt 
-    | IF '(' expr ')' stmt ELSE stmt 
+    IF '(' expr ')' stmt                { $$ = createIfNode($3, $5); }
+    | IF '(' expr ')' stmt ELSE stmt    { $$ = createIfElseNode($3, $5, $7); }
     ;
 
 // Loop statements
 loop_stmt:
-    WHILE '(' expr ')' stmt 
-    | FOR '(' for_init ';' for_expr ';' for_expr ')' stmt 
+    WHILE '(' expr ')' stmt             { $$ = createWhileNode($3, $5); } 
+    | FOR '(' for_init ';' for_expr ';' for_expr ')' stmt {
+        $$ = createForNode($3, $5, $7, $9);
+    }
     ; 
 
 for_init:
     decl            { $$ = $1; }
     | expr_list     { $$ = $1; }
-    |               
+    |               { $$ = NULL; }
     ;
 
 // Expression list for for loop
 expr_list:
-    expr_list ',' expr_list_item  
-    | expr_list_item              { $$ = $1; }
+    expr_list ',' expr_list_item  { $$ = createCommaExprList($1, $3); }
+    | expr_list_item              { $$ = createCommaExprList(NULL, $1); }
     ;
 expr_list_item:
-    assgn_expr | expr ;
+    assgn_expr      { $$ = $1; }                   
+    | expr          { $$ = $1; }
+    ;
 
 for_expr:
-    expr            { $$ = $1; }
-    |              
+    expr_list       { $$ = $1; }
+    |               { $$ = NULL; }             
     ;
 
 
@@ -311,6 +321,9 @@ ASTNode* createReturnNode(ASTNode* return_value){
     return node;
 }
 
+
+// EXPRESSIONS
+
 ASTNode* createBinaryExpNode(ASTNode* left, ASTNode* right, const char* op) {
     ASTNode* node = createASTNode(NODE_EXPR_BINARY);
     node->expr_data.left = left;
@@ -335,6 +348,10 @@ ASTNode* createTermExpNode(ASTNode* term){
     return node;
 }
 
+
+
+// IDENTIFIERS
+
 ASTNode* createIdentifierNode(const char* id) {
     ASTNode* node = createASTNode(NODE_ID);
     symbol* sym = createSymbol(id, NULL, 0, -1, 0, node);
@@ -351,6 +368,10 @@ ASTNode* createIdRefNode(const char* id){
     return node;
 }
 
+
+
+// LITERALS
+
 ASTNode* createIntLiteralNode(int i){
     ASTNode* node = createASTNode(NODE_INT_LITERAL);
     node->literal_data.value.int_value = i;
@@ -366,6 +387,10 @@ ASTNode* createStrLiteralNode(const char* s){
     node->literal_data.value.str_value = s;
     return node;
 }
+
+
+
+// DECLARATIONS, VARIABLES and ASSIGNMENTS
 
 ASTNode* createDeclNode(ASTNode* type_spec, ASTNode* var_list){
     ASTNode* node = createASTNode(NODE_DECL);
@@ -403,6 +428,14 @@ ASTNode* createVarAssgnNode(const char* id, ASTNode* value){
    return node;
 }
 
+ASTNode* createAssgnNode(const char* id, ASTNode* value){
+    ASTNode* node = createASTNode(NODE_ASSGN);
+    node->assgn_data.left = createIdRefNode(id);
+    node->assgn_data.right = value;
+
+    return node;
+}
+
 void setVarListType(ASTNode* typeNode, ASTNode* var_list) {
     if (var_list == NULL) return;
 
@@ -423,4 +456,98 @@ void setVarListType(ASTNode* typeNode, ASTNode* var_list) {
 
     }
 }
+
+
+
+// IF ELSE 
+
+ASTNode* createIfNode(ASTNode* cond, ASTNode* if_branch) {
+    ASTNode* node = createASTNode(NODE_IF);
+
+    // Implicit creation of cond & branch nodes
+
+    ASTNode* node_cond = createASTNode(NODE_IF_COND);
+    node_cond->if_cond_data.cond = cond;
+    node->if_else_data.condition = node_cond;
+
+    ASTNode* node_if_branch = createASTNode(NODE_IF_BRANCH);
+    node_if_branch->if_else_branch.branch = if_branch;
+    node->if_else_data.if_branch = node_if_branch;
+
+    node->if_else_data.else_branch = NULL;
+    return node;
+}
+
+ASTNode* createIfElseNode(ASTNode* cond, ASTNode* if_branch, ASTNode* else_branch){
+    ASTNode* node = createASTNode(NODE_IF_ELSE);
+
+    // Implicit creation of cond & branch nodes
+
+    ASTNode* node_cond = createASTNode(NODE_IF_COND);
+    node_cond->if_cond_data.cond = cond;
+    node->if_else_data.condition = node_cond;
+
+    ASTNode* node_if_branch = createASTNode(NODE_IF_BRANCH);
+    node_if_branch->if_else_branch.branch = if_branch;
+    node->if_else_data.if_branch = node_if_branch;
+   
+    ASTNode* node_else_branch = createASTNode(NODE_ELSE_BRANCH);
+    node_else_branch->if_else_branch.branch = else_branch;
+    node->if_else_data.else_branch = node_else_branch;
+    
+    return node;
+}
+
+ASTNode* createWhileNode(ASTNode* cond, ASTNode* body){
+    ASTNode* node = createASTNode(NODE_WHILE);
+
+    // Implict creation of cond and branch nodes
+    ASTNode* node_while_cond = createASTNode(NODE_WHILE_COND);
+    node_while_cond->while_cond_data.cond = cond;
+
+    ASTNode* node_while_body = createASTNode(NODE_WHILE_BODY);
+    node_while_body->while_body_data.body = body;
+
+    node->while_data.condition = node_while_cond;
+    node->while_data.while_body = node_while_body;
+
+    return node;
+
+}
+
+ASTNode* createForNode(ASTNode* init, ASTNode* cond, ASTNode* updation, ASTNode* body){
+    ASTNode* node = createASTNode(NODE_FOR);
+    
+
+    // Implicit creation of init, cond and updation nodes;
+    ASTNode* node_for_init = createASTNode(NODE_FOR_INIT);
+    node_for_init->for_init_data.init = init;
+
+    ASTNode* node_for_cond = createASTNode(NODE_FOR_COND); 
+    node_for_cond->for_cond_data.cond = cond;
+
+    ASTNode* node_for_upd = createASTNode(NODE_FOR_UPDATION);
+    node_for_upd->for_updation_data.updation = updation;
+
+    ASTNode* node_for_body = createASTNode(NODE_FOR_BODY);
+    node_for_body->for_body_data.body = body;
+
+    node->for_data.init = node_for_init;
+    node->for_data.condition = node_for_cond;
+    node->for_data.updation = node_for_upd;
+    node->for_data.body = node_for_body;
+
+    return node;
+}
+
+
+ASTNode* createCommaExprList(ASTNode* expr_list, ASTNode* expr_list_item){
+    ASTNode* node = createASTNode(NODE_EXPR_COMMA_LIST);
+
+    node->expr_comma_list_data.expr_comma_list = expr_list;
+    node->expr_comma_list_data.expr_comma_list_item = expr_list_item;
+
+    return node;
+}
+
 
