@@ -42,7 +42,9 @@ ASTNode* createFucnIdNode(const char* id, ASTNode* type_spec);
 ASTNode* createFuncDeclNode(ASTNode* type_spec, const char* id, ASTNode* params, ASTNode* body);
 ASTNode* createParamsListNode(ASTNode* parmas_list, ASTNode* param);
 ASTNode* createParamNode(ASTNode* type_spec, const char* id);
-
+ASTNode* createFucnCallNode(const char* id, ASTNode* arg_list);
+ASTNode* createArgListNode(ASTNode* arg_list, ASTNode* arg);
+ASTNode* createArgNode(ASTNode* arg);
 %}
 
 
@@ -205,18 +207,14 @@ func_decl:
 
 // Function calls
 func_call:
-    ID '(' arg_list ')' 
+    ID '(' arg_list ')'         { $$ = createFucnCallNode($1, $3); }
     ;
 
 // Argument list for function calls
 arg_list:
-    expr ',' arg_list 
-    | expr { 
-        $$ = $1; 
-    }
-    | { 
-        $$ = NULL; 
-    }
+    arg_list ',' expr           { $$ = createArgListNode($1, $3); } 
+    | expr                      { $$ = createArgListNode(NULL, $1); }
+    |                           { $$ = NULL; }
     ;
 
 // Parameter list for function declarations
@@ -579,7 +577,7 @@ ASTNode* createFuncDeclNode(ASTNode* type_spec, const char* id, ASTNode* params,
     node->func_decl_data.id = id_node;
     node->func_decl_data.params = params;
     node->func_decl_data.param_count = countParams(params);
-    printf("Params count: %d\n", node->func_decl_data.param_count);
+    /* printf("Params count: %d\n", node->func_decl_data.param_count); */
 
     // Implicit creation of Function body node
     ASTNode* body_node = createASTNode(NODE_FUNC_BODY);
@@ -590,8 +588,6 @@ ASTNode* createFuncDeclNode(ASTNode* type_spec, const char* id, ASTNode* params,
 
     return node;
 }
-
-
 
 ASTNode* createParamsListNode(ASTNode* params_list, ASTNode* param){
     ASTNode* node = createASTNode(NODE_PARAM_LIST);
@@ -607,5 +603,44 @@ ASTNode* createParamNode(ASTNode* type_spec, const char* id){
     char* type = (char*)type_spec->type_data.type;
     node->param_data.type_spec = type_spec;
     node->param_data.id = createIdentifierNode(id, type);
+    return node;
+}
+
+int countArgs(ASTNode* arg_list) {
+    if (arg_list == NULL) return 0;
+
+    // Check if the node is a parameter list node
+    if (arg_list->type == NODE_ARG_LIST) {
+        return countParams(arg_list->arg_list_data.arg_list) + countParams(arg_list->arg_list_data.arg);
+    }
+
+    return 1;
+}
+
+ASTNode* createFucnCallNode(const char* id, ASTNode* arg_list){
+    ASTNode* node = createASTNode(NODE_FUNC_CALL);
+
+
+    node->func_call_data.id = createIdRefNode(id);
+    node->func_call_data.arg_list = arg_list;
+    node->func_call_data.arg_count = countArgs(arg_list);
+
+    return node;
+
+}
+
+ASTNode* createArgListNode(ASTNode* arg_list, ASTNode* arg){
+    ASTNode* node = createASTNode(NODE_ARG_LIST);
+
+    node->arg_list_data.arg_list = arg_list;
+    node->arg_list_data.arg = createArgNode(arg);
+
+    return node;
+}
+
+ASTNode* createArgNode(ASTNode* arg){
+    ASTNode* node = createASTNode(NODE_ARG);
+
+    node->arg_data.arg = arg;
     return node;
 }

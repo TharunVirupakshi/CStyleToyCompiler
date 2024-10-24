@@ -23,13 +23,13 @@
 // while(c == 2);
 
 
-// void foo();
-// int foo(int a);
+void foo();
+int foo1(int a);
 // void foo(int a, int b, int c){
 
 // };
 
-// int foo2(int a) return a;
+int foo2(int a) return a + foo1(2);
 
 // int foo3(int a){
 //     int b = 2 + a;
@@ -37,3 +37,8 @@
 //     while(c == 2); 
 //     return b;
 // }
+
+foo();
+foo1(1);
+foo2(b);
+

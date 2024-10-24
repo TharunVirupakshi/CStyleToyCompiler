@@ -233,6 +233,25 @@ void printAST(ASTNode* node, int indent, bool isLast) {
             printAST(node->param_data.id, indent+1, true);
             break;
 
+        case NODE_FUNC_CALL:
+            printf("FUNC CALL (name: %s, arg_count: %d)\n", 
+            node->func_call_data.id->id_ref_data.name,
+            node->func_call_data.arg_count);
+            printAST(node->func_call_data.arg_list, indent+1, false);
+            printAST(node->func_call_data.id, indent+1, true);
+            break;
+
+        case NODE_ARG_LIST:
+            printf("ARG_LIST\n");
+            printAST(node->arg_list_data.arg, indent+1, false);
+            printAST(node->arg_list_data.arg_list, indent+1, true);
+            break;
+
+        case NODE_ARG:
+            printf("ARG\n");
+            printAST(node->arg_data.arg, indent+1, true);
+            break;
+
         default:
             printf("Unknown Node Type\n");
     }

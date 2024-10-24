@@ -31,6 +31,8 @@ typedef enum NodeType {
     NODE_FUNC_DECL,     // Function declaration
     NODE_FUNC_BODY,
     NODE_FUNC_CALL,     // Function call
+    NODE_ARG_LIST,      // Argument list for function calls
+    NODE_ARG,
     NODE_VAR_LIST,      // Variable declaration
     NODE_VAR,           // Variable (identifier)
     NODE_TYPE_SPEC,     // Type specification (int, char, etc.)
@@ -44,7 +46,6 @@ typedef enum NodeType {
     NODE_STR_LITERAL,   // String literal
     NODE_ID,            // Identifier (variable names)
     NODE_ID_REF,        // Identifier Reference node 
-    NODE_ARG_LIST,      // Argument list for function calls
     NODE_ARRAY_DECL,
     NODE_PARAM_LIST,    // Parameter list for function declarations
     NODE_PARAM,
@@ -94,10 +95,19 @@ typedef struct ASTNode {
 
         // Function call node data
         struct {
-            symbol* sym;                   // Function symbol (name)
-            struct ASTNode** args;    // Array of arguments passed to the function
+            ASTNode* id;
+            ASTNode* arg_list;
             int arg_count;                 // Number of arguments
         } func_call_data;
+
+        struct {
+            ASTNode* arg_list;
+            ASTNode* arg;
+        } arg_list_data;
+
+        struct {
+            ASTNode* arg;
+        } arg_data;
 
         // Assignment node data
         struct {
