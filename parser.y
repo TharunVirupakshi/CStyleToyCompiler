@@ -21,7 +21,7 @@ ASTNode* createReturnNode(ASTNode* return_value);
 ASTNode* createBinaryExpNode(ASTNode* left, ASTNode* right, const char* op);
 ASTNode* createUnaryExpNode(ASTNode* left, const char* op);
 ASTNode* createTermExpNode(ASTNode* term);
-ASTNode* createIdentifierNode(const char* id);
+ASTNode* createIdentifierNode(const char* id, char* type);
 ASTNode* createIdRefNode(const char* id);
 ASTNode* createIntLiteralNode(int i);
 ASTNode* createCharLiteralNode(char c);
@@ -38,6 +38,11 @@ ASTNode* createIfNode(ASTNode* cond, ASTNode* if_branch);
 ASTNode* createWhileNode(ASTNode* cond, ASTNode* body);
 ASTNode* createForNode(ASTNode* init, ASTNode* cond, ASTNode* updation, ASTNode* body);
 ASTNode* createCommaExprList(ASTNode* expr_list, ASTNode* expr_list_item);
+ASTNode* createFucnIdNode(const char* id, ASTNode* type_spec);
+ASTNode* createFuncDeclNode(ASTNode* type_spec, const char* id, ASTNode* params, ASTNode* body);
+ASTNode* createParamsListNode(ASTNode* parmas_list, ASTNode* param);
+ASTNode* createParamNode(ASTNode* type_spec, const char* id);
+
 %}
 
 
@@ -194,8 +199,8 @@ var:
 
 // Function declarations
 func_decl:
-    type_spec ID '(' params ')' stmt
-    | VOID ID '(' params ')' stmt 
+    type_spec ID '(' params ')' stmt    { $$ = createFuncDeclNode($1, $2, $4, $6); }
+    | VOID ID '(' params ')' stmt       { $$ = createFuncDeclNode(createTypeNode("void"), $2, $4, $6); } 
     ;
 
 // Function calls
@@ -216,18 +221,14 @@ arg_list:
 
 // Parameter list for function declarations
 params:
-    param ',' params 
-    | param { 
-        $$ = $1; 
-    }
-    | { 
-        $$ = NULL; 
-    }
+    params ',' param    { $$ = createParamsListNode($1, $3); }
+    | param             { $$ = createParamsListNode(NULL, $1); }
+    |                   { $$ = NULL; }
     ;
 
 // Parameter definition
 param:
-    type_spec ID 
+    type_spec ID        { $$ = createParamNode($1, $2); } 
     ;
 
 
@@ -352,19 +353,28 @@ ASTNode* createTermExpNode(ASTNode* term){
 
 // IDENTIFIERS
 
-ASTNode* createIdentifierNode(const char* id) {
+ASTNode* createIdentifierNode(const char* id, char* type) {
     ASTNode* node = createASTNode(NODE_ID);
-    symbol* sym = createSymbol(id, NULL, 0, -1, 0, node);
+    symbol* sym = createSymbol(id, type, 0, -1, 0, node);
     node->id_data.sym = sym;
     addSymbol(symTable, sym);
     return node;
+}
+
+ASTNode* createFucnIdNode(const char* id, ASTNode* type_spec){
+    ASTNode* node = createASTNode(NODE_ID);
+    char* type = (char*)type_spec->type_data.type;
+
+    symbol* sym = createSymbol(id, type, 0, -1, 1, node);
+    node->id_data.sym = sym;
+    addSymbol(symTable, sym);
+    return node;  
 }
 
 ASTNode* createIdRefNode(const char* id){
     ASTNode* node = createASTNode(NODE_ID_REF);
     node->id_ref_data.name = id;
     node->id_ref_data.ref = NULL;
-
     return node;
 }
 
@@ -416,14 +426,14 @@ ASTNode* createVarListNode(ASTNode* var_list, ASTNode* var){
 
 ASTNode* createVarNode(const char* id) {
     ASTNode* node = createASTNode(NODE_VAR);
-    node->var_data.id = createIdentifierNode(id);  // Simple variable
+    node->var_data.id = createIdentifierNode(id, NULL);  // Simple variable
     node->var_data.value = NULL;
     return node;
 }
 
 ASTNode* createVarAssgnNode(const char* id, ASTNode* value){
    ASTNode* node = createASTNode(NODE_VAR);
-   node->var_data.id = createIdentifierNode(id);
+   node->var_data.id = createIdentifierNode(id, NULL);
    node->var_data.value = value;
    return node;
 }
@@ -550,4 +560,52 @@ ASTNode* createCommaExprList(ASTNode* expr_list, ASTNode* expr_list_item){
     return node;
 }
 
+int countParams(ASTNode* params) {
+    if (params == NULL) return 0;
 
+    // Check if the node is a parameter list node
+    if (params->type == NODE_PARAM_LIST) {
+        return countParams(params->param_list_data.param_list) + countParams(params->param_list_data.param);
+    }
+
+    return 1;
+}
+
+
+ASTNode* createFuncDeclNode(ASTNode* type_spec, const char* id, ASTNode* params, ASTNode* body){
+    ASTNode* node = createASTNode(NODE_FUNC_DECL);
+    ASTNode* id_node = createFucnIdNode(id, type_spec);
+
+    node->func_decl_data.id = id_node;
+    node->func_decl_data.params = params;
+    node->func_decl_data.param_count = countParams(params);
+    printf("Params count: %d\n", node->func_decl_data.param_count);
+
+    // Implicit creation of Function body node
+    ASTNode* body_node = createASTNode(NODE_FUNC_BODY);
+    body_node->func_body_data.body = body;
+
+    node->func_decl_data.body = body_node;
+
+
+    return node;
+}
+
+
+
+ASTNode* createParamsListNode(ASTNode* params_list, ASTNode* param){
+    ASTNode* node = createASTNode(NODE_PARAM_LIST);
+
+    node->param_list_data.param_list = params_list;
+    node->param_list_data.param = param;
+
+    return node;
+}
+
+ASTNode* createParamNode(ASTNode* type_spec, const char* id){
+    ASTNode* node = createASTNode(NODE_PARAM);
+    char* type = (char*)type_spec->type_data.type;
+    node->param_data.type_spec = type_spec;
+    node->param_data.id = createIdentifierNode(id, type);
+    return node;
+}

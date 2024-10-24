@@ -206,6 +206,33 @@ void printAST(ASTNode* node, int indent, bool isLast) {
             printAST(node->expr_comma_list_data.expr_comma_list, indent+1, true);
             break;
 
+        case NODE_FUNC_DECL:
+            printf("FUNC DECL (type: %s, name: %s, params: %d)\n",
+            node->func_decl_data.id->id_data.sym->type, 
+            node->func_decl_data.id->id_data.sym->name,
+            node->func_decl_data.param_count);
+
+            printAST(node->func_decl_data.body, indent+1, true);
+            printAST(node->func_decl_data.params, indent+1, true);
+            printAST(node->func_decl_data.id, indent+1, true);
+            break;
+
+        case NODE_FUNC_BODY:
+            printf("FUNC BODY\n");
+            printAST(node->func_body_data.body, indent+1, true);
+            break;
+
+        case NODE_PARAM_LIST:
+            printf("PARAM LIST\n");
+            printAST(node->param_list_data.param, indent+1, true);
+            printAST(node->param_list_data.param_list, indent+1, true);
+            break;
+
+        case NODE_PARAM:
+            printf("PARAM (type: %s)\n", node->param_data.type_spec->type_data.type);
+            printAST(node->param_data.id, indent+1, true);
+            break;
+
         default:
             printf("Unknown Node Type\n");
     }

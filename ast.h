@@ -29,6 +29,7 @@ typedef enum NodeType {
     NODE_WHILE_COND,
     NODE_WHILE_BODY,
     NODE_FUNC_DECL,     // Function declaration
+    NODE_FUNC_BODY,
     NODE_FUNC_CALL,     // Function call
     NODE_VAR_LIST,      // Variable declaration
     NODE_VAR,           // Variable (identifier)
@@ -70,11 +71,26 @@ typedef struct ASTNode {
 
         // Function decl node data
         struct {
-            symbol* sym;                    // Function symbol (name)
-            struct ASTNode** params;        // List of params (can be NULL if none)
-            struct ASTNode* body;           // Function body (block of statements)
-            struct ASTNode* return_type;    // Return type (optional, can be NULL)
+            struct ASTNode* id;           // Function identifier
+            struct ASTNode* params;       // Root of the parameter list binary tree
+            struct ASTNode* body;         // Function body (block of statements)
+            int param_count;              // Number of parameters
         } func_decl_data;
+        
+        struct {
+            struct ASTNode* body;
+        } func_body_data;
+
+        struct {
+            struct ASTNode* param_list;
+            struct ASTNode* param;
+        } param_list_data;
+
+        struct {
+            struct ASTNode* type_spec;
+            struct ASTNode* id;
+        } param_data;
+
 
         // Function call node data
         struct {
