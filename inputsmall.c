@@ -22,14 +22,25 @@
 
 // while(c == 2);
 
+int a;
+int foo(int a){
 
-void foo();
-int foo1(int a);
+    int foo1(int a){
+        int foo1(int a){
+            int b;
+        };
+    };
+
+};
+
+
+
+// int foo1(int a);
 // void foo(int a, int b, int c){
 
 // };
 
-int foo2(int a) return a + foo1(2);
+// int foo2(int a) return a + foo1(2);
 
 // int foo3(int a){
 //     int b = 2 + a;
@@ -38,7 +49,10 @@ int foo2(int a) return a + foo1(2);
 //     return b;
 // }
 
-foo();
-foo1(1);
-foo2(b);
+// foo();
+// foo1(1);
+// foo2(b);
 
+// for(int a=1; a < 10; a++, b++){
+//     b = 1;
+// }

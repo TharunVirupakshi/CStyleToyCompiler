@@ -3,6 +3,17 @@
 
 #include "symTable.h"
 #include <stdbool.h>
+#include <stdio.h>
+
+#include <errno.h>
+
+#ifdef _WIN32
+#include <direct.h>
+#define mkdir _mkdir
+#else
+#include <sys/stat.h>
+#endif
+
 typedef enum NodeType {
     NODE_PROGRAM,       // Represents the entire program
     NODE_STMT_LIST,     // List of statements
@@ -65,6 +76,7 @@ typedef struct ASTNode {
 
         struct {
           struct ASTNode* stmt_list;
+          SymbolTable* scope;
         } program_data;
 
 
@@ -262,6 +274,5 @@ typedef struct ASTNode {
 ASTNode* createASTNode(NodeType);
 void printAST(ASTNode* node, int indent, bool isLast);
 void freeAST(ASTNode* node);
-
-
+void exportASTAsJSON(const char *folderPath, ASTNode *root);
 #endif // AST_H

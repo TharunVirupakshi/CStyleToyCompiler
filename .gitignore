@@ -2,3 +2,5 @@ y.tab.c
 y.tab.h
 lex.yy.c
 a.out
+.vscode
+AST_Vis

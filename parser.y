@@ -1,9 +1,16 @@
 %{
 #include "symTable.h"
 #include "ast.h"
-#include<stdio.h>
-#include<stdlib.h>
-#include<string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <errno.h>
+
+#define GLOBAL "global"
+#define FUNCTION "function"
+#define BLOCK "block"  
+
 // Declare extern to access the variables defined in lexer
 extern int cur_line;
 extern int cur_char;
@@ -11,7 +18,13 @@ extern int cur_char;
 void yyerror(const char* s);
 int yylex(void);
 
+// Global Scope
 SymbolTable* symTable;
+// Current Scope
+SymbolTable* currentScope;
+
+const char *folderPathForAST_Vis = "AST_Vis"; 
+
 
 ASTNode* root;
 ASTNode* createProgramNode(ASTNode* stmt_list);
@@ -39,10 +52,10 @@ ASTNode* createWhileNode(ASTNode* cond, ASTNode* body);
 ASTNode* createForNode(ASTNode* init, ASTNode* cond, ASTNode* updation, ASTNode* body);
 ASTNode* createCommaExprList(ASTNode* expr_list, ASTNode* expr_list_item);
 ASTNode* createFucnIdNode(const char* id, ASTNode* type_spec);
-ASTNode* createFuncDeclNode(ASTNode* type_spec, const char* id, ASTNode* params, ASTNode* body);
+ASTNode* createFuncDeclNode(ASTNode* type_spec, ASTNode* id, ASTNode* params, ASTNode* body);
 ASTNode* createParamsListNode(ASTNode* parmas_list, ASTNode* param);
 ASTNode* createParamNode(ASTNode* type_spec, const char* id);
-ASTNode* createFucnCallNode(const char* id, ASTNode* arg_list);
+ASTNode* createFuncCallNode(const char* id, ASTNode* arg_list);
 ASTNode* createArgListNode(ASTNode* arg_list, ASTNode* arg);
 ASTNode* createArgNode(ASTNode* arg);
 %}
@@ -53,6 +66,11 @@ ASTNode* createArgNode(ASTNode* arg);
     int ival;
     const char* strval;     
     ASTNode* node;
+
+    struct {
+        ASTNode* type;
+        ASTNode* id;
+    } func_header_data;
 }
 
 %token <strval> ID STR_LITERAL
@@ -73,12 +91,15 @@ ASTNode* createArgNode(ASTNode* arg);
 
 %type <node> program type_spec expr expr_list stmt block_stmt decl_stmt decl cond_stmt loop_stmt 
 %type <node> assgn_expr func_call func_call_stmt func_decl stmt_list ret_stmt assgn_stmt for_init for_expr
-%type <node> var_list var param params arg_list expr_stmt expr_list_item
+%type <node> var_list var param params arg_list expr_stmt expr_list_item 
+%type <func_header_data> func_header
 %%
 
 // Program structure
 program: 
-    stmt_list  { $$ = createProgramNode($1); root = $$; }
+    stmt_list  { 
+        $$ = createProgramNode($1); root = $$; 
+    }
     ;
 
 // List of statements
@@ -201,13 +222,28 @@ var:
 
 // Function declarations
 func_decl:
-    type_spec ID '(' params ')' stmt    { $$ = createFuncDeclNode($1, $2, $4, $6); }
-    | VOID ID '(' params ')' stmt       { $$ = createFuncDeclNode(createTypeNode("void"), $2, $4, $6); } 
+    func_header params ')' stmt    { 
+        $$ = createFuncDeclNode($1.type, $1.id, $2, $4);
+        currentScope = exitScope(currentScope);
+    }
+    ;
+
+func_header:
+    type_spec ID '(' {
+        $$.type = $1;
+        $$.id = createFucnIdNode($2, $1);
+        currentScope = enterScope((char*)$2, currentScope);
+    }
+    | VOID ID {
+        $$.type = createTypeNode("void");
+        $$.id = createFucnIdNode($2, $$.type);
+        currentScope = enterScope((char*)$2, currentScope); 
+    }
     ;
 
 // Function calls
 func_call:
-    ID '(' arg_list ')'         { $$ = createFucnCallNode($1, $3); }
+    ID '(' arg_list ')'         { $$ = createFuncCallNode($1, $3); }
     ;
 
 // Argument list for function calls
@@ -272,16 +308,43 @@ void yyerror(const char* s) {
     exit(0);
 }
 
-int main(){
-    symTable = createSymbolTable(100);
+int main(int argc, char *argv[]){
+    int exportAST_flag = 0;  // Flag to determine whether to export AST or not
+    int printAST_flag = 0;
+    int printSymTable_flag = 0;
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--export-ast") == 0) {
+            exportAST_flag = 1;
+        }
+        if (strcmp(argv[i], "--print-ast") == 0) {
+            printAST_flag = 1;
+        }
+        if (strcmp(argv[i], "--print-sym-table") == 0) {
+            printSymTable_flag = 1;
+        }
+    }
+
+  
+    symTable = createSymbolTable("global", NULL, 100);
+    currentScope = symTable; // Initial current scope
     
     yyparse();
 
     printf("\nPARSING SUCCESS\n");
     printf("\n\n");
-    printAST(root, 0, false);
-    printf("\n\n");
-    printSymbolTable(symTable);
+
+    if(printAST_flag){
+        printAST(root, 0, false);
+        printf("\n\n");
+    } 
+
+    // If --export-ast option is provided, export the AST as JSON
+    if (exportAST_flag) {
+        exportASTAsJSON(folderPathForAST_Vis, root);
+    }
+
+    if(printSymTable_flag)  printSymbolTable(symTable);
+
     freeAST(root);
     freeSymbolTable(symTable);
 }
@@ -292,17 +355,17 @@ int main(){
 ASTNode* createProgramNode(ASTNode* stmt_list) {
     // Create a node for the root of the program
     ASTNode* programNode = createASTNode(NODE_PROGRAM);
+
     programNode->program_data.stmt_list = stmt_list;
-    // Attach the statement list as the child
-    /* programNode->children[0] = stmt_list; */
+    programNode->program_data.scope = symTable;
     
     return programNode;
 }
 
-ASTNode* createStmtListNode(ASTNode* stmt, ASTNode* stmt_list) {
+ASTNode* createStmtListNode(ASTNode* stmt_list, ASTNode* stmt) {
     ASTNode* node = createASTNode(NODE_STMT_LIST);
-    node->stmt_list_data.stmt = stmt;
     node->stmt_list_data.stmt_list = stmt_list; // Pointer to the next statement or NULL
+    node->stmt_list_data.stmt = stmt;
     return node;
 }
 
@@ -353,9 +416,10 @@ ASTNode* createTermExpNode(ASTNode* term){
 
 ASTNode* createIdentifierNode(const char* id, char* type) {
     ASTNode* node = createASTNode(NODE_ID);
-    symbol* sym = createSymbol(id, type, 0, -1, 0, node);
+
+    symbol* sym = createSymbol(id, type, currentScope, -1, 0);
     node->id_data.sym = sym;
-    addSymbol(symTable, sym);
+    addSymbol(currentScope, sym);
     return node;
 }
 
@@ -363,9 +427,9 @@ ASTNode* createFucnIdNode(const char* id, ASTNode* type_spec){
     ASTNode* node = createASTNode(NODE_ID);
     char* type = (char*)type_spec->type_data.type;
 
-    symbol* sym = createSymbol(id, type, 0, -1, 1, node);
+    symbol* sym = createSymbol(id, type, currentScope, -1, 1);
     node->id_data.sym = sym;
-    addSymbol(symTable, sym);
+    addSymbol(currentScope, sym);
     return node;  
 }
 
@@ -570,11 +634,10 @@ int countParams(ASTNode* params) {
 }
 
 
-ASTNode* createFuncDeclNode(ASTNode* type_spec, const char* id, ASTNode* params, ASTNode* body){
+ASTNode* createFuncDeclNode(ASTNode* type_spec, ASTNode* id, ASTNode* params, ASTNode* body){
     ASTNode* node = createASTNode(NODE_FUNC_DECL);
-    ASTNode* id_node = createFucnIdNode(id, type_spec);
 
-    node->func_decl_data.id = id_node;
+    node->func_decl_data.id = id;
     node->func_decl_data.params = params;
     node->func_decl_data.param_count = countParams(params);
     /* printf("Params count: %d\n", node->func_decl_data.param_count); */
@@ -617,7 +680,7 @@ int countArgs(ASTNode* arg_list) {
     return 1;
 }
 
-ASTNode* createFucnCallNode(const char* id, ASTNode* arg_list){
+ASTNode* createFuncCallNode(const char* id, ASTNode* arg_list){
     ASTNode* node = createASTNode(NODE_FUNC_CALL);
 
 
