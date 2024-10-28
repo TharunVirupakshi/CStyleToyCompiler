@@ -113,7 +113,7 @@ void printSymbolTable(SymbolTable* table) {
     // Header for the current symbol table
     printf("Symbol Table: %s [%d] | ParentScope(%s [%d]) \n", table->scopeName, table->table_id, table->parent ? table->parent->scopeName : "NULL", table->parent ? table->parent->table_id : -1);
     printf("-----------------------------------------------------------------------------------\n");
-    printf("| %-20s | %-12s | %-15s | %-10s | %-10s |\n", "Name", "Type", "Scope", "Location", "Function?");
+    printf("| %-20s | %-12s | %-18s | %-10s | %-10s |\n", "Name", "Type", "Scope", "Location", "Function?");
     printf("-----------------------------------------------------------------------------------\n");
 
     // Print each symbol in the table
@@ -121,7 +121,7 @@ void printSymbolTable(SymbolTable* table) {
         symbol* sym = table->symbols[i];
         static char scopeInfo[64];
         snprintf(scopeInfo, sizeof(scopeInfo), "%s [%d]", sym->scope->scopeName, sym->scope->table_id);
-        printf("| %-20s | %-12s | %-15s | %-10d | %-10s |\n",
+        printf("| %-20s | %-12s | %-18s | %-10d | %-10s |\n",
                sym->name, 
                sym->type, 
                scopeInfo,

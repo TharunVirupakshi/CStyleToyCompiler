@@ -6,6 +6,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <errno.h>
+#include <stdbool.h>
 
 #define GLOBAL "global"
 #define FUNCTION "function"
@@ -24,7 +25,7 @@ SymbolTable* symTable;
 SymbolTable* currentScope;
 
 const char *folderPathForAST_Vis = "AST_Vis"; 
-
+int scopeDepth = 0;
 
 ASTNode* root;
 ASTNode* createProgramNode(ASTNode* stmt_list);
@@ -71,6 +72,11 @@ ASTNode* createArgNode(ASTNode* arg);
         ASTNode* type;
         ASTNode* id;
     } func_header_data;
+
+    struct {
+        ASTNode* else_body;
+    } cond_footer_data;
+
 }
 
 %token <strval> ID STR_LITERAL
@@ -91,8 +97,10 @@ ASTNode* createArgNode(ASTNode* arg);
 
 %type <node> program type_spec expr expr_list stmt block_stmt decl_stmt decl cond_stmt loop_stmt 
 %type <node> assgn_expr func_call func_call_stmt func_decl stmt_list ret_stmt assgn_stmt for_init for_expr
-%type <node> var_list var param params arg_list expr_stmt expr_list_item 
+%type <node> var_list var param params arg_list expr_stmt expr_list_item body block_stmt_without_scope
 %type <func_header_data> func_header
+%type <cond_footer_data> else_part
+
 %%
 
 // Program structure
@@ -122,6 +130,8 @@ stmt:
     | ';'               { $$ = NULL; }
     ;
 
+
+
 // Return statement
 ret_stmt:
     RETURN expr ';'     { $$ = createReturnNode($2); }   
@@ -146,20 +156,60 @@ assgn_expr:
 
 // Block statement
 block_stmt:
-    '{' stmt_list '}'   { $$ = createBlockStmtNode($2); } 
+    '{' {currentScope = enterScope("block", currentScope);} stmt_list '}'   { $$ = createBlockStmtNode($3); currentScope = exitScope(currentScope); } 
     ;
+block_stmt_without_scope: 
+    '{' stmt_list '}'   { $$ = createBlockStmtNode($2); }
+    ;
+
+/*
+    Generic body where the first block stmt will not have its own scope
+*/
+body:
+    block_stmt_without_scope    { $$ = $1; }
+    | decl_stmt                 { $$ = $1; }
+    | assgn_stmt                { $$ = $1; }
+    | expr_stmt                 { $$ = $1; }
+    | cond_stmt                 { $$ = $1; }         
+    | loop_stmt                 { $$ = $1; }
+    | ret_stmt                  { $$ = $1; }
+    | func_decl                 { $$ = $1; }
+    | func_call_stmt            { $$ = $1; }
+    | ';'                       { $$ = NULL; }
 
 // Conditional statement
 cond_stmt:
-    IF '(' expr ')' stmt                { $$ = createIfNode($3, $5); }
-    | IF '(' expr ')' stmt ELSE stmt    { $$ = createIfElseNode($3, $5, $7); }
+    IF '(' expr ')' {
+        currentScope = enterScope("block (if)", currentScope);
+    } body {
+        currentScope = exitScope(currentScope);
+    } else_part { 
+        $$ = createIfElseNode($3, $6, $8.else_body); 
+    } 
+
+else_part:
+    ELSE {
+        currentScope = enterScope("block (else)", currentScope);
+    } body { 
+        $$.else_body = $3; 
+        currentScope = exitScope(currentScope); 
+    }
+    |           { $$.else_body = NULL; }
     ;
+
+
 
 // Loop statements
 loop_stmt:
-    WHILE '(' expr ')' stmt             { $$ = createWhileNode($3, $5); } 
-    | FOR '(' for_init ';' for_expr ';' for_expr ')' stmt {
-        $$ = createForNode($3, $5, $7, $9);
+    WHILE '(' expr ')' {
+        currentScope = enterScope("block (while)", currentScope);
+    } body { 
+        $$ = createWhileNode($3, $6); 
+        currentScope = exitScope(currentScope); 
+    } 
+    | FOR '(' {currentScope = enterScope("block (for)", currentScope);} for_init ';' for_expr ';' for_expr ')' body {
+        $$ = createForNode($4, $6, $8, $10);
+        currentScope = exitScope(currentScope); 
     }
     ; 
 
@@ -222,9 +272,9 @@ var:
 
 // Function declarations
 func_decl:
-    func_header params ')' stmt    { 
-        $$ = createFuncDeclNode($1.type, $1.id, $2, $4);
-        currentScope = exitScope(currentScope);
+    func_header params ')' body { 
+            $$ = createFuncDeclNode($1.type, $1.id, $2, $4);
+            currentScope = exitScope(currentScope);
     }
     ;
 
@@ -338,12 +388,17 @@ int main(int argc, char *argv[]){
         printf("\n\n");
     } 
 
+    
+    if(printSymTable_flag){
+        printf("\n\n");
+        printSymbolTable(symTable);
+    }  
+
     // If --export-ast option is provided, export the AST as JSON
     if (exportAST_flag) {
         exportASTAsJSON(folderPathForAST_Vis, root);
     }
 
-    if(printSymTable_flag)  printSymbolTable(symTable);
 
     freeAST(root);
     freeSymbolTable(symTable);
@@ -375,6 +430,8 @@ ASTNode* createBlockStmtNode(ASTNode* stmt_list){
     
     return node;
 }
+
+
 
 ASTNode* createReturnNode(ASTNode* return_value){
     ASTNode* node = createASTNode(NODE_RETURN);

@@ -11,6 +11,17 @@
 //     int y;
 // }
 
+if(1) return 1;
+
+if(1) int a=1; 
+else{
+    int a=1;
+}
+
+for(int a=1; ; ){
+    
+}
+
 
 
 // return;
@@ -22,16 +33,21 @@
 
 // while(c == 2);
 
-int a;
-int foo(int a){
+// int a;
+// int foo(int a){
 
-    int foo1(int a){
-        int foo1(int a){
-            int b;
-        };
-    };
+//     int foo1(int a){
+//         // int foo1(int a){
+//         //     int b;
+//         // };
+//         int b;
+//         {
+//             int c;
+//             int foo1(int a) return a;
+//         }
+//     };
 
-};
+// };
 
 
 
