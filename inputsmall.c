@@ -1,26 +1,29 @@
-// int a = 1;
-// int b;
-// int z = a * (b + 1) && 1;
+int a = 1;
+int b;
+int z = a * (b + 1) && 1;
 
-// char d = 'c';
-// string str = "str";
-// int a, b ,c;
+char d = 'c';
+string str = "str";
+int a, b ,c;
 
-// {
-//     int x = 10;
-//     int y;
+{
+    int a = 10;
+    int y;
+    int a;
+}
+
+string str; // Duplicate
+
+// if(1) return 1;
+
+// if(1) int a=1; 
+// else{
+//     int a=1;
 // }
 
-if(1) return 1;
+// for(int a=1; ; ){
 
-if(1) int a=1; 
-else{
-    int a=1;
-}
-
-for(int a=1; ; ){
-    
-}
+// }
 
 
 
@@ -49,12 +52,15 @@ for(int a=1; ; ){
 
 // };
 
+int a;
 
-
-// int foo1(int a);
+int foo(int a) {
+    int b;
+    return a;
+}
 // void foo(int a, int b, int c){
 
-// };
+// }
 
 // int foo2(int a) return a + foo1(2);
 

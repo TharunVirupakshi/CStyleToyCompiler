@@ -263,10 +263,6 @@ typedef struct ASTNode {
         } return_data;
     };
 
-    // // For nodes that need multiple children (e.g., block statements, function bodies)
-    // struct ASTNode** children;
-    // int child_count;
-
 } ASTNode;
 
 

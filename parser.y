@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <stdbool.h>
+#include "semantic.h"
 
 #define GLOBAL "global"
 #define FUNCTION "function"
@@ -284,7 +285,7 @@ func_header:
         $$.id = createFucnIdNode($2, $1);
         currentScope = enterScope((char*)$2, currentScope);
     }
-    | VOID ID {
+    | VOID ID '(' {
         $$.type = createTypeNode("void");
         $$.id = createFucnIdNode($2, $$.type);
         currentScope = enterScope((char*)$2, currentScope); 
@@ -379,6 +380,7 @@ int main(int argc, char *argv[]){
     currentScope = symTable; // Initial current scope
     
     yyparse();
+    performSemanticAnalysis(root, symTable);
 
     printf("\nPARSING SUCCESS\n");
     printf("\n\n");
@@ -474,7 +476,7 @@ ASTNode* createTermExpNode(ASTNode* term){
 ASTNode* createIdentifierNode(const char* id, char* type) {
     ASTNode* node = createASTNode(NODE_ID);
 
-    symbol* sym = createSymbol(id, type, currentScope, -1, 0);
+    symbol* sym = createSymbol(id, type, currentScope, -1, 0, cur_line, cur_char);
     node->id_data.sym = sym;
     addSymbol(currentScope, sym);
     return node;
@@ -484,7 +486,7 @@ ASTNode* createFucnIdNode(const char* id, ASTNode* type_spec){
     ASTNode* node = createASTNode(NODE_ID);
     char* type = (char*)type_spec->type_data.type;
 
-    symbol* sym = createSymbol(id, type, currentScope, -1, 1);
+    symbol* sym = createSymbol(id, type, currentScope, -1, 1, cur_line, cur_char);
     node->id_data.sym = sym;
     addSymbol(currentScope, sym);
     return node;  

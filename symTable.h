@@ -12,6 +12,9 @@ typedef struct symbol {
     SymbolTable* scope;       // Scope level (e.g., global = 0, local > 0)
     int location;    // Memory location or offset in the stack
     int is_function; // Whether the symbol is a function
+    int line_no;
+    int char_no;
+    int is_duplicate;
 } symbol;
 
 // Symbol Table structure
@@ -29,7 +32,7 @@ typedef struct SymbolTable {
 // Function declarations
 SymbolTable* createSymbolTable(char* scopeName, SymbolTable* parent, int initial_capacity);
 void addSymbol(SymbolTable* table, symbol* sym);
-symbol* createSymbol(const char* name, char* type, SymbolTable* scope, int location, int is_function);
+symbol* createSymbol(const char* name, char* type, SymbolTable* scope, int location, int is_function, int line_no, int char_no);
 symbol* lookupSymbol(SymbolTable* table, const char* name);
 void freeSymbolTable(SymbolTable* table);
 void printSymbolTable(SymbolTable* table);

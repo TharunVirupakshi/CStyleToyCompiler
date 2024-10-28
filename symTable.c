@@ -26,7 +26,7 @@ SymbolTable* createSymbolTable(char* scopeName, SymbolTable* parent, int initial
 }
 
 // Create a new symbol
-symbol* createSymbol(const char* name, char* type, SymbolTable* scope, int location, int is_function) {
+symbol* createSymbol(const char* name, char* type, SymbolTable* scope, int location, int is_function, int line_no, int char_no) {
     // printf("Creating symbol: %s\n", name);  
     symbol* sym = (symbol*)malloc(sizeof(symbol));
     if (!sym) {
@@ -36,9 +36,12 @@ symbol* createSymbol(const char* name, char* type, SymbolTable* scope, int locat
 
     sym->name = strdup(name);    // Copy the name of the variable
     sym->type = type ? strdup(type) : NULL;  
-    sym->scope = scope;          // Assign the current scope
-    sym->location = location;          // Placeholder for memory location
+    sym->scope = scope;                    // Assign the current scope
+    sym->location = location;              // Placeholder for memory location
     sym->is_function = is_function;        // Set as variable (not a function initially)
+    sym->line_no = line_no;
+    sym->char_no = char_no;
+    sym->is_duplicate = 0;  // Initialize duplicate flag to 0
     // printf("Created symbol: %s\n", name);   
     return sym;
 }
@@ -112,25 +115,27 @@ void printSymbolTable(SymbolTable* table) {
 
     // Header for the current symbol table
     printf("Symbol Table: %s [%d] | ParentScope(%s [%d]) \n", table->scopeName, table->table_id, table->parent ? table->parent->scopeName : "NULL", table->parent ? table->parent->table_id : -1);
-    printf("-----------------------------------------------------------------------------------\n");
-    printf("| %-20s | %-12s | %-18s | %-10s | %-10s |\n", "Name", "Type", "Scope", "Location", "Function?");
-    printf("-----------------------------------------------------------------------------------\n");
+    printf("----------------------------------------------------------------------------------------------------------------\n");
+    printf("| %-20s | %-12s | %-18s | %-10s | %-10s | %-10s | %-10s |\n", "Name", "Type", "Scope", "Location", "Function?", "Line", "Char");
 
+    printf("----------------------------------------------------------------------------------------------------------------\n");
     // Print each symbol in the table
     for (int i = 0; i < table->size; i++) {
         symbol* sym = table->symbols[i];
         static char scopeInfo[64];
         snprintf(scopeInfo, sizeof(scopeInfo), "%s [%d]", sym->scope->scopeName, sym->scope->table_id);
-        printf("| %-20s | %-12s | %-18s | %-10d | %-10s |\n",
+        printf("| %-20s | %-12s | %-18s | %-10d | %-10s | %-10d | %-10d |\n",
                sym->name, 
                sym->type, 
                scopeInfo,
                sym->location, 
-               sym->is_function ? "Yes" : "No");
+               sym->is_function ? "Yes" : "No",
+               sym->line_no,
+               sym->char_no);
     }
     
     // End of table
-    printf("-----------------------------------------------------------------------------------\n\n");
+    printf("----------------------------------------------------------------------------------------------------------------\n\n");
 
     // Recursively print each child symbol table
     for (int i = 0; i < table->num_children; ++i) {
