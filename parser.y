@@ -13,6 +13,8 @@
 #define FUNCTION "function"
 #define BLOCK "block"  
 
+bool isSemanticError = false;
+
 // Declare extern to access the variables defined in lexer
 extern int cur_line;
 extern int cur_char;
@@ -380,9 +382,12 @@ int main(int argc, char *argv[]){
     currentScope = symTable; // Initial current scope
     
     yyparse();
-    performSemanticAnalysis(root, symTable);
+    
+    SemanticStatus sem_stat = performSemanticAnalysis(root, symTable);
 
-    printf("\nPARSING SUCCESS\n");
+    if(sem_stat == SEMANTIC_SUCCESS)
+        printf("\nPARSING SUCCESS\n");
+    
     printf("\n\n");
 
     if(printAST_flag){

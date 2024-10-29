@@ -12,20 +12,24 @@ typedef struct Error {
     int char_no;
 } Error;
 
-
+extern bool isSemanticError;
 
 // Error list
 Error* errorList = NULL;
 int errorCount = 0;
 
 // Main function
-void performSemanticAnalysis(ASTNode* root, SymbolTable* globalTable) {
-    if (!root) return;
+SemanticStatus performSemanticAnalysis(ASTNode* root, SymbolTable* globalTable) {
+    if (!root) return SEMANTIC_ERROR;
     checkDuplicates(globalTable);
     // validateSymbolUsage(root, globalTable);
 
     // print errors if any
-    if(errorList) printErrors();
+    if(errorList){
+        printErrors();
+    } 
+
+    return errorCount > 0 ? SEMANTIC_ERROR : SEMANTIC_SUCCESS;
 }
 
 
@@ -53,7 +57,6 @@ void printErrors() {
     }
     free(errorList); // Free the entire list at the end
     errorList = NULL; // Reset the list pointer
-    errorCount = 0;   // Reset error count
  
 }
 

@@ -114,26 +114,27 @@ void printSymbolTable(SymbolTable* table) {
     if (!table) return;
 
     // Header for the current symbol table
-    printf("Symbol Table: %s [%d] | ParentScope(%s [%d]) \n", table->scopeName, table->table_id, table->parent ? table->parent->scopeName : "NULL", table->parent ? table->parent->table_id : -1);
-    printf("----------------------------------------------------------------------------------------------------------------\n");
-    printf("| %-20s | %-12s | %-18s | %-10s | %-10s | %-10s | %-10s |\n", "Name", "Type", "Scope", "Location", "Function?", "Line", "Char");
-
-    printf("----------------------------------------------------------------------------------------------------------------\n");
-    // Print each symbol in the table
-    for (int i = 0; i < table->size; i++) {
-        symbol* sym = table->symbols[i];
-        static char scopeInfo[64];
-        snprintf(scopeInfo, sizeof(scopeInfo), "%s [%d]", sym->scope->scopeName, sym->scope->table_id);
-        printf("| %-20s | %-12s | %-18s | %-10d | %-10s | %-10d | %-10d |\n",
-               sym->name, 
-               sym->type, 
-               scopeInfo,
-               sym->location, 
-               sym->is_function ? "Yes" : "No",
-               sym->line_no,
-               sym->char_no);
-    }
+    printf("Symbol Table: %s [%d] | ParentScope(%s [%d]) %s\n", table->scopeName, table->table_id, table->parent ? table->parent->scopeName : "NULL", table->parent ? table->parent->table_id : -1, table->size == 0 ? "(EMPTY)" : "");
     
+    if(table->size > 0){
+        printf("----------------------------------------------------------------------------------------------------------------\n");
+        printf("| %-20s | %-12s | %-18s | %-10s | %-10s | %-10s | %-10s |\n", "Name", "Type", "Scope", "Location", "Function?", "Line", "Char");
+        printf("----------------------------------------------------------------------------------------------------------------\n");
+        // Print each symbol in the table
+        for (int i = 0; i < table->size; i++) {
+            symbol* sym = table->symbols[i];
+            static char scopeInfo[64];
+            snprintf(scopeInfo, sizeof(scopeInfo), "%s [%d]", sym->scope->scopeName, sym->scope->table_id);
+            printf("| %-20s | %-12s | %-18s | %-10d | %-10s | %-10d | %-10d |\n",
+                sym->name, 
+                sym->type, 
+                scopeInfo,
+                sym->location, 
+                sym->is_function ? "Yes" : "No",
+                sym->line_no,
+                sym->char_no);
+        }
+    }
     // End of table
     printf("----------------------------------------------------------------------------------------------------------------\n\n");
 
