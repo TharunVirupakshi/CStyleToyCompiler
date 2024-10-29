@@ -14,7 +14,7 @@ typedef enum {
 SemanticStatus performSemanticAnalysis(ASTNode* root, SymbolTable* globalTable);
 
 // Helper function to validate symbol declarations for id_ref nodes
-// void validateSymbolUsage(ASTNode* id_ref, SymbolTable* currentScope);
+void validateSymbolUsage(ASTNode* root);
 
 void checkDuplicates(SymbolTable* table);
 

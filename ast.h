@@ -235,6 +235,9 @@ typedef struct ASTNode {
         struct {
             const char *name;
             symbol* ref;
+            SymbolTable* scope; // Usage's scope
+            int line_no;
+            int char_no;
         } id_ref_data;
         
         struct {

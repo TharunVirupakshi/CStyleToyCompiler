@@ -382,7 +382,7 @@ int main(int argc, char *argv[]){
     currentScope = symTable; // Initial current scope
     
     yyparse();
-    
+
     SemanticStatus sem_stat = performSemanticAnalysis(root, symTable);
 
     if(sem_stat == SEMANTIC_SUCCESS)
@@ -501,6 +501,9 @@ ASTNode* createIdRefNode(const char* id){
     ASTNode* node = createASTNode(NODE_ID_REF);
     node->id_ref_data.name = id;
     node->id_ref_data.ref = NULL;
+    node->id_ref_data.scope = currentScope;
+    node->id_ref_data.line_no = cur_line;
+    node->id_ref_data.char_no = cur_char;
     return node;
 }
 

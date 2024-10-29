@@ -7,7 +7,7 @@ string str = "str";
 int a, b ,c;
 
 {
-    int a = 10;
+    int a = x;
     int y;
     int a;
 }

@@ -134,15 +134,25 @@ void bar() {
     }
 }
 
+
 // More complex conditional
 // here, although the else if parses correctly, the dangling if-else problem still exists
 if (x < y && !(y > ++z)) {
+    int a;
     x = x * 2;
-} else if (x == y || z == 0) {
+} else{
+    if (x == y || z == 0) {
     x = y + z;
-} else {
-    y = x - z;
-}
+    } else {
+        y = x - z;
+    }
+} 
+!a;
+-(a);
+++(a);
+!(a);
+
+if(!(a+2)) return 1;
 
 // Testing function calls with varying parameters
 int complexFunction(int a, int b) {
