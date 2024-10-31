@@ -538,7 +538,7 @@ void exportASTNodeAsJSON(FILE *file, ASTNode *node, int parentID, int *edgeBuffe
             fprintf(file, "VAR_LIST\" }");
             break;
         case NODE_VAR:
-            fprintf(file, "VAR (name: %s)\" }", node->var_data.id->id_data.sym->name);
+            fprintf(file, "VAR\\n(name: %s, valueType: %s)\" }", node->var_data.id->id_data.sym->name, node->inferedType);
             break;
         case NODE_ID:
             fprintf(file, "ID (name: %s)\" }", node->id_data.sym->name);
@@ -547,13 +547,13 @@ void exportASTNodeAsJSON(FILE *file, ASTNode *node, int parentID, int *edgeBuffe
             fprintf(file, "ID_REF (name: %s)\" }", node->id_ref_data.name);
             break;
         case NODE_ASSGN:
-            fprintf(file, "ASSGN\" }");
+            fprintf(file, "ASSGN (type: %s)\" }", node->inferedType);
             break;
         case NODE_EXPR_BINARY:
-            fprintf(file, "EXPR (binary: %s)\" }", node->expr_data.op);
+            fprintf(file, "EXPR\\n(binary: %s, type: %s)\" }", node->expr_data.op, node->inferedType);
             break;
         case NODE_EXPR_UNARY:
-            fprintf(file, "EXPR (unary: %s)\" }", node->expr_data.op);
+            fprintf(file, "EXPR\\n(unary: %s, type: %s)\" }", node->expr_data.op, node->inferedType);
             break;
         case NODE_EXPR_TERM:
             fprintf(file, "EXPR (term)\" }");

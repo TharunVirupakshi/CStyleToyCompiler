@@ -68,11 +68,12 @@ typedef enum NodeType {
 
 
 
-
 typedef struct ASTNode {
     NodeType type;  // Type of the node (enum to identify node type)
     int line_no, char_no;
     SymbolTable* scope;
+
+    const char* inferedType;
     union {
 
         struct {

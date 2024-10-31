@@ -315,7 +315,7 @@ const char* promoteType(const char* leftType, const char* rightType) {
     return NULL;
 }
 
-const char* validateAndGetTypeFromAST(ASTNode* node) {
+const char* inferAndValidateType(ASTNode* node) {
 
     const char* type = NULL;
 
@@ -330,60 +330,72 @@ const char* validateAndGetTypeFromAST(ASTNode* node) {
                 snprintf(errorMsg, sizeof(errorMsg),"Type of '%s' is NULL", node->id_data.sym->name);
                 addError(errorMsg, node->line_no, node->char_no);
             } 
+            node->inferedType = type;
             break;
 
         case NODE_ID_REF:
             // printf("Getting type of ID ref\n");
             type = node->id_ref_data.ref ? node->id_ref_data.ref->type : NULL;
+            
             if(!type){
                 char errorMsg[256]; 
                 snprintf(errorMsg, sizeof(errorMsg),"Type of '%s' is NULL", node->id_ref_data.name);
                 addError(errorMsg, node->line_no, node->char_no);
                 return NULL;
-            }             
+            } 
+            node->inferedType = type;            
             break;
         case NODE_INT_LITERAL:
             // printf("Getting type of int\n");
             type = "int";
+            node->inferedType = type;
             break;
         case NODE_CHAR_LITERAL:
             // printf("Getting type of char\n");
             type = "char";
+            node->inferedType = type;
             break;
         case NODE_STR_LITERAL:
             type = "string";
+            node->inferedType = type;
             break;
         case NODE_EXPR_TERM:
             // printf("Getting type of expr term\n");
-            type = validateAndGetTypeFromAST(node->expr_data.left);           
+            type = inferAndValidateType(node->expr_data.left);
+            node->inferedType = type;
+
             break;
         case NODE_FUNC_CALL:
-            type = validateAndGetTypeFromAST(node->func_call_data.id);
+            type = inferAndValidateType(node->func_call_data.id);
+            node->inferedType = type;
             break;
 
         case NODE_VAR:
             {   
                 if(!node->var_data.value) break;
 
-                const char* leftType = validateAndGetTypeFromAST(node->var_data.id);
-                const char* rightType = validateAndGetTypeFromAST(node->var_data.value);
+                const char* leftType = inferAndValidateType(node->var_data.id);
+                const char* rightType = inferAndValidateType(node->var_data.value);
 
                 if (leftType == NULL || rightType == NULL) break; 
                
                 type = promoteType(leftType, rightType);
 
+                // Just to check if it is not compatible at all
                 if (!type) {
                     char errorMsg[256]; 
                     snprintf(errorMsg, sizeof(errorMsg), "Type mismatch in assignment: cannot assign (%s) to (%s)", rightType, leftType);
                     addError(errorMsg, node->line_no, node->char_no);
                 }
+
+                node->inferedType = leftType; // required type
                 break;
             }
 
         case NODE_ASSGN:
             {
-                const char* leftType = validateAndGetTypeFromAST(node->var_data.id);
-                const char* rightType = validateAndGetTypeFromAST(node->var_data.value);
+                const char* leftType = inferAndValidateType(node->var_data.id);
+                const char* rightType = inferAndValidateType(node->var_data.value);
 
                 
                 if (leftType == NULL || rightType == NULL) break;  
@@ -397,14 +409,14 @@ const char* validateAndGetTypeFromAST(ASTNode* node) {
                     break;
                 }
 
-
+                node->inferedType = leftType;
                 break;
             }
         
         case NODE_EXPR_BINARY: {
             // printf("Getting type of bin expr\n");
-            const char* leftType = validateAndGetTypeFromAST(node->expr_data.left);
-            const char* rightType = validateAndGetTypeFromAST(node->expr_data.right);
+            const char* leftType = inferAndValidateType(node->expr_data.left);
+            const char* rightType = inferAndValidateType(node->expr_data.right);
             const char* op = node->expr_data.op;
 
             if (leftType == NULL || rightType == NULL) break; 
@@ -424,6 +436,7 @@ const char* validateAndGetTypeFromAST(ASTNode* node) {
                             addError(errorMsg, node->line_no, node->char_no);
                         }else{
                             type = TYPE_INT;
+                            node->inferedType = type;
                         }
                         
                     }
@@ -444,14 +457,17 @@ const char* validateAndGetTypeFromAST(ASTNode* node) {
                                 "Type mismatch: cannot apply operator (%s) to (%s) and (%s)", node->expr_data.op,
                                 leftType, rightType);
                         addError(errorMsg, node->line_no, node->char_no);
-                    } 
+                    }
+                    node->inferedType = type; 
                     break;
 
                 case OP_LOGICAL:
                     type = TYPE_INT;
+                    node->inferedType = type;
                     break;
                 
                 default:
+                    node->inferedType = type;
                     break;
             }
 
@@ -459,20 +475,22 @@ const char* validateAndGetTypeFromAST(ASTNode* node) {
         }
 
         case NODE_EXPR_UNARY: {
-            type = validateAndGetTypeFromAST(node->expr_data.left);
+            type = inferAndValidateType(node->expr_data.left);
             const char* op = node->expr_data.op;
 
             if(!type) break;
 
-            // Cannot apply ++, -- to any other node other than ID_REF
+            // Cannot apply ++, -- to any other node other than ID_REF of non-str type
             switch(getOpType(op)){
                 case OP_INC_DEC:
                 {   
                     NodeType nType = node->expr_data.left->expr_data.left->type; // UnaryExpr --> TermExpr
-                    if( nType != NODE_ID_REF){
+                    if( nType != NODE_ID_REF || strcmp(type, TYPE_STRING) == 0){
                         char errorMsg[256];
                         snprintf(errorMsg, sizeof(errorMsg), "Type mismatch: cannot apply operator (%s) to (%s)", node->expr_data.op, type);
                         addError(errorMsg, node->line_no, node->char_no);
+                    }else{
+                        node->inferedType = TYPE_INT;
                     }
                     break;
                 }
@@ -483,14 +501,22 @@ const char* validateAndGetTypeFromAST(ASTNode* node) {
                         char errorMsg[256];
                         snprintf(errorMsg, sizeof(errorMsg), "Type mismatch: cannot apply operator (%s) to (%s)", node->expr_data.op, type);
                         addError(errorMsg, node->line_no, node->char_no); 
+                    }else{
+                        node->inferedType = TYPE_INT;
                     }
                     break;
                 }
-
+                case OP_COMP:
+                    node->inferedType = TYPE_INT;
+                    break;
+                case OP_LOGICAL:
+                    node->inferedType = TYPE_INT;
+                    break;      
                 default:
+                    node->inferedType = type;
                     break;
             }
-  
+            
             break;
         }
 
@@ -517,24 +543,24 @@ int validateTypesCallback(ASTNode* node, void* context) {
             // Check if value exists
             if(!node->var_data.value) return 0;
 
-            const char* type = validateAndGetTypeFromAST(node);
+            const char* type = inferAndValidateType(node);
             return 0; // STOP TRAVERSAL
         }
 
         case NODE_ASSGN: {
             // printf("Validating assignment\n");
-            const char* type = validateAndGetTypeFromAST(node);
+            const char* type = inferAndValidateType(node);
             return 0;
         }
 
         case NODE_EXPR_BINARY: {
             // printf("Validating bin expr\n");
-            const char* type = validateAndGetTypeFromAST(node);
+            const char* type = inferAndValidateType(node);
             return 0;
         }
 
         case NODE_EXPR_UNARY: {
-            const char* type = validateAndGetTypeFromAST(node);
+            const char* type = inferAndValidateType(node);
             return 0;
         }
 

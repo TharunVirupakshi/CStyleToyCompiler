@@ -1,9 +1,12 @@
 
+
 int a = 3 + 'c';
 a = 3 + "str"; //INVALID
 a = 3 && "str"; //VALID
 char c = "str" == !"str"; //VALID, == return 1 or 0
 "str" <= "str"; //INVALID
+string d = "str" + 1; //INVALID
+d = "str";
 
 
 
