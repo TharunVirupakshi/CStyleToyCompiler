@@ -15,7 +15,7 @@ SemanticStatus performSemanticAnalysis(ASTNode* root, SymbolTable* globalTable);
 
 // Helper function to validate symbol declarations for id_ref nodes
 void validateSymbolUsage(ASTNode* root);
-
 void checkDuplicates(SymbolTable* table);
+void validateTypes(ASTNode* root);
 
 #endif

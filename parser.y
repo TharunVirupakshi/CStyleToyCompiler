@@ -416,7 +416,7 @@ int main(int argc, char *argv[]){
 // Wrapper function to create a program node with a list of statements
 ASTNode* createProgramNode(ASTNode* stmt_list) {
     // Create a node for the root of the program
-    ASTNode* programNode = createASTNode(NODE_PROGRAM);
+    ASTNode* programNode = createASTNode(NODE_PROGRAM, cur_line, cur_char);
 
     programNode->program_data.stmt_list = stmt_list;
     programNode->program_data.scope = symTable;
@@ -425,14 +425,14 @@ ASTNode* createProgramNode(ASTNode* stmt_list) {
 }
 
 ASTNode* createStmtListNode(ASTNode* stmt_list, ASTNode* stmt) {
-    ASTNode* node = createASTNode(NODE_STMT_LIST);
+    ASTNode* node = createASTNode(NODE_STMT_LIST, cur_line, cur_char);
     node->stmt_list_data.stmt_list = stmt_list; // Pointer to the next statement or NULL
     node->stmt_list_data.stmt = stmt;
     return node;
 }
 
 ASTNode* createBlockStmtNode(ASTNode* stmt_list){
-    ASTNode* node = createASTNode(NODE_BLOCK_STMT);
+    ASTNode* node = createASTNode(NODE_BLOCK_STMT, cur_line, cur_char);
     node->block_stmt_data.stmt_list = stmt_list;
     
     return node;
@@ -441,7 +441,7 @@ ASTNode* createBlockStmtNode(ASTNode* stmt_list){
 
 
 ASTNode* createReturnNode(ASTNode* return_value){
-    ASTNode* node = createASTNode(NODE_RETURN);
+    ASTNode* node = createASTNode(NODE_RETURN, cur_line, cur_char);
     node->return_data.return_value = return_value;
 
     return node;
@@ -451,7 +451,7 @@ ASTNode* createReturnNode(ASTNode* return_value){
 // EXPRESSIONS
 
 ASTNode* createBinaryExpNode(ASTNode* left, ASTNode* right, const char* op) {
-    ASTNode* node = createASTNode(NODE_EXPR_BINARY);
+    ASTNode* node = createASTNode(NODE_EXPR_BINARY, cur_line, cur_char);
     node->expr_data.left = left;
     node->expr_data.right = right;
     node->expr_data.op = strdup(op);  // Store the operation
@@ -459,7 +459,7 @@ ASTNode* createBinaryExpNode(ASTNode* left, ASTNode* right, const char* op) {
 }
 
 ASTNode* createUnaryExpNode(ASTNode* left, const char* op){
-    ASTNode* node = createASTNode(NODE_EXPR_UNARY);
+    ASTNode* node = createASTNode(NODE_EXPR_UNARY, cur_line, cur_char);
     node->expr_data.left = left;
     node->expr_data.right = NULL;
     node->expr_data.op = strdup(op);  // Store the operation
@@ -467,7 +467,7 @@ ASTNode* createUnaryExpNode(ASTNode* left, const char* op){
 }
 
 ASTNode* createTermExpNode(ASTNode* term){
-    ASTNode* node = createASTNode(NODE_EXPR_TERM);
+    ASTNode* node = createASTNode(NODE_EXPR_TERM, cur_line, cur_char);
     node->expr_data.left = term;
     node->expr_data.right = NULL;
     node->expr_data.op = NULL;
@@ -479,7 +479,7 @@ ASTNode* createTermExpNode(ASTNode* term){
 // IDENTIFIERS
 
 ASTNode* createIdentifierNode(const char* id, char* type) {
-    ASTNode* node = createASTNode(NODE_ID);
+    ASTNode* node = createASTNode(NODE_ID, cur_line, cur_char);
 
     symbol* sym = createSymbol(id, type, currentScope, -1, 0, cur_line, cur_char);
     node->id_data.sym = sym;
@@ -488,7 +488,7 @@ ASTNode* createIdentifierNode(const char* id, char* type) {
 }
 
 ASTNode* createFucnIdNode(const char* id, ASTNode* type_spec){
-    ASTNode* node = createASTNode(NODE_ID);
+    ASTNode* node = createASTNode(NODE_ID, cur_line, cur_char);
     char* type = (char*)type_spec->type_data.type;
 
     symbol* sym = createSymbol(id, type, currentScope, -1, 1, cur_line, cur_char);
@@ -498,7 +498,7 @@ ASTNode* createFucnIdNode(const char* id, ASTNode* type_spec){
 }
 
 ASTNode* createIdRefNode(const char* id){
-    ASTNode* node = createASTNode(NODE_ID_REF);
+    ASTNode* node = createASTNode(NODE_ID_REF, cur_line, cur_char);
     node->id_ref_data.name = id;
     node->id_ref_data.ref = NULL;
     node->id_ref_data.scope = currentScope;
@@ -512,17 +512,17 @@ ASTNode* createIdRefNode(const char* id){
 // LITERALS
 
 ASTNode* createIntLiteralNode(int i){
-    ASTNode* node = createASTNode(NODE_INT_LITERAL);
+    ASTNode* node = createASTNode(NODE_INT_LITERAL, cur_line, cur_char);
     node->literal_data.value.int_value = i;
     return node;
 }
 ASTNode* createCharLiteralNode(char c){
-    ASTNode* node = createASTNode(NODE_CHAR_LITERAL);
+    ASTNode* node = createASTNode(NODE_CHAR_LITERAL, cur_line, cur_char);
     node->literal_data.value.char_value = c;
     return node;
 }
 ASTNode* createStrLiteralNode(const char* s){
-    ASTNode* node = createASTNode(NODE_STR_LITERAL);
+    ASTNode* node = createASTNode(NODE_STR_LITERAL, cur_line, cur_char);
     node->literal_data.value.str_value = s;
     return node;
 }
@@ -532,7 +532,7 @@ ASTNode* createStrLiteralNode(const char* s){
 // DECLARATIONS, VARIABLES and ASSIGNMENTS
 
 ASTNode* createDeclNode(ASTNode* type_spec, ASTNode* var_list){
-    ASTNode* node = createASTNode(NODE_DECL);
+    ASTNode* node = createASTNode(NODE_DECL, cur_line, cur_char);
     node->decl_data.type_spec = type_spec;
     node->decl_data.var_list = var_list;
 
@@ -540,13 +540,13 @@ ASTNode* createDeclNode(ASTNode* type_spec, ASTNode* var_list){
 }
 
 ASTNode* createTypeNode(char* type){
-    ASTNode* node = createASTNode(NODE_TYPE_SPEC);
+    ASTNode* node = createASTNode(NODE_TYPE_SPEC, cur_line, cur_char);
     node->type_data.type = type;
     return node;
 }
 
 ASTNode* createVarListNode(ASTNode* var_list, ASTNode* var){
-    ASTNode* node = createASTNode(NODE_VAR_LIST);
+    ASTNode* node = createASTNode(NODE_VAR_LIST, cur_line, cur_char);
     node->var_list_data.var_list = var_list;
     node->var_list_data.var = var;
 
@@ -554,21 +554,21 @@ ASTNode* createVarListNode(ASTNode* var_list, ASTNode* var){
 }
 
 ASTNode* createVarNode(const char* id) {
-    ASTNode* node = createASTNode(NODE_VAR);
+    ASTNode* node = createASTNode(NODE_VAR, cur_line, cur_char);
     node->var_data.id = createIdentifierNode(id, NULL);  // Simple variable
     node->var_data.value = NULL;
     return node;
 }
 
 ASTNode* createVarAssgnNode(const char* id, ASTNode* value){
-   ASTNode* node = createASTNode(NODE_VAR);
+   ASTNode* node = createASTNode(NODE_VAR, cur_line, cur_char);
    node->var_data.id = createIdentifierNode(id, NULL);
    node->var_data.value = value;
    return node;
 }
 
 ASTNode* createAssgnNode(const char* id, ASTNode* value){
-    ASTNode* node = createASTNode(NODE_ASSGN);
+    ASTNode* node = createASTNode(NODE_ASSGN, cur_line, cur_char);
     node->assgn_data.left = createIdRefNode(id);
     node->assgn_data.right = value;
 
@@ -601,15 +601,15 @@ void setVarListType(ASTNode* typeNode, ASTNode* var_list) {
 // IF ELSE 
 
 ASTNode* createIfNode(ASTNode* cond, ASTNode* if_branch) {
-    ASTNode* node = createASTNode(NODE_IF);
+    ASTNode* node = createASTNode(NODE_IF, cur_line, cur_char);
 
     // Implicit creation of cond & branch nodes
 
-    ASTNode* node_cond = createASTNode(NODE_IF_COND);
+    ASTNode* node_cond = createASTNode(NODE_IF_COND, cur_line, cur_char);
     node_cond->if_cond_data.cond = cond;
     node->if_else_data.condition = node_cond;
 
-    ASTNode* node_if_branch = createASTNode(NODE_IF_BRANCH);
+    ASTNode* node_if_branch = createASTNode(NODE_IF_BRANCH, cur_line, cur_char);
     node_if_branch->if_else_branch.branch = if_branch;
     node->if_else_data.if_branch = node_if_branch;
 
@@ -618,19 +618,19 @@ ASTNode* createIfNode(ASTNode* cond, ASTNode* if_branch) {
 }
 
 ASTNode* createIfElseNode(ASTNode* cond, ASTNode* if_branch, ASTNode* else_branch){
-    ASTNode* node = createASTNode(NODE_IF_ELSE);
+    ASTNode* node = createASTNode(NODE_IF_ELSE, cur_line, cur_char);
 
     // Implicit creation of cond & branch nodes
 
-    ASTNode* node_cond = createASTNode(NODE_IF_COND);
+    ASTNode* node_cond = createASTNode(NODE_IF_COND, cur_line, cur_char);
     node_cond->if_cond_data.cond = cond;
     node->if_else_data.condition = node_cond;
 
-    ASTNode* node_if_branch = createASTNode(NODE_IF_BRANCH);
+    ASTNode* node_if_branch = createASTNode(NODE_IF_BRANCH, cur_line, cur_char);
     node_if_branch->if_else_branch.branch = if_branch;
     node->if_else_data.if_branch = node_if_branch;
    
-    ASTNode* node_else_branch = createASTNode(NODE_ELSE_BRANCH);
+    ASTNode* node_else_branch = createASTNode(NODE_ELSE_BRANCH, cur_line, cur_char);
     node_else_branch->if_else_branch.branch = else_branch;
     node->if_else_data.else_branch = node_else_branch;
     
@@ -638,13 +638,13 @@ ASTNode* createIfElseNode(ASTNode* cond, ASTNode* if_branch, ASTNode* else_branc
 }
 
 ASTNode* createWhileNode(ASTNode* cond, ASTNode* body){
-    ASTNode* node = createASTNode(NODE_WHILE);
+    ASTNode* node = createASTNode(NODE_WHILE, cur_line, cur_char);
 
     // Implict creation of cond and branch nodes
-    ASTNode* node_while_cond = createASTNode(NODE_WHILE_COND);
+    ASTNode* node_while_cond = createASTNode(NODE_WHILE_COND, cur_line, cur_char);
     node_while_cond->while_cond_data.cond = cond;
 
-    ASTNode* node_while_body = createASTNode(NODE_WHILE_BODY);
+    ASTNode* node_while_body = createASTNode(NODE_WHILE_BODY, cur_line, cur_char);
     node_while_body->while_body_data.body = body;
 
     node->while_data.condition = node_while_cond;
@@ -655,20 +655,20 @@ ASTNode* createWhileNode(ASTNode* cond, ASTNode* body){
 }
 
 ASTNode* createForNode(ASTNode* init, ASTNode* cond, ASTNode* updation, ASTNode* body){
-    ASTNode* node = createASTNode(NODE_FOR);
+    ASTNode* node = createASTNode(NODE_FOR, cur_line, cur_char);
     
 
     // Implicit creation of init, cond and updation nodes;
-    ASTNode* node_for_init = createASTNode(NODE_FOR_INIT);
+    ASTNode* node_for_init = createASTNode(NODE_FOR_INIT, cur_line, cur_char);
     node_for_init->for_init_data.init = init;
 
-    ASTNode* node_for_cond = createASTNode(NODE_FOR_COND); 
+    ASTNode* node_for_cond = createASTNode(NODE_FOR_COND, cur_line, cur_char); 
     node_for_cond->for_cond_data.cond = cond;
 
-    ASTNode* node_for_upd = createASTNode(NODE_FOR_UPDATION);
+    ASTNode* node_for_upd = createASTNode(NODE_FOR_UPDATION, cur_line, cur_char);
     node_for_upd->for_updation_data.updation = updation;
 
-    ASTNode* node_for_body = createASTNode(NODE_FOR_BODY);
+    ASTNode* node_for_body = createASTNode(NODE_FOR_BODY, cur_line, cur_char);
     node_for_body->for_body_data.body = body;
 
     node->for_data.init = node_for_init;
@@ -681,7 +681,7 @@ ASTNode* createForNode(ASTNode* init, ASTNode* cond, ASTNode* updation, ASTNode*
 
 
 ASTNode* createCommaExprList(ASTNode* expr_list, ASTNode* expr_list_item){
-    ASTNode* node = createASTNode(NODE_EXPR_COMMA_LIST);
+    ASTNode* node = createASTNode(NODE_EXPR_COMMA_LIST, cur_line, cur_char);
 
     node->expr_comma_list_data.expr_comma_list = expr_list;
     node->expr_comma_list_data.expr_comma_list_item = expr_list_item;
@@ -702,7 +702,7 @@ int countParams(ASTNode* params) {
 
 
 ASTNode* createFuncDeclNode(ASTNode* type_spec, ASTNode* id, ASTNode* params, ASTNode* body){
-    ASTNode* node = createASTNode(NODE_FUNC_DECL);
+    ASTNode* node = createASTNode(NODE_FUNC_DECL, cur_line, cur_char);
 
     node->func_decl_data.id = id;
     node->func_decl_data.params = params;
@@ -710,17 +710,17 @@ ASTNode* createFuncDeclNode(ASTNode* type_spec, ASTNode* id, ASTNode* params, AS
     /* printf("Params count: %d\n", node->func_decl_data.param_count); */
 
     // Implicit creation of Function body node
-    ASTNode* body_node = createASTNode(NODE_FUNC_BODY);
+    ASTNode* body_node = createASTNode(NODE_FUNC_BODY, cur_line, cur_char);
     body_node->func_body_data.body = body;
 
     node->func_decl_data.body = body_node;
-
+    node->func_decl_data.scope = currentScope;
 
     return node;
 }
 
 ASTNode* createParamsListNode(ASTNode* params_list, ASTNode* param){
-    ASTNode* node = createASTNode(NODE_PARAM_LIST);
+    ASTNode* node = createASTNode(NODE_PARAM_LIST, cur_line, cur_char);
 
     node->param_list_data.param_list = params_list;
     node->param_list_data.param = param;
@@ -729,7 +729,7 @@ ASTNode* createParamsListNode(ASTNode* params_list, ASTNode* param){
 }
 
 ASTNode* createParamNode(ASTNode* type_spec, const char* id){
-    ASTNode* node = createASTNode(NODE_PARAM);
+    ASTNode* node = createASTNode(NODE_PARAM, cur_line, cur_char);
     char* type = (char*)type_spec->type_data.type;
     node->param_data.type_spec = type_spec;
     node->param_data.id = createIdentifierNode(id, type);
@@ -748,7 +748,7 @@ int countArgs(ASTNode* arg_list) {
 }
 
 ASTNode* createFuncCallNode(const char* id, ASTNode* arg_list){
-    ASTNode* node = createASTNode(NODE_FUNC_CALL);
+    ASTNode* node = createASTNode(NODE_FUNC_CALL, cur_line, cur_char);
 
 
     node->func_call_data.id = createIdRefNode(id);
@@ -760,7 +760,7 @@ ASTNode* createFuncCallNode(const char* id, ASTNode* arg_list){
 }
 
 ASTNode* createArgListNode(ASTNode* arg_list, ASTNode* arg){
-    ASTNode* node = createASTNode(NODE_ARG_LIST);
+    ASTNode* node = createASTNode(NODE_ARG_LIST, cur_line, cur_char);
 
     node->arg_list_data.arg_list = arg_list;
     node->arg_list_data.arg = createArgNode(arg);
@@ -769,7 +769,7 @@ ASTNode* createArgListNode(ASTNode* arg_list, ASTNode* arg){
 }
 
 ASTNode* createArgNode(ASTNode* arg){
-    ASTNode* node = createASTNode(NODE_ARG);
+    ASTNode* node = createASTNode(NODE_ARG, cur_line, cur_char);
 
     node->arg_data.arg = arg;
     return node;

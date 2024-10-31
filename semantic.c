@@ -3,6 +3,42 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define TYPE_VOID "void"
+#define TYPE_INT "int"
+#define TYPE_CHAR "char"
+#define TYPE_STRING "string"
+#define TYPE_UNKNOWN "unknown"
+
+typedef enum{
+    OP_ARITHMETIC,
+    OP_COMP,
+    OP_LOGICAL,
+    OP_INC_DEC,
+    OP_UNKNOWN
+}OpType;
+
+
+OpType getOpType(const char* op) {
+    if (strcmp(op, "+") == 0 || strcmp(op, "-") == 0 ||
+        strcmp(op, "*") == 0 || strcmp(op, "/") == 0){
+        return OP_ARITHMETIC;
+    } 
+    else if (strcmp(op, "==") == 0 || strcmp(op, "<=") == 0 ||
+             strcmp(op, ">=") == 0 || strcmp(op, "<") == 0 ||
+             strcmp(op, ">") == 0 || strcmp(op, "!=") == 0) {
+        return OP_COMP;
+    }
+    else if (strcmp(op, "&&") == 0 || strcmp(op, "||") == 0 || strcmp(op, "!") == 0) {
+        return OP_LOGICAL;
+    }
+    else if (strcmp(op, "PRE_INC") == 0 || strcmp(op, "PRE_DEC") == 0 ||
+             strcmp(op, "POST_INC") == 0 || strcmp(op, "POST_DEC") == 0) {
+        return OP_INC_DEC;
+    }
+    
+    return OP_UNKNOWN;  // For unsupported or unknown operators
+}
+
 void printErrors();
 
 // Error structure
@@ -23,7 +59,7 @@ SemanticStatus performSemanticAnalysis(ASTNode* root, SymbolTable* globalTable) 
     if (!root) return SEMANTIC_ERROR;
     checkDuplicates(globalTable);
     validateSymbolUsage(root);
-
+    validateTypes(root);
     // print errors if any
     if(errorList){
         printErrors();
@@ -52,7 +88,7 @@ void addError(const char* message, int line, int char_no) {
 // Function to print all stored errors
 void printErrors() {
     for (int i = 0; i < errorCount; i++) {
-        printf("Error: %s at line %d, char %d\n", errorList[i].message, errorList[i].line, errorList[i].char_no);
+        printf("Error: %s at (line %d, char %d)\n", errorList[i].message, errorList[i].line, errorList[i].char_no);
         free(errorList[i].message); // Free each error message after printing
     }
     free(errorList); // Free the entire list at the end
@@ -102,7 +138,7 @@ void validateSymbolUsage(ASTNode* root){
         if (!foundSymbol) {
             char errorMsg[256];
             snprintf(errorMsg, sizeof(errorMsg), "Undeclared variable '%s'", varName);
-            addError(errorMsg, root->id_ref_data.line_no, root->id_ref_data.char_no);  // Adding error with line and char info
+            addError(errorMsg, root->line_no, root->char_no);  // Adding error with line and char info
         }else{
             // Bind the id_ref node to sym
 
@@ -261,3 +297,220 @@ void validateSymbolUsage(ASTNode* root){
 }
 
 
+
+const char* promoteType(const char* leftType, const char* rightType) {
+    if (!leftType || !rightType) return NULL;
+
+    // Both types match exactly, no promotion needed
+    if (strcmp(leftType, rightType) == 0) return leftType;
+
+    // Promote char to int when paired with int
+    if ((strcmp(leftType, TYPE_INT) == 0 && strcmp(rightType, TYPE_CHAR) == 0) ||
+        (strcmp(leftType, TYPE_CHAR) == 0 && strcmp(rightType, TYPE_INT) == 0)) {
+        return TYPE_INT;
+    }
+    
+
+    // No valid promotion path
+    return NULL;
+}
+
+const char* validateAndGetTypeFromAST(ASTNode* node) {
+
+    const char* type = NULL;
+
+    if (!node) return NULL;
+    
+    switch (node->type) {
+        case NODE_ID:
+            // printf("Getting type of ID\n");
+            type = node->id_data.sym->type;
+            if(!type){
+                char errorMsg[256]; 
+                snprintf(errorMsg, sizeof(errorMsg),"Type of '%s' is NULL", node->id_data.sym->name);
+                addError(errorMsg, node->line_no, node->char_no);
+            } 
+            break;
+
+        case NODE_ID_REF:
+            // printf("Getting type of ID ref\n");
+            type = node->id_ref_data.ref ? node->id_ref_data.ref->type : NULL;
+            if(!type){
+                char errorMsg[256]; 
+                snprintf(errorMsg, sizeof(errorMsg),"Type of '%s' is NULL", node->id_ref_data.name);
+                addError(errorMsg, node->line_no, node->char_no);
+                return NULL;
+            }             
+            break;
+        case NODE_INT_LITERAL:
+            // printf("Getting type of int\n");
+            type = "int";
+            break;
+        case NODE_CHAR_LITERAL:
+            // printf("Getting type of char\n");
+            type = "char";
+            break;
+        case NODE_STR_LITERAL:
+            type = "string";
+            break;
+        case NODE_EXPR_TERM:
+            // printf("Getting type of expr term\n");
+            type = validateAndGetTypeFromAST(node->expr_data.left);           
+            break;
+        case NODE_FUNC_CALL:
+            type = validateAndGetTypeFromAST(node->func_call_data.id);
+            break;
+
+        case NODE_VAR:
+            {   
+                if(!node->var_data.value) break;
+
+                const char* leftType = validateAndGetTypeFromAST(node->var_data.id);
+                const char* rightType = validateAndGetTypeFromAST(node->var_data.value);
+
+                if (leftType == NULL || rightType == NULL) break; 
+               
+                type = promoteType(leftType, rightType);
+
+                if (!type) {
+                    char errorMsg[256]; 
+                    snprintf(errorMsg, sizeof(errorMsg), "Type mismatch in assignment: cannot assign (%s) to (%s)", rightType, leftType);
+                    addError(errorMsg, node->line_no, node->char_no);
+                }
+                break;
+            }
+
+        case NODE_ASSGN:
+            {
+                const char* leftType = validateAndGetTypeFromAST(node->var_data.id);
+                const char* rightType = validateAndGetTypeFromAST(node->var_data.value);
+
+                
+                if (leftType == NULL || rightType == NULL) break;  
+
+                // Apply promotion
+                type = promoteType(leftType, rightType);  
+                if(!type){
+                    char errorMsg[256]; 
+                    snprintf(errorMsg, sizeof(errorMsg), "Type mismatch in assignment: cannot assign (%s) to (%s)", rightType, leftType);
+                    addError(errorMsg, node->line_no, node->char_no);
+                    break;
+                }
+
+
+                break;
+            }
+        
+        case NODE_EXPR_BINARY: {
+            // printf("Getting type of bin expr\n");
+            const char* leftType = validateAndGetTypeFromAST(node->expr_data.left);
+            const char* rightType = validateAndGetTypeFromAST(node->expr_data.right);
+
+
+            if (leftType == NULL || rightType == NULL) break; 
+            
+            // Apply promotion
+            type = promoteType(leftType, rightType);
+
+            // Error if no valid promotion found
+            if (!type) {
+                char errorMsg[256];
+                snprintf(errorMsg, sizeof(errorMsg), 
+                         "Type mismatch: cannot apply operator (%s) to (%s) and (%s)", node->expr_data.op,
+                         leftType, rightType);
+                addError(errorMsg, node->line_no, node->char_no);
+            }
+            break;
+        }
+
+        case NODE_EXPR_UNARY: {
+            type = validateAndGetTypeFromAST(node->expr_data.left);
+            const char* op = node->expr_data.op;
+
+            if(!type) break;
+
+            // Cannot apply ++, -- to any other node other than ID_REF
+            switch(getOpType(op)){
+                case OP_INC_DEC:
+                {   
+                    NodeType nType = node->expr_data.left->expr_data.left->type; // UnaryExpr --> TermExpr
+                    if( nType != NODE_ID_REF){
+                        char errorMsg[256];
+                        snprintf(errorMsg, sizeof(errorMsg), "Type mismatch: cannot apply operator (%s) to (%s)", node->expr_data.op, type);
+                        addError(errorMsg, node->line_no, node->char_no);
+                    }
+                    break;
+                }
+
+                case OP_ARITHMETIC:
+                {   
+                    if(strcmp(op, "-") == 0 && strcmp(type, TYPE_STRING) == 0){
+                        char errorMsg[256];
+                        snprintf(errorMsg, sizeof(errorMsg), "Type mismatch: cannot apply operator (%s) to (%s)", node->expr_data.op, type);
+                        addError(errorMsg, node->line_no, node->char_no); 
+                    }
+                    break;
+                }
+
+                default:
+                    break;
+            }
+  
+            break;
+        }
+
+        default:
+            printf("Unknown node type at line %d\n", node->line_no);
+            type = NULL;
+            break;
+    }
+
+
+
+    return type;
+}
+
+
+// Define the callback function for type validation
+int validateTypesCallback(ASTNode* node, void* context) {
+    if (!node) return 1;
+
+    switch (node->type) {
+        case NODE_VAR:{
+            // printf("Validating variable\n");
+
+            // Check if value exists
+            if(!node->var_data.value) return 0;
+
+            const char* type = validateAndGetTypeFromAST(node);
+            return 0; // STOP TRAVERSAL
+        }
+
+        case NODE_ASSGN: {
+            // printf("Validating assignment\n");
+            const char* type = validateAndGetTypeFromAST(node);
+            return 0;
+        }
+
+        case NODE_EXPR_BINARY: {
+            // printf("Validating bin expr\n");
+            const char* type = validateAndGetTypeFromAST(node);
+            return 0;
+        }
+
+        case NODE_EXPR_UNARY: {
+            const char* type = validateAndGetTypeFromAST(node);
+            return 0;
+        }
+
+        default:
+            break;
+    }
+
+    return 1; // Continue traversing
+}
+
+// The main validateTypes function that calls traverseAST with the callback
+void validateTypes(ASTNode* root) {
+    traverseAST(root, validateTypesCallback, NULL);
+}

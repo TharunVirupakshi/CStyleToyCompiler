@@ -71,7 +71,8 @@ typedef enum NodeType {
 
 typedef struct ASTNode {
     NodeType type;  // Type of the node (enum to identify node type)
-
+    int line_no, char_no;
+    SymbolTable* scope;
     union {
 
         struct {
@@ -88,6 +89,7 @@ typedef struct ASTNode {
             struct ASTNode* params;       // Root of the parameter list binary tree
             struct ASTNode* body;         // Function body (block of statements)
             int param_count;              // Number of parameters
+            SymbolTable* scope;
         } func_decl_data;
         
         struct {
@@ -270,8 +272,13 @@ typedef struct ASTNode {
 
 
 // Function prototypes for AST operations
-ASTNode* createASTNode(NodeType);
+ASTNode* createASTNode(NodeType, int line_no, int char_no);
 void printAST(ASTNode* node, int indent, bool isLast);
 void freeAST(ASTNode* node);
 void exportASTAsJSON(const char *folderPath, ASTNode *root);
+
+typedef int (*ASTTraversalCallback)(ASTNode* node, void* context);
+void traverseAST(ASTNode* node, ASTTraversalCallback callback, void* context);
+const char* getDataTypeFromAST(ASTNode* node);
+
 #endif // AST_H
