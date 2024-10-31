@@ -405,21 +405,56 @@ const char* validateAndGetTypeFromAST(ASTNode* node) {
             // printf("Getting type of bin expr\n");
             const char* leftType = validateAndGetTypeFromAST(node->expr_data.left);
             const char* rightType = validateAndGetTypeFromAST(node->expr_data.right);
-
+            const char* op = node->expr_data.op;
 
             if (leftType == NULL || rightType == NULL) break; 
             
             // Apply promotion
             type = promoteType(leftType, rightType);
 
-            // Error if no valid promotion found
-            if (!type) {
-                char errorMsg[256];
-                snprintf(errorMsg, sizeof(errorMsg), 
-                         "Type mismatch: cannot apply operator (%s) to (%s) and (%s)", node->expr_data.op,
-                         leftType, rightType);
-                addError(errorMsg, node->line_no, node->char_no);
+             switch (getOpType(op)){
+                case OP_COMP:
+                    if (strcmp(op, "==") == 0 || strcmp(op, "!=") == 0){
+                        // if one of the types is str and other is not
+                        if (!type) {
+                            char errorMsg[256];
+                            snprintf(errorMsg, sizeof(errorMsg), 
+                                    "Type mismatch: cannot apply operator (%s) to (%s) and (%s)", node->expr_data.op,
+                                    leftType, rightType);
+                            addError(errorMsg, node->line_no, node->char_no);
+                        }else{
+                            type = TYPE_INT;
+                        }
+                        
+                    }
+                    // Cannot apply any other comp op for strs.
+                    else if(strcmp(type, TYPE_STRING) == 0){
+                        char errorMsg[256];
+                        snprintf(errorMsg, sizeof(errorMsg), 
+                                "Type mismatch: cannot apply operator (%s) to (%s) and (%s)", node->expr_data.op,
+                                leftType, rightType);
+                        addError(errorMsg, node->line_no, node->char_no); 
+                    }
+                    break;
+
+                case OP_ARITHMETIC:
+                    if (!type || strcmp(type, TYPE_STRING) == 0) {
+                        char errorMsg[256];
+                        snprintf(errorMsg, sizeof(errorMsg), 
+                                "Type mismatch: cannot apply operator (%s) to (%s) and (%s)", node->expr_data.op,
+                                leftType, rightType);
+                        addError(errorMsg, node->line_no, node->char_no);
+                    } 
+                    break;
+
+                case OP_LOGICAL:
+                    type = TYPE_INT;
+                    break;
+                
+                default:
+                    break;
             }
+
             break;
         }
 

@@ -1,58 +1,51 @@
-// Variable declarations
-int a = 10;
-char b = 'x';
-string s = "hello";
 
-// Correct type usage
-int c = a + 5;          // Valid: both sides are int
-char d = b;             // Valid: char assigned to char
-string greeting = s;    // Valid: string assigned to string
-
-// Type mismatch errors
-int wrongType1 = b;     // Valid: assigning char to int
-char wrongType2 = a;    // Valid: assigning int to char
-int mismatch = s;       // Error: assigning string to int
-
-// Usage of undeclared variable
-int undeclaredTest = x; // Error: 'x' is undeclared
-
-// Binary expressions
-int sum = a + b;        // Valid: can add int and char
-int product = a * c;    // Valid: int * int
-
-// Unary expressions
-int neg = -a;           // Valid: unary minus on int
-int invalidUnary = -s;  // Error: unary minus on string
+int a = 3 + 'c';
+a = 3 + "str"; //INVALID
+a = 3 && "str"; //VALID
+char c = "str" == !"str"; //VALID, == return 1 or 0
+"str" <= "str"; //INVALID
 
 
-// Mixed expressions
-int complexExpr = a + b * c - 10; // Error: type mismatch in expression
-int correctExpr = a * (c + 1);    // Valid: all int operations
 
-// Function definitions
-int myFunc(int x) {
-    return x + 5;
-}
 
-int anotherFunc(string str) {
-    return str;          // Error: return type mismatch, string to int
-}
 
-int nestedFuncCalls() {
-    return myFunc(myFunc(a)); // Valid: nested function calls with int return
-}
+// int main() {
+//     // Valid cases with automatic type promotion (char to int)
+//     char c1 = 'a';
+//     int i1 = 10;
+    
+//     int result1 = c1 + i1;          // char + int -> promoted to int
+//     int result2 = i1 - c1;          // int - char -> promoted to int
+//     int result3 = c1 * 2;           // char * int -> promoted to int
+//     int result4 = 10 / c1;          // int / char -> promoted to int
 
-int invalidNestedCalls() {
-    return myFunc(greeting); // Error: argument type mismatch
-}
+//     char c2 = 'b';
+//     int result5 = i1 && c2;         // Logical operator should be allowed between int and char (both are non-zero)
+//     result5 = "str" && "str";       // Should work as str are non-zero values
+//     int result6 = c2 < i1;          // Comparison operator should work due to promotion
+    
 
-// Edge cases
-int edgeCase1 = a + undeclaredVar; // Error: undeclared variable in expression
-int edgeCase2 = 5 + b - s;         // Error: mixing int, char, and string in expression
+//     char result8 = c1 || i1;        // Logical operator should work
 
-// Final assignment validation
-a = 20;                   // Valid: assigning int to int
-a = s;                    // Error: assigning string to int
+//     // Increment/Decrement (valid for int and char)
+//     c1++;                           // Valid: char can be incremented
+//     i1--;                           // Valid: int can be decremented
+    
+//     // Assignments and promotions
+//     c1 = i1 + 5;                    // Valid: int is implicitly cast to char
+//     i1 = c1 + 5;                    // Valid: char promoted to int
+//     int result9 = (c1 + i1) * 2;    // Nested expressions with promotion
+
+
+//     // INVALID CASES
+//     result1 = c1 && "string";   // Error: logical AND with incompatible types (char and string)
+//     result2 = i1 < "another";   // Error: comparison between int and string
+//     result4 = i1 / "str";       // Error: division with incompatible type (int and string)
+
+
+//     return 0;
+// }
+
 
 
 

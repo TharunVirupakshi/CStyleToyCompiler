@@ -154,7 +154,6 @@ assgn_stmt:
     ;
 assgn_expr:
     ID ASSIGN expr              { $$ = createAssgnNode($1, $3); } 
-    | ID ASSIGN STR_LITERAL     { $$ = createAssgnNode($1, createStrLiteralNode($3)); }
     ;
 
 // Block statement
@@ -270,7 +269,6 @@ var_list:
 var:
     ID                          { $$ = createVarNode($1); } 
     | ID ASSIGN expr            { $$ = createVarAssgnNode($1, $3); }
-    | ID ASSIGN STR_LITERAL     { $$ = createVarAssgnNode($1, createStrLiteralNode($3)); }
     ;
 
 // Function declarations
@@ -347,6 +345,7 @@ expr:
     | ID                        { $$ = createTermExpNode(createIdRefNode($1)); } 
     | INT_LITERAL               { $$ = createTermExpNode(createIntLiteralNode($1)); }
     | CHAR_LITERAL              { $$ = createTermExpNode(createCharLiteralNode($1)); }
+    | STR_LITERAL               { $$ = createTermExpNode(createStrLiteralNode($1)); }
     | func_call                 { $$ = $1; }
     | '(' expr ')'              { $$ = $2; }
     ;
