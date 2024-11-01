@@ -439,7 +439,7 @@ const char* inferAndValidateType(ASTNode* node) {
             // Apply promotion
             type = promoteType(leftType, rightType);
 
-             switch (getOpType(op)){
+            switch (getOpType(op)){
                 case OP_COMP:
                     if (strcmp(op, "==") == 0 || strcmp(op, "!=") == 0){
                         // if one of the types is str and other is not
@@ -456,12 +456,13 @@ const char* inferAndValidateType(ASTNode* node) {
                         
                     }
                     // Cannot apply any other comp op for strs.
-                    else if(!type){
+                    else if(!type || strcmp(type, TYPE_STRING) == 0){
                         char errorMsg[256];
                         snprintf(errorMsg, sizeof(errorMsg), 
                                 "Type mismatch: cannot apply operator (%s) to (%s) and (%s)", node->expr_data.op,
                                 leftType, rightType);
                         addError(errorMsg, node->line_no, node->char_no); 
+                        type = NULL;
                     }
                     else{
                             type = TYPE_INT;

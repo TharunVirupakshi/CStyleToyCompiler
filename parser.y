@@ -89,7 +89,7 @@ ASTNode* createArgNode(ASTNode* arg);
 %token EQ NEQ LEQ GEQ LT GT ASSIGN
 %token AND OR NOT
 
-%right ASSIGN NOT
+%right ASSIGN
 %left EQ NEQ
 %left LT GT LEQ GEQ
 %left AND
@@ -336,7 +336,7 @@ expr:
     | expr GEQ expr             { $$ = createBinaryExpNode($1, $3, ">="); }
     | expr AND expr             { $$ = createBinaryExpNode($1, $3, "&&"); }
     | expr OR expr              { $$ = createBinaryExpNode($1, $3, "||"); }
-    | NOT expr                  { $$ = createUnaryExpNode($2, "!"); }
+    | NOT expr   %prec UNARY    { $$ = createUnaryExpNode($2, "!"); }
     | MINUS expr %prec UNARY    { $$ = createUnaryExpNode($2, "-"); }
     | INC expr   %prec UNARY    { $$ = createUnaryExpNode($2, "PRE_INC"); }
     | DEC expr   %prec UNARY    { $$ = createUnaryExpNode($2, "PRE_DEC"); }

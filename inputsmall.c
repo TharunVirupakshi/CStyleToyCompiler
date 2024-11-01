@@ -45,6 +45,18 @@ int main() {
     result2 = i1 < "another";   // Error: comparison between int and string
     result4 = i1 / "str";       // Error: division with incompatible type (int and string)
 
+    int foo(int a) return a;
+    char foo2() return 'c';
+    string foo3() return "str";
+
+    result2 = i1 <= foo3();
+    result2 = foo2() <= foo3(); // Error: Cannot c
+    result2 = foo2() <= foo();
+    result2 = foo2() && foo3(); // Valid: Logical returns int type
+    result2 = foo2() == foo3(); // Error: cannot compare string with other types
+    result2 = foo3() == foo3(); // Valid: comp operator return type is int, != and == are the only op allowed for str
+    result2 = foo3() <= foo3();  // Error: not allowed
+    result2 = !foo3() <= !foo3();  // Error: not allowed
 
     return 0;
 }
