@@ -124,11 +124,11 @@ typedef struct ASTNode {
             ASTNode* arg;
         } arg_data;
 
-        // Assignment node data
-        struct {
-            symbol* sym;                  // The variable being assigned to
-            struct ASTNode* value;        // The value being assigned
-        } assignment_data;
+        // // Assignment node data
+        // struct {
+        //     symbol* sym;                  // The variable being assigned to
+        //     struct ASTNode* value;        // The value being assigned
+        // } assignment_data;
 
         // Literal node data (for integers, characters, strings, etc.)
         struct {

@@ -2,12 +2,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 #define TYPE_VOID "void"
 #define TYPE_INT "int"
 #define TYPE_CHAR "char"
 #define TYPE_STRING "string"
 #define TYPE_UNKNOWN "unknown"
+
+bool isDebugOn = false;
 
 typedef enum{
     OP_ARITHMETIC,
@@ -19,6 +22,9 @@ typedef enum{
 
 
 OpType getOpType(const char* op) {
+
+    if(!op) return OP_UNKNOWN;
+
     if (strcmp(op, "+") == 0 || strcmp(op, "-") == 0 ||
         strcmp(op, "*") == 0 || strcmp(op, "/") == 0){
         return OP_ARITHMETIC;
@@ -54,6 +60,8 @@ extern bool isSemanticError;
 Error* errorList = NULL;
 int errorCount = 0;
 
+
+
 // Main function
 SemanticStatus performSemanticAnalysis(ASTNode* root, SymbolTable* globalTable) {
     if (!root) return SEMANTIC_ERROR;
@@ -67,6 +75,8 @@ SemanticStatus performSemanticAnalysis(ASTNode* root, SymbolTable* globalTable) 
 
     return errorCount > 0 ? SEMANTIC_ERROR : SEMANTIC_SUCCESS;
 }
+
+
 
 
 
@@ -323,7 +333,8 @@ const char* inferAndValidateType(ASTNode* node) {
     
     switch (node->type) {
         case NODE_ID:
-            // printf("Getting type of ID\n");
+            if(isDebugOn) printf("Getting type of ID (%s)\n", node->id_data.sym->name);
+
             type = node->id_data.sym->type;
             if(!type){
                 char errorMsg[256]; 
@@ -334,7 +345,7 @@ const char* inferAndValidateType(ASTNode* node) {
             break;
 
         case NODE_ID_REF:
-            // printf("Getting type of ID ref\n");
+            if(isDebugOn) printf("Getting type of ID ref (%s)\n", node->id_ref_data.name);
             type = node->id_ref_data.ref ? node->id_ref_data.ref->type : NULL;
             
             if(!type){
@@ -346,32 +357,35 @@ const char* inferAndValidateType(ASTNode* node) {
             node->inferedType = type;            
             break;
         case NODE_INT_LITERAL:
-            // printf("Getting type of int\n");
+            if(isDebugOn) printf("Getting type of int (%d)\n", node->literal_data.value.int_value);
             type = "int";
             node->inferedType = type;
             break;
         case NODE_CHAR_LITERAL:
-            // printf("Getting type of char\n");
+            if(isDebugOn) printf("Getting type of char (%c)\n",  node->literal_data.value.char_value);
             type = "char";
             node->inferedType = type;
             break;
         case NODE_STR_LITERAL:
+            if(isDebugOn) printf("Getting type of str\n");
             type = "string";
             node->inferedType = type;
             break;
         case NODE_EXPR_TERM:
-            // printf("Getting type of expr term\n");
+            if(isDebugOn) printf("Getting type of expr term\n");
             type = inferAndValidateType(node->expr_data.left);
             node->inferedType = type;
 
             break;
         case NODE_FUNC_CALL:
+            if(isDebugOn) printf("Getting type of func call\n");
             type = inferAndValidateType(node->func_call_data.id);
             node->inferedType = type;
             break;
 
         case NODE_VAR:
             {   
+                if(isDebugOn) printf("Getting type of var node\n");
                 if(!node->var_data.value) break;
 
                 const char* leftType = inferAndValidateType(node->var_data.id);
@@ -393,9 +407,10 @@ const char* inferAndValidateType(ASTNode* node) {
             }
 
         case NODE_ASSGN:
-            {
-                const char* leftType = inferAndValidateType(node->var_data.id);
-                const char* rightType = inferAndValidateType(node->var_data.value);
+            {   
+                if(isDebugOn) printf("Getting type of assgn node\n");
+                const char* leftType = inferAndValidateType(node->assgn_data.left);
+                const char* rightType = inferAndValidateType(node->assgn_data.right);
 
                 
                 if (leftType == NULL || rightType == NULL) break;  
@@ -414,12 +429,12 @@ const char* inferAndValidateType(ASTNode* node) {
             }
         
         case NODE_EXPR_BINARY: {
-            // printf("Getting type of bin expr\n");
+            if(isDebugOn) printf("Getting type of bin expr op(%s)\n", node->expr_data.op);
             const char* leftType = inferAndValidateType(node->expr_data.left);
             const char* rightType = inferAndValidateType(node->expr_data.right);
             const char* op = node->expr_data.op;
 
-            if (leftType == NULL || rightType == NULL) break; 
+            if (leftType == NULL || rightType == NULL || op == NULL) break; 
             
             // Apply promotion
             type = promoteType(leftType, rightType);
@@ -441,13 +456,17 @@ const char* inferAndValidateType(ASTNode* node) {
                         
                     }
                     // Cannot apply any other comp op for strs.
-                    else if(strcmp(type, TYPE_STRING) == 0){
+                    else if(!type){
                         char errorMsg[256];
                         snprintf(errorMsg, sizeof(errorMsg), 
                                 "Type mismatch: cannot apply operator (%s) to (%s) and (%s)", node->expr_data.op,
                                 leftType, rightType);
                         addError(errorMsg, node->line_no, node->char_no); 
                     }
+                    else{
+                            type = TYPE_INT;
+                            node->inferedType = type;
+                        }
                     break;
 
                 case OP_ARITHMETIC:
@@ -475,10 +494,11 @@ const char* inferAndValidateType(ASTNode* node) {
         }
 
         case NODE_EXPR_UNARY: {
+            if(isDebugOn) printf("Getting type of unary expr op(%s)\n", node->expr_data.op);
             type = inferAndValidateType(node->expr_data.left);
             const char* op = node->expr_data.op;
 
-            if(!type) break;
+            if(!type || !op) break;
 
             // Cannot apply ++, -- to any other node other than ID_REF of non-str type
             switch(getOpType(op)){
