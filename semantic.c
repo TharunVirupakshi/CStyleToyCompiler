@@ -61,6 +61,8 @@ Error* errorList = NULL;
 int errorCount = 0;
 
 
+const char* inferAndValidateType(ASTNode* node); 
+
 
 // Main function
 SemanticStatus performSemanticAnalysis(ASTNode* root, SymbolTable* globalTable) {
@@ -325,6 +327,109 @@ const char* promoteType(const char* leftType, const char* rightType) {
     return NULL;
 }
 
+
+// int chechReturnTypeCallback(ASTNode* node, void* context){
+//     const char* expectedType = (const char*)context;
+
+//         switch (body->type) {
+//         case NODE_RETURN:
+//             // Get the return expression type
+//             retType = inferAndValidateType(body->ret_stmt_data.expr);
+//             foundReturn = true;
+
+//             // Check if the return type matches expected function type
+//             if (retType && strcmp(retType, expectedType) != 0) {
+//                 char errorMsg[256];
+//                 snprintf(errorMsg, sizeof(errorMsg),
+//                             "Return type mismatch in function '%s': expected (%s), but got (%s)",
+//                             node->func_decl_data.name, expectedType, retType);
+//                 addError(errorMsg, body->line_no, body->char_no);
+//             }
+//             break;
+
+//         case NODE_FUNC_DECL:
+//             // Skip nested function declarations
+//             break;
+
+//         default:
+//             // Recursively check within other types of statements/expressions in the function body
+//             checkReturnTypeInBody(body->left, expectedType);
+//             checkReturnTypeInBody(body->right, expectedType);
+//             break;
+//     }
+
+// }
+// // Helper function to recursively check for return statements
+// int checkReturnType(ASTNode* body, const char* expectedType) {
+//     if (!body) return NULL;
+    
+//     const char* 
+
+
+
+
+//     return ;
+// }
+
+
+void validateFunctionCallArgs(ASTNode* func_call_node) {
+    // Get function call identifier and its symbol
+    if(isDebugOn) printf("Validating func call args\n");
+
+    symbol* func_symbol = func_call_node->func_call_data.id->id_ref_data.ref;
+    if (!func_symbol || !func_symbol->is_function) {
+        addError("Called identifier is not a function", func_call_node->line_no, func_call_node->char_no);
+        return;
+    }
+
+    // Retrieve the function declaration node
+    ASTNode* func_decl_node = func_symbol->func_node;
+    int expected_count = func_decl_node->func_decl_data.param_count;
+
+    // Argument count validation
+    if (func_call_node->func_call_data.arg_count != expected_count) {
+        char errorMsg[256];
+        snprintf(errorMsg, sizeof(errorMsg),
+                 "Argument count mismatch for function '%s': expected %d, got %d",
+                 func_symbol->name, expected_count, func_call_node->func_call_data.arg_count);
+        addError(errorMsg, func_call_node->line_no, func_call_node->char_no);
+        return;
+    }
+
+    // Initialize pointers to traverse arguments and parameters
+    ASTNode* arg_node = func_call_node->func_call_data.arg_list;
+    ASTNode* param_node = func_decl_node->func_decl_data.params;
+    int arg_index = expected_count-1;
+
+
+    while (arg_node && param_node) {
+        // Get expected parameter type
+        const char* expected_type = param_node->param_list_data.param->param_data.type_spec->type_data.type;
+
+        // Infer argument type
+        const char* arg_type = inferAndValidateType(arg_node->arg_list_data.arg->arg_data.arg);
+
+        if(!expected_type && !arg_type) return;
+
+        // Type mismatch check
+        if (strcmp(arg_type, expected_type) != 0) {
+            char errorMsg[256];
+            snprintf(errorMsg, sizeof(errorMsg),
+                     "Type mismatch in argument %d for function '%s': expected (%s), got (%s)",
+                     arg_index + 1, func_symbol->name, expected_type, arg_type);
+            addError(errorMsg, arg_node->line_no, arg_node->char_no);
+        }
+
+        // Move to the next argument and parameter
+        arg_node = arg_node->arg_list_data.arg_list;
+        param_node = param_node->param_list_data.param_list;
+        arg_index--;
+    }
+
+    return;  // Arguments validated successfully
+}
+
+
 const char* inferAndValidateType(ASTNode* node) {
 
     const char* type = NULL;
@@ -356,31 +461,45 @@ const char* inferAndValidateType(ASTNode* node) {
             } 
             node->inferedType = type;            
             break;
+
         case NODE_INT_LITERAL:
             if(isDebugOn) printf("Getting type of int (%d)\n", node->literal_data.value.int_value);
-            type = "int";
+            type = TYPE_INT;
             node->inferedType = type;
             break;
+
         case NODE_CHAR_LITERAL:
             if(isDebugOn) printf("Getting type of char (%c)\n",  node->literal_data.value.char_value);
-            type = "char";
+            type = TYPE_CHAR;
             node->inferedType = type;
             break;
+
         case NODE_STR_LITERAL:
             if(isDebugOn) printf("Getting type of str\n");
-            type = "string";
+            type = TYPE_STRING;
             node->inferedType = type;
             break;
+
         case NODE_EXPR_TERM:
             if(isDebugOn) printf("Getting type of expr term\n");
             type = inferAndValidateType(node->expr_data.left);
             node->inferedType = type;
-
             break;
+
         case NODE_FUNC_CALL:
             if(isDebugOn) printf("Getting type of func call\n");
             type = inferAndValidateType(node->func_call_data.id);
             node->inferedType = type;
+
+            // validate the args
+            validateFunctionCallArgs(node);
+            break;
+
+        case NODE_RETURN:
+            if(isDebugOn) printf("Getting type of return stmt\n");
+            type = inferAndValidateType(node->return_data.return_value);
+            node->inferedType = type ? type : TYPE_VOID;
+            type = TYPE_VOID;
             break;
 
         case NODE_VAR:
@@ -511,6 +630,7 @@ const char* inferAndValidateType(ASTNode* node) {
                         snprintf(errorMsg, sizeof(errorMsg), "Type mismatch: cannot apply operator (%s) to (%s)", node->expr_data.op, type);
                         addError(errorMsg, node->line_no, node->char_no);
                     }else{
+                        type = TYPE_INT;
                         node->inferedType = TYPE_INT;
                     }
                     break;
@@ -523,18 +643,21 @@ const char* inferAndValidateType(ASTNode* node) {
                         snprintf(errorMsg, sizeof(errorMsg), "Type mismatch: cannot apply operator (%s) to (%s)", node->expr_data.op, type);
                         addError(errorMsg, node->line_no, node->char_no); 
                     }else{
+                        type = TYPE_INT;
                         node->inferedType = TYPE_INT;
                     }
                     break;
                 }
                 case OP_COMP:
+                    type = TYPE_INT;
                     node->inferedType = TYPE_INT;
                     break;
                 case OP_LOGICAL:
+                    type = TYPE_INT;
                     node->inferedType = TYPE_INT;
                     break;      
                 default:
-                    node->inferedType = type;
+                    type = NULL;
                     break;
             }
             
@@ -585,6 +708,15 @@ int validateTypesCallback(ASTNode* node, void* context) {
             return 0;
         }
 
+        case NODE_RETURN: {
+            const char* type = inferAndValidateType(node);
+            return 0;
+        }
+
+        case NODE_FUNC_CALL: {
+            const char* type = inferAndValidateType(node);
+            return 0; 
+        }
         default:
             break;
     }

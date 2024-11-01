@@ -1,65 +1,70 @@
 
-
-int a = 3 + 'c';
-a = 3 + "str"; //INVALID
-a = 3 && "str"; //VALID
-char c = "str" == !"str"; //VALID, == return 1 or 0
-"str" <= "str"; //INVALID
-string d = "str" + 1; //INVALID
-d = "str";
+int foo(int a, int b, char c, string str) return a;
+int b = 2;
+foo(1&&"Str", !b, 'c', "str"); // VALID
 
 
 
+// int a = 3 + 'c';
+// a = 3 + "str"; //INVALID
+// a = 3 && "str"; //VALID
+// char c = "str" == !"str"; //VALID, == return 1 or 0
+// "str" <= "str"; //INVALID
+// string d = "str" + 1; //INVALID
+// d = "str";
 
 
-int main() {
-    // Valid cases with automatic type promotion (char to int)
-    char c1 = 'a';
-    int i1 = 10;
+
+
+
+// int main() {
+//     // Valid cases with automatic type promotion (char to int)
+//     char c1 = 'a';
+//     int i1 = 10;
     
-    int result1 = c1 + i1;          // char + int -> promoted to int
-    int result2 = i1 - c1;          // int - char -> promoted to int
-    int result3 = c1 * 2;           // char * int -> promoted to int
-    int result4 = 10 / c1;          // int / char -> promoted to int
+//     int result1 = c1 + i1;          // char + int -> promoted to int
+//     int result2 = i1 - c1;          // int - char -> promoted to int
+//     int result3 = c1 * 2;           // char * int -> promoted to int
+//     int result4 = 10 / c1;          // int / char -> promoted to int
 
-    char c2 = 'b';
-    int result5 = i1 && c2;         // Logical operator should be allowed between int and char (both are non-zero)
-    result5 = "str" && "str";       // Should work as str are non-zero values
-    int result6 = c2 < i1;          // Comparison operator should work due to promotion
+//     char c2 = 'b';
+//     int result5 = i1 && c2;         // Logical operator should be allowed between int and char (both are non-zero)
+//     result5 = "str" && "str";       // Should work as str are non-zero values
+//     int result6 = c2 < i1;          // Comparison operator should work due to promotion
     
 
-    char result8 = c1 || i1;        // Logical operator should work
+//     char result8 = c1 || i1;        // Logical operator should work
 
-    // Increment/Decrement (valid for int and char)
-    c1++;                           // Valid: char can be incremented
-    i1--;                           // Valid: int can be decremented
+//     // Increment/Decrement (valid for int and char)
+//     c1++;                           // Valid: char can be incremented
+//     i1--;                           // Valid: int can be decremented
     
-    // Assignments and promotions
-    c1 = i1 + 5;                    // Valid: int is implicitly cast to char
-    i1 = c1 + 5;                    // Valid: char promoted to int
-    int result9 = (c1 + i1) * 2;    // Nested expressions with promotion
+//     // Assignments and promotions
+//     c1 = i1 + 5;                    // Valid: int is implicitly cast to char
+//     i1 = c1 + 5;                    // Valid: char promoted to int
+//     int result9 = (c1 + i1) * 2;    // Nested expressions with promotion
 
 
-    // INVALID CASES
-    result1 = c1 && "string";   // Error: logical AND with incompatible types (char and string)
-    result2 = i1 < "another";   // Error: comparison between int and string
-    result4 = i1 / "str";       // Error: division with incompatible type (int and string)
+//     // INVALID CASES
+//     result1 = c1 && "string";   // Error: logical AND with incompatible types (char and string)
+//     result2 = i1 < "another";   // Error: comparison between int and string
+//     result4 = i1 / "str";       // Error: division with incompatible type (int and string)
 
-    int foo(int a) return a;
-    char foo2() return 'c';
-    string foo3() return "str";
+//     int foo(int a) return a;
+//     char foo2() return 'c';
+//     string foo3() return "str";
 
-    result2 = i1 <= foo3();
-    result2 = foo2() <= foo3(); // Error: Cannot c
-    result2 = foo2() <= foo();
-    result2 = foo2() && foo3(); // Valid: Logical returns int type
-    result2 = foo2() == foo3(); // Error: cannot compare string with other types
-    result2 = foo3() == foo3(); // Valid: comp operator return type is int, != and == are the only op allowed for str
-    result2 = foo3() <= foo3();  // Error: not allowed
-    result2 = !foo3() <= !foo3();  // Error: not allowed
+//     result2 = i1 <= foo3();
+//     result2 = foo2() <= foo3(); // Error: Cannot c
+//     result2 = foo2() <= foo();
+//     result2 = foo2() && foo3(); // Valid: Logical returns int type
+//     result2 = foo2() == foo3(); // Error: cannot compare string with other types
+//     result2 = foo3() == foo3(); // Valid: comp operator return type is int, != and == are the only op allowed for str
+//     result2 = foo3() <= foo3();  // Error: not allowed
+//     result2 = !foo3() <= !foo3();  // Valid: ! returns int
 
-    return 0;
-}
+//     return 0;
+// }
 
 
 

@@ -12,6 +12,7 @@ typedef struct symbol {
     SymbolTable* scope;       // Scope level (e.g., global = 0, local > 0)
     int location;    // Memory location or offset in the stack
     int is_function; // Whether the symbol is a function
+    ASTNode* func_node;
     int line_no;
     int char_no;
     int is_duplicate;

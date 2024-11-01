@@ -511,10 +511,10 @@ void exportASTNodeAsJSON(FILE *file, ASTNode *node, int parentID, int *edgeBuffe
             fprintf(file, "RETURN\" }");
             break;
         case NODE_INT_LITERAL:
-            fprintf(file, "LITERAL (int: %d)\" }", node->literal_data.value.int_value);
+            fprintf(file, "LITERAL\\n(int: %d)\" }", node->literal_data.value.int_value);
             break;
         case NODE_CHAR_LITERAL:
-            fprintf(file, "LITERAL (char: '%c')\" }", node->literal_data.value.char_value);
+            fprintf(file, "LITERAL\\n(char: '%c')\" }", node->literal_data.value.char_value);
             break;
         case NODE_STR_LITERAL:
             fprintf(file, "LITERAL (string)\" }");
@@ -541,10 +541,10 @@ void exportASTNodeAsJSON(FILE *file, ASTNode *node, int parentID, int *edgeBuffe
             fprintf(file, "VAR\\n(name: %s, valueType: %s)\" }", node->var_data.id->id_data.sym->name, node->inferedType);
             break;
         case NODE_ID:
-            fprintf(file, "ID (name: %s)\" }", node->id_data.sym->name);
+            fprintf(file, "ID\\n(name: %s)\" }", node->id_data.sym->name);
             break;
         case NODE_ID_REF:
-            fprintf(file, "ID_REF (name: %s)\" }", node->id_ref_data.name);
+            fprintf(file, "ID_REF\\n(name: %s)\" }", node->id_ref_data.name);
             break;
         case NODE_ASSGN:
             fprintf(file, "ASSGN (type: %s)\" }", node->inferedType);
@@ -556,7 +556,7 @@ void exportASTNodeAsJSON(FILE *file, ASTNode *node, int parentID, int *edgeBuffe
             fprintf(file, "EXPR\\n(unary: %s, type: %s)\" }", node->expr_data.op, node->inferedType);
             break;
         case NODE_EXPR_TERM:
-            fprintf(file, "EXPR (term)\" }");
+            fprintf(file, "EXPR\\n(term, type: %s)\" }", node->inferedType);
             break;
         case NODE_IF:
             fprintf(file, "IF\" }");
@@ -601,7 +601,7 @@ void exportASTNodeAsJSON(FILE *file, ASTNode *node, int parentID, int *edgeBuffe
             fprintf(file, "FOR_BODY\" }");
             break;
         case NODE_FUNC_DECL:
-            fprintf(file, "FUNC_DECL (name: %s)\" }", node->func_decl_data.id->id_data.sym->name);
+            fprintf(file, "FUNC_DECL\\n(name: %s, param_cnt: %d)\" }", node->func_decl_data.id->id_data.sym->name, node->func_decl_data.param_count);
             break;
         case NODE_FUNC_BODY:
             fprintf(file, "FUNC_BODY\" }");
@@ -610,10 +610,10 @@ void exportASTNodeAsJSON(FILE *file, ASTNode *node, int parentID, int *edgeBuffe
             fprintf(file, "PARAM_LIST\" }");
             break;
         case NODE_PARAM:
-            fprintf(file, "PARAM (type: %s)\" }", node->param_data.type_spec->type_data.type);
+            fprintf(file, "PARAM\\n(type: %s)\" }", node->param_data.type_spec->type_data.type);
             break;
         case NODE_FUNC_CALL:
-            fprintf(file, "FUNC_CALL (name: %s)\" }", node->func_call_data.id->id_ref_data.name);
+            fprintf(file, "FUNC_CALL\\n(name: %s, arg_cnt: %d)\" }", node->func_call_data.id->id_ref_data.name, node->func_call_data.arg_count);
             break;
         case NODE_ARG_LIST:
             fprintf(file, "ARG_LIST\" }");
@@ -765,8 +765,8 @@ void exportASTNodeAsJSON(FILE *file, ASTNode *node, int parentID, int *edgeBuffe
             exportASTNodeAsJSON(file, node->func_call_data.arg_list, currentID, edgeBufferSize, edgeBuffer, 0);
             break;
         case NODE_ARG_LIST:
-            exportASTNodeAsJSON(file, node->arg_list_data.arg, currentID, edgeBufferSize, edgeBuffer, 0);
             exportASTNodeAsJSON(file, node->arg_list_data.arg_list, currentID, edgeBufferSize, edgeBuffer, 0);
+            exportASTNodeAsJSON(file, node->arg_list_data.arg, currentID, edgeBufferSize, edgeBuffer, 0);
             break;
         case NODE_ARG:
             exportASTNodeAsJSON(file, node->arg_data.arg, currentID, edgeBufferSize, edgeBuffer, 0);

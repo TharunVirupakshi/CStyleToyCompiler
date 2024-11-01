@@ -704,6 +704,8 @@ ASTNode* createFuncDeclNode(ASTNode* type_spec, ASTNode* id, ASTNode* params, AS
     ASTNode* node = createASTNode(NODE_FUNC_DECL, cur_line, cur_char);
 
     node->func_decl_data.id = id;
+    id->id_data.sym->func_node = node;
+
     node->func_decl_data.params = params;
     node->func_decl_data.param_count = countParams(params);
     /* printf("Params count: %d\n", node->func_decl_data.param_count); */
@@ -740,7 +742,7 @@ int countArgs(ASTNode* arg_list) {
 
     // Check if the node is a parameter list node
     if (arg_list->type == NODE_ARG_LIST) {
-        return countParams(arg_list->arg_list_data.arg_list) + countParams(arg_list->arg_list_data.arg);
+        return countArgs(arg_list->arg_list_data.arg_list) + countArgs(arg_list->arg_list_data.arg);
     }
 
     return 1;
@@ -753,7 +755,6 @@ ASTNode* createFuncCallNode(const char* id, ASTNode* arg_list){
     node->func_call_data.id = createIdRefNode(id);
     node->func_call_data.arg_list = arg_list;
     node->func_call_data.arg_count = countArgs(arg_list);
-
     return node;
 
 }
