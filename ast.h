@@ -70,6 +70,7 @@ typedef enum NodeType {
 
 typedef struct ASTNode {
     NodeType type;  // Type of the node (enum to identify node type)
+    int node_id;
     int line_no, char_no;
     SymbolTable* scope;
 

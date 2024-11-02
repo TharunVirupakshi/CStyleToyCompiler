@@ -17,5 +17,6 @@ SemanticStatus performSemanticAnalysis(ASTNode* root, SymbolTable* globalTable);
 void validateSymbolUsage(ASTNode* root);
 void checkDuplicates(SymbolTable* table);
 void validateTypes(ASTNode* root);
+void validateFunctionReturnTypes(ASTNode* root);
 
 #endif

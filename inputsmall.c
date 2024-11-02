@@ -1,7 +1,13 @@
 
-int foo(int a, int b, char c, string str) return a;
+string a="str";
+
+
+int foo(int a);
+
+
+int foo1(int a, int b, char c, string str) return a;
 int b = 2;
-foo(1&&"Str", !b, 'c', "str"); // VALID
+foo1(1, b, 'c', "a"); // VALID
 
 
 

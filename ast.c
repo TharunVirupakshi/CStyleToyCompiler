@@ -9,12 +9,13 @@ extern int cur_line, cur_char;
 
 // Function to create an empty AST node
 ASTNode* createASTNode(NodeType type, int line_no, int char_no) {
+    static int node_id = 0;
     ASTNode* node = (ASTNode*)malloc(sizeof(ASTNode));
     if (!node) {
         fprintf(stderr, "Memory allocation error\n");
         exit(1);
     }
-
+    node->node_id = node_id++;
     node->type = type;
     node->line_no = line_no;
     node->char_no = char_no;
@@ -115,7 +116,6 @@ void traverseAST(ASTNode* node, ASTTraversalCallback callback, void* context) {
             break;
 
         case NODE_ASSGN:
-            printf("ASSGN\n");
             traverseAST(node->assgn_data.left, callback, context);
             traverseAST(node->assgn_data.right, callback, context);
             break;
@@ -212,6 +212,10 @@ void traverseAST(ASTNode* node, ASTTraversalCallback callback, void* context) {
             traverseAST(node->param_list_data.param, callback, context);
             break;
 
+        case NODE_PARAM:
+            traverseAST(node->param_data.id, callback, context);
+            break;
+
         case NODE_ARG_LIST:
             traverseAST(node->arg_list_data.arg, callback, context);
             traverseAST(node->arg_list_data.arg_list, callback, context);
@@ -223,6 +227,176 @@ void traverseAST(ASTNode* node, ASTTraversalCallback callback, void* context) {
 
         default:
             break;
+    }
+}
+void traverseASTPostorder(ASTNode* node, ASTTraversalCallback callback, void* context) {
+    if (!node) return;
+
+    // Traverse based on node type
+    switch (node->type) {
+        case NODE_PROGRAM:
+            traverseASTPostorder(node->program_data.stmt_list, callback, context);
+            break;
+
+        case NODE_RETURN:
+            traverseASTPostorder(node->return_data.return_value, callback, context);
+            break;
+
+        case NODE_INT_LITERAL:
+        case NODE_CHAR_LITERAL:
+        case NODE_STR_LITERAL:
+        case NODE_TYPE_SPEC:
+        case NODE_ID:
+        case NODE_ID_REF:
+            // Leaf nodes
+            break;
+
+        case NODE_STMT_LIST:
+            traverseASTPostorder(node->stmt_list_data.stmt_list, callback, context);
+            traverseASTPostorder(node->stmt_list_data.stmt, callback, context);
+            break;
+        
+        case NODE_STMT:
+            traverseASTPostorder(node->stmt_data.stmt, callback, context);
+            break;
+
+        case NODE_BLOCK_STMT:
+            traverseASTPostorder(node->block_stmt_data.stmt_list, callback, context);
+            break;
+
+        case NODE_DECL:
+            traverseASTPostorder(node->decl_data.type_spec, callback, context);
+            traverseASTPostorder(node->decl_data.var_list, callback, context);
+            break;
+
+        case NODE_VAR_LIST:
+            traverseASTPostorder(node->var_list_data.var_list, callback, context);
+            traverseASTPostorder(node->var_list_data.var, callback, context);
+            break;
+
+        case NODE_VAR:
+            traverseASTPostorder(node->var_data.id, callback, context);
+            traverseASTPostorder(node->var_data.value, callback, context);
+            break;
+
+        case NODE_ASSGN:
+            traverseASTPostorder(node->assgn_data.left, callback, context);
+            traverseASTPostorder(node->assgn_data.right, callback, context);
+            break;
+
+        case NODE_EXPR_BINARY:
+            traverseASTPostorder(node->expr_data.left, callback, context);
+            traverseASTPostorder(node->expr_data.right, callback, context);
+            break;
+
+        case NODE_EXPR_UNARY:
+            traverseASTPostorder(node->expr_data.left, callback, context);
+            break;
+
+        case NODE_EXPR_TERM:
+            traverseASTPostorder(node->expr_data.left, callback, context);
+            break;
+
+        case NODE_IF:
+            traverseASTPostorder(node->if_else_data.condition, callback, context);
+            traverseASTPostorder(node->if_else_data.if_branch, callback, context);
+            break;
+
+        case NODE_IF_ELSE:
+            traverseASTPostorder(node->if_else_data.condition, callback, context);
+            traverseASTPostorder(node->if_else_data.if_branch, callback, context);
+            traverseASTPostorder(node->if_else_data.else_branch, callback, context);
+            break;
+
+        case NODE_IF_COND:
+            traverseASTPostorder(node->if_cond_data.cond, callback, context); 
+            break;
+
+        case NODE_IF_BRANCH:
+        case NODE_ELSE_BRANCH:
+            traverseASTPostorder(node->if_else_branch.branch, callback, context);;
+            break;
+
+        case NODE_WHILE:
+            traverseASTPostorder(node->while_data.condition, callback, context);
+            traverseASTPostorder(node->while_data.while_body, callback, context);
+            break;
+        case NODE_WHILE_COND:   
+            traverseASTPostorder(node->while_cond_data.cond, callback, context);
+            break;
+
+        case NODE_WHILE_BODY:   
+            traverseASTPostorder(node->while_body_data.body, callback, context);
+            break;            
+
+        case NODE_FOR:
+            traverseASTPostorder(node->for_data.init, callback, context);
+            traverseASTPostorder(node->for_data.condition, callback, context);
+            traverseASTPostorder(node->for_data.updation, callback, context);
+            traverseASTPostorder(node->for_data.body, callback, context);
+            break;
+
+        case NODE_FOR_INIT:
+            traverseASTPostorder(node->for_init_data.init, callback, context);            
+            break;
+
+        case NODE_FOR_COND:
+            traverseASTPostorder(node->for_cond_data.cond, callback, context); 
+            break;
+
+        case NODE_FOR_UPDATION:
+            traverseASTPostorder(node->for_updation_data.updation, callback, context); 
+            break;
+
+        case NODE_FOR_BODY:
+            traverseASTPostorder(node->for_body_data.body, callback, context); 
+            break;
+
+        case NODE_EXPR_COMMA_LIST:
+            traverseASTPostorder(node->expr_comma_list_data.expr_comma_list, callback, context);
+            traverseASTPostorder(node->expr_comma_list_data.expr_comma_list_item, callback, context);
+            break;
+        case NODE_FUNC_DECL:
+            traverseASTPostorder(node->func_decl_data.id, callback, context);
+            traverseASTPostorder(node->func_decl_data.params, callback, context);
+            traverseASTPostorder(node->func_decl_data.body, callback, context);
+            break;
+
+        case NODE_FUNC_BODY:
+            traverseASTPostorder(node->func_body_data.body, callback, context);
+            break;
+
+        case NODE_FUNC_CALL:
+            traverseASTPostorder(node->func_call_data.id, callback, context);
+            traverseASTPostorder(node->func_call_data.arg_list, callback, context);
+            break;
+
+        case NODE_PARAM_LIST:
+            traverseASTPostorder(node->param_list_data.param_list, callback, context);
+            traverseASTPostorder(node->param_list_data.param, callback, context);
+            break;
+
+        case NODE_PARAM:
+            traverseASTPostorder(node->param_data.id, callback, context);
+            break;
+
+        case NODE_ARG_LIST:
+            traverseASTPostorder(node->arg_list_data.arg, callback, context);
+            traverseASTPostorder(node->arg_list_data.arg_list, callback, context);
+            break;
+
+        case NODE_ARG:
+            traverseASTPostorder(node->arg_data.arg, callback, context);
+            break;
+
+        default:
+            break;
+    }
+
+      // Call the callback function for the current node
+    if(callback(node, context) == 0){
+        // STOP TRAVERSAL
+        return;
     }
 }
 
@@ -465,16 +639,23 @@ void printAST(ASTNode* node, int indent, bool isLast) {
     }
 }
 
+int freeASTCallback(ASTNode* node, void* context) {
+    if (node == NULL) return 0;
+    (*(int*)context)++;
+    // Free any dynamically allocated data within the node if necessary
+    // e.g., freeing identifiers, literals, or other node-specific data
+
+
+    // Free the node itself
+    free(node);
+
+    return 1; // Continue traversal
+}
 
 void freeAST(ASTNode* node) {
-    if (node == NULL) return;
-
-    // for (int i = 0; i < node->child_count; i++) {
-    //     freeAST(node->children[i]);
-    // }
-
-    // free(node->children); // Free the children array
-    free(node);          // Free the node itself
+   int cnt = 0;
+   traverseASTPostorder(node, freeASTCallback, &cnt);
+   printf("Freed %d nodes\n", cnt);
 }
 
 int nodeCounter = 0;  // Unique ID counter for each node
@@ -508,7 +689,7 @@ void exportASTNodeAsJSON(FILE *file, ASTNode *node, int parentID, int *edgeBuffe
             fprintf(file, "PROGRAM\" }");
             break;
         case NODE_RETURN:
-            fprintf(file, "RETURN\" }");
+            fprintf(file, "RETURN\\n(type: %s)\" }", node->inferedType);
             break;
         case NODE_INT_LITERAL:
             fprintf(file, "LITERAL\\n(int: %d)\" }", node->literal_data.value.int_value);
@@ -875,7 +1056,8 @@ void exportASTAsJSON(const char *folderPath, ASTNode *root) {
 
     // Free the edge buffer if it was allocated
     free(edgeBuffer);
-
-    printf("Exported AST to %s/ast.json\n", folderPath);
+    fclose(htmlFile);
+    fclose(file);
+    printf("Exported AST with %d nodes to %s/ast.json\n", nodeCounter, folderPath);
 }
 

@@ -10,7 +10,7 @@
 #define TYPE_STRING "string"
 #define TYPE_UNKNOWN "unknown"
 
-bool isDebugOn = false;
+bool isDebugOn = true;
 
 typedef enum{
     OP_ARITHMETIC,
@@ -62,25 +62,153 @@ int errorCount = 0;
 
 
 const char* inferAndValidateType(ASTNode* node); 
-
+// const char* getNodeTypeName(ASTNode* node);
 
 // Main function
 SemanticStatus performSemanticAnalysis(ASTNode* root, SymbolTable* globalTable) {
     if (!root) return SEMANTIC_ERROR;
     checkDuplicates(globalTable);
     validateSymbolUsage(root);
-    validateTypes(root);
+    // validateTypes(root);
     // print errors if any
     if(errorList){
         printErrors();
-    } 
+    } // Proceed if no erros
+        // validateFunctionReturnTypes(root);
 
     return errorCount > 0 ? SEMANTIC_ERROR : SEMANTIC_SUCCESS;
 }
 
 
 
+// const char* getNodeTypeName(ASTNode* node){
 
+//     const char* name = NULL;
+
+//      switch (node->type) {
+//         case NODE_PROGRAM:
+//             sprintf(name, "PROGRAM");
+//             break;
+//         case NODE_RETURN:
+//             sprintf(name, "RETURN\\n(type: %s)\" }", node->inferedType);
+//             break;
+//         case NODE_INT_LITERAL:
+//             sprintf(name, "LITERAL\\n(int: %d)\" }", node->literal_data.value.int_value);
+//             break;
+//         case NODE_CHAR_LITERAL:
+//             sprintf(name, "LITERAL\\n(char: '%c')\" }", node->literal_data.value.char_value);
+//             break;
+//         case NODE_STR_LITERAL:
+//             sprintf(name, "LITERAL (string)\" }");
+//             break;
+//         case NODE_STMT_LIST:
+//             sprintf(name, "STMT LIST\" }");
+//             break;
+//         case NODE_STMT:
+//             sprintf(name, "STMT\" }");
+//             break;
+//         case NODE_BLOCK_STMT:
+//             sprintf(name, "BLOCK STMT\" }");
+//             break;
+//         case NODE_DECL:
+//             sprintf(name, "DECL\" }");
+//             break;
+//         case NODE_TYPE_SPEC:
+//             sprintf(name, "TYPE_SPEC (%s)\" }", node->type_data.type);
+//             break;
+//         case NODE_VAR_LIST:
+//             sprintf(name, "VAR_LIST\" }");
+//             break;
+//         case NODE_VAR:
+//             sprintf(name, "VAR\\n(name: %s, valueType: %s)\" }", node->var_data.id->id_data.sym->name, node->inferedType);
+//             break;
+//         case NODE_ID:
+//             sprintf(name, "ID\\n(name: %s)\" }", node->id_data.sym->name);
+//             break;
+//         case NODE_ID_REF:
+//             sprintf(name, "ID_REF\\n(name: %s)\" }", node->id_ref_data.name);
+//             break;
+//         case NODE_ASSGN:
+//             sprintf(name, "ASSGN (type: %s)\" }", node->inferedType);
+//             break;
+//         case NODE_EXPR_BINARY:
+//             sprintf(name, "EXPR\\n(binary: %s, type: %s)\" }", node->expr_data.op, node->inferedType);
+//             break;
+//         case NODE_EXPR_UNARY:
+//             sprintf(name, "EXPR\\n(unary: %s, type: %s)\" }", node->expr_data.op, node->inferedType);
+//             break;
+//         case NODE_EXPR_TERM:
+//             sprintf(name, "EXPR\\n(term, type: %s)\" }", node->inferedType);
+//             break;
+//         case NODE_IF:
+//             sprintf(name, "IF\" }");
+//             break;
+//         case NODE_IF_ELSE:
+//             sprintf(name, "IF ELSE\" }");
+//             break;
+//         case NODE_IF_COND:
+//             sprintf(name, "IF_COND\" }");
+//             break; 
+//         case NODE_IF_BRANCH:
+//             sprintf(name, "IF_BRANCH\" }");
+//             break; 
+//         case NODE_ELSE_BRANCH:
+//             sprintf(name, "ELSE_BRANCH\" }");
+//             break; 
+//         case NODE_WHILE:
+//             sprintf(name, "WHILE\" }");
+//             break;
+//         case NODE_WHILE_COND:
+//             sprintf(name, "WHILE_COND\" }");
+//             break;
+//         case NODE_WHILE_BODY:
+//             sprintf(name, "WHILE_BODY\" }");
+//             break;
+//         case NODE_FOR:
+//             sprintf(name, "FOR\" }");
+//             break;
+//         case NODE_FOR_INIT:
+//             sprintf(name, "FOR_INIT\" }");
+//             break;
+//         case NODE_FOR_COND:
+//             sprintf(name, "FOR_COND\" }");
+//             break;
+//         case NODE_FOR_UPDATION:
+//             sprintf(name, "FOR_UPDATION\" }");
+//             break;
+//         case NODE_EXPR_COMMA_LIST:
+//             sprintf(name, "EXPR_COMMA_LIST\" }");
+//             break; 
+//         case NODE_FOR_BODY:
+//             sprintf(name, "FOR_BODY\" }");
+//             break;
+//         case NODE_FUNC_DECL:
+//             sprintf(name, "FUNC_DECL\\n(name: %s, param_cnt: %d)\" }", node->func_decl_data.id->id_data.sym->name, node->func_decl_data.param_count);
+//             break;
+//         case NODE_FUNC_BODY:
+//             sprintf(name, "FUNC_BODY\" }");
+//             break;
+//         case NODE_PARAM_LIST:
+//             sprintf(name, "PARAM_LIST\" }");
+//             break;
+//         case NODE_PARAM:
+//             sprintf(name, "PARAM\\n(type: %s)\" }", node->param_data.type_spec->type_data.type);
+//             break;
+//         case NODE_FUNC_CALL:
+//             sprintf(name, "FUNC_CALL\\n(name: %s, arg_cnt: %d)\" }", node->func_call_data.id->id_ref_data.name, node->func_call_data.arg_count);
+//             break;
+//         case NODE_ARG_LIST:
+//             sprintf(name, "ARG_LIST\" }");
+//             break;
+//         case NODE_ARG:
+//             sprintf(name, "ARG\" }");
+//             break;
+//         default:
+//             sprintf(name, "UNKNOWN\" }");
+//             break;
+//     }
+//     return name;
+// }
 
 
 
@@ -135,13 +263,14 @@ void checkDuplicates(SymbolTable* table) {
     }
 }
 
-void validateSymbolUsage(ASTNode* root){
-    if (!root) return;
+
+int validateSymbolUsageCallback(ASTNode* root, void* cxt){
+    if (!root) return 0;
 
     // If the node is an identifier (e.g., variable reference)
     if (root->type == NODE_ID_REF) {
         const char* varName = root->id_ref_data.name;  // Assuming the ID node stores the name in `value.id`
-        
+        if(isDebugOn) printf("Validating symbol %s\n", varName);
         // Look up the symbol in the current or any parent scope
         SymbolTable* currentScope = root->id_ref_data.scope;
         symbol* foundSymbol = lookupSymbol(currentScope, varName);
@@ -158,154 +287,160 @@ void validateSymbolUsage(ASTNode* root){
         }
     }
 
+    return 1;
+}
+
+void validateSymbolUsage(ASTNode* root){
+
+    traverseAST(root, validateSymbolUsageCallback, NULL);
     // Traverse the children
     // Traverse each type of node according to the specific structure
-    switch (root->type) {
-        case NODE_PROGRAM:
-            validateSymbolUsage(root->program_data.stmt_list);
-            break;
+    // switch (root->type) {
+    //     case NODE_PROGRAM:
+    //         validateSymbolUsage(root->program_data.stmt_list);
+    //         break;
 
-        case NODE_RETURN:
-            validateSymbolUsage(root->return_data.return_value);
-            break;
+    //     case NODE_RETURN:
+    //         validateSymbolUsage(root->return_data.return_value);
+    //         break;
 
-        case NODE_STMT_LIST:
-            validateSymbolUsage(root->stmt_list_data.stmt_list);
-            validateSymbolUsage(root->stmt_list_data.stmt);
-            break;
+    //     case NODE_STMT_LIST:
+    //         validateSymbolUsage(root->stmt_list_data.stmt_list);
+    //         validateSymbolUsage(root->stmt_list_data.stmt);
+    //         break;
 
-        case NODE_STMT:
-            validateSymbolUsage(root->stmt_data.stmt);
-            break;
+    //     case NODE_STMT:
+    //         validateSymbolUsage(root->stmt_data.stmt);
+    //         break;
 
-        case NODE_BLOCK_STMT:
-            validateSymbolUsage(root->block_stmt_data.stmt_list);
-            break;
+    //     case NODE_BLOCK_STMT:
+    //         validateSymbolUsage(root->block_stmt_data.stmt_list);
+    //         break;
 
-        case NODE_DECL:
-            // validateSymbolUsage(root->decl_data.type_spec);
-            validateSymbolUsage(root->decl_data.var_list);
-            break;
+    //     case NODE_DECL:
+    //         // validateSymbolUsage(root->decl_data.type_spec);
+    //         validateSymbolUsage(root->decl_data.var_list);
+    //         break;
 
-        case NODE_VAR_LIST:
-            validateSymbolUsage(root->var_list_data.var_list);
-            validateSymbolUsage(root->var_list_data.var);
-            break;
+    //     case NODE_VAR_LIST:
+    //         validateSymbolUsage(root->var_list_data.var_list);
+    //         validateSymbolUsage(root->var_list_data.var);
+    //         break;
 
-        case NODE_VAR:
-            validateSymbolUsage(root->var_data.id);
-            validateSymbolUsage(root->var_data.value);
-            break;
+    //     case NODE_VAR:
+    //         validateSymbolUsage(root->var_data.id);
+    //         validateSymbolUsage(root->var_data.value);
+    //         break;
 
-        case NODE_ASSGN:
-            validateSymbolUsage(root->assgn_data.left);
-            validateSymbolUsage(root->assgn_data.right);
-            break;
+    //     case NODE_ASSGN:
+    //         validateSymbolUsage(root->assgn_data.left);
+    //         validateSymbolUsage(root->assgn_data.right);
+    //         break;
 
-        case NODE_EXPR_BINARY:
-            validateSymbolUsage(root->expr_data.left);
-            validateSymbolUsage(root->expr_data.right);
-            break;
+    //     case NODE_EXPR_BINARY:
+    //         validateSymbolUsage(root->expr_data.left);
+    //         validateSymbolUsage(root->expr_data.right);
+    //         break;
 
-        case NODE_EXPR_UNARY:
-        case NODE_EXPR_TERM:
-            validateSymbolUsage(root->expr_data.left);
-            break;
+    //     case NODE_EXPR_UNARY:
+    //     case NODE_EXPR_TERM:
+    //         validateSymbolUsage(root->expr_data.left);
+    //         break;
 
-        case NODE_IF:
-            validateSymbolUsage(root->if_else_data.condition);
-            validateSymbolUsage(root->if_else_data.if_branch);
-            break;
+    //     case NODE_IF:
+    //         validateSymbolUsage(root->if_else_data.condition);
+    //         validateSymbolUsage(root->if_else_data.if_branch);
+    //         break;
 
-        case NODE_IF_ELSE:
-            validateSymbolUsage(root->if_else_data.condition);
-            validateSymbolUsage(root->if_else_data.if_branch);
-            validateSymbolUsage(root->if_else_data.else_branch);
-            break;
+    //     case NODE_IF_ELSE:
+    //         validateSymbolUsage(root->if_else_data.condition);
+    //         validateSymbolUsage(root->if_else_data.if_branch);
+    //         validateSymbolUsage(root->if_else_data.else_branch);
+    //         break;
 
-        case NODE_IF_COND:
-            validateSymbolUsage(root->if_cond_data.cond);
-            break;
+    //     case NODE_IF_COND:
+    //         validateSymbolUsage(root->if_cond_data.cond);
+    //         break;
         
-        case NODE_IF_BRANCH:
-        case NODE_ELSE_BRANCH:
-            validateSymbolUsage(root->if_else_branch.branch);
-            break;
-        
-
-        case NODE_WHILE:
-            validateSymbolUsage(root->while_data.condition);
-            validateSymbolUsage(root->while_data.while_body);
-            break;
-
-        case NODE_WHILE_COND:   
-            validateSymbolUsage(root->while_cond_data.cond);
-            break;
-
-        case NODE_WHILE_BODY:   
-            validateSymbolUsage(root->while_body_data.body);
-            break;
-
-        case NODE_FOR:
-            validateSymbolUsage(root->for_data.init);
-            validateSymbolUsage(root->for_data.condition);
-            validateSymbolUsage(root->for_data.updation);
-            validateSymbolUsage(root->for_data.body);
-            break;
-
-        case NODE_FOR_INIT:
-            validateSymbolUsage(root->for_init_data.init);
-            break;
-
-        case NODE_FOR_COND: 
-            validateSymbolUsage(root->for_cond_data.cond); 
-            break;
-
-        case NODE_FOR_UPDATION: 
-            validateSymbolUsage(root->for_updation_data.updation); 
-            break;
-
-        case NODE_FOR_BODY: 
-            validateSymbolUsage(root->for_body_data.body); 
-            break; 
-
-        case NODE_EXPR_COMMA_LIST:
-            validateSymbolUsage(root->expr_comma_list_data.expr_comma_list);
-            validateSymbolUsage(root->expr_comma_list_data.expr_comma_list_item);
-            break;
+    //     case NODE_IF_BRANCH:
+    //     case NODE_ELSE_BRANCH:
+    //         validateSymbolUsage(root->if_else_branch.branch);
+    //         break;
         
 
-        case NODE_FUNC_DECL:
-            validateSymbolUsage(root->func_decl_data.params);
-            validateSymbolUsage(root->func_decl_data.body);
-            break;
+    //     case NODE_WHILE:
+    //         validateSymbolUsage(root->while_data.condition);
+    //         validateSymbolUsage(root->while_data.while_body);
+    //         break;
+
+    //     case NODE_WHILE_COND:   
+    //         validateSymbolUsage(root->while_cond_data.cond);
+    //         break;
+
+    //     case NODE_WHILE_BODY:   
+    //         validateSymbolUsage(root->while_body_data.body);
+    //         break;
+
+    //     case NODE_FOR:
+    //         validateSymbolUsage(root->for_data.init);
+    //         validateSymbolUsage(root->for_data.condition);
+    //         validateSymbolUsage(root->for_data.updation);
+    //         validateSymbolUsage(root->for_data.body);
+    //         break;
+
+    //     case NODE_FOR_INIT:
+    //         validateSymbolUsage(root->for_init_data.init);
+    //         break;
+
+    //     case NODE_FOR_COND: 
+    //         validateSymbolUsage(root->for_cond_data.cond); 
+    //         break;
+
+    //     case NODE_FOR_UPDATION: 
+    //         validateSymbolUsage(root->for_updation_data.updation); 
+    //         break;
+
+    //     case NODE_FOR_BODY: 
+    //         validateSymbolUsage(root->for_body_data.body); 
+    //         break; 
+
+    //     case NODE_EXPR_COMMA_LIST:
+    //         validateSymbolUsage(root->expr_comma_list_data.expr_comma_list);
+    //         validateSymbolUsage(root->expr_comma_list_data.expr_comma_list_item);
+    //         break;
         
-        case NODE_FUNC_BODY:
-            validateSymbolUsage(root->func_body_data.body);
-            break;
 
-        case NODE_FUNC_CALL:
-            validateSymbolUsage(root->func_call_data.id);
-            validateSymbolUsage(root->func_call_data.arg_list);
-            break;
+    //     case NODE_FUNC_DECL:
+    //         validateSymbolUsage(root->func_decl_data.params);
+    //         validateSymbolUsage(root->func_decl_data.body);
+    //         break;
+        
+    //     case NODE_FUNC_BODY:
+    //         validateSymbolUsage(root->func_body_data.body);
+    //         break;
 
-        // case NODE_PARAM_LIST:
-        //     validateSymbolUsage(root->param_list_data.param);
-        //     validateSymbolUsage(root->param_list_data.param_list);
-        //     break;
+    //     case NODE_FUNC_CALL:
+    //         validateSymbolUsage(root->func_call_data.id);
+    //         validateSymbolUsage(root->func_call_data.arg_list);
+    //         break;
 
-        case NODE_ARG_LIST:
-            validateSymbolUsage(root->arg_list_data.arg_list);
-            validateSymbolUsage(root->arg_list_data.arg);
-            break;
+    //     // case NODE_PARAM_LIST:
+    //     //     validateSymbolUsage(root->param_list_data.param);
+    //     //     validateSymbolUsage(root->param_list_data.param_list);
+    //     //     break;
 
-        case NODE_ARG:
-            validateSymbolUsage(root->arg_data.arg);
-            break;
+    //     case NODE_ARG_LIST:
+    //         validateSymbolUsage(root->arg_list_data.arg_list);
+    //         validateSymbolUsage(root->arg_list_data.arg);
+    //         break;
 
-        default:
-            break;
-    }
+    //     case NODE_ARG:
+    //         validateSymbolUsage(root->arg_data.arg);
+    //         break;
+
+    //     default:
+    //         break;
+    // }
 }
 
 
@@ -326,50 +461,6 @@ const char* promoteType(const char* leftType, const char* rightType) {
     // No valid promotion path
     return NULL;
 }
-
-
-// int chechReturnTypeCallback(ASTNode* node, void* context){
-//     const char* expectedType = (const char*)context;
-
-//         switch (body->type) {
-//         case NODE_RETURN:
-//             // Get the return expression type
-//             retType = inferAndValidateType(body->ret_stmt_data.expr);
-//             foundReturn = true;
-
-//             // Check if the return type matches expected function type
-//             if (retType && strcmp(retType, expectedType) != 0) {
-//                 char errorMsg[256];
-//                 snprintf(errorMsg, sizeof(errorMsg),
-//                             "Return type mismatch in function '%s': expected (%s), but got (%s)",
-//                             node->func_decl_data.name, expectedType, retType);
-//                 addError(errorMsg, body->line_no, body->char_no);
-//             }
-//             break;
-
-//         case NODE_FUNC_DECL:
-//             // Skip nested function declarations
-//             break;
-
-//         default:
-//             // Recursively check within other types of statements/expressions in the function body
-//             checkReturnTypeInBody(body->left, expectedType);
-//             checkReturnTypeInBody(body->right, expectedType);
-//             break;
-//     }
-
-// }
-// // Helper function to recursively check for return statements
-// int checkReturnType(ASTNode* body, const char* expectedType) {
-//     if (!body) return NULL;
-    
-//     const char* 
-
-
-
-
-//     return ;
-// }
 
 
 void validateFunctionCallArgs(ASTNode* func_call_node) {
@@ -727,4 +818,76 @@ int validateTypesCallback(ASTNode* node, void* context) {
 // The main validateTypes function that calls traverseAST with the callback
 void validateTypes(ASTNode* root) {
     traverseAST(root, validateTypesCallback, NULL);
+}
+
+
+
+
+typedef struct {
+    bool ret_found;
+    const char* expected_type;
+} RetValCtx; 
+
+int validateReturnStmtsCallback(ASTNode* node, void* ctx){
+
+    if(node->type == NODE_FUNC_DECL) return 0; // Stop traversing this branch
+
+    if(node->type == NODE_RETURN){
+        RetValCtx* val_ctx = (RetValCtx*)(ctx);
+        val_ctx->ret_found = true;
+        const char* ret_type = node->inferedType; // Assumed that the type is already infered by previous phase
+        const char* expected_type = val_ctx->expected_type;
+
+        if(!ret_type || !expected_type) return 0;
+
+        if(strcmp(ret_type, expected_type) != 0){
+            char errorMsg[256];
+            snprintf(errorMsg, sizeof(errorMsg),
+                     "Return type mismatch: expected %s, got %s",
+                     expected_type, ret_type);
+            addError(errorMsg, node->line_no, node->char_no);
+            
+        }
+        return 0; // Stop traversing further down this branch
+    }
+
+    return 1; // Traverse other nodes
+}
+
+
+int validateFuncRetTypesCallback(ASTNode* node, void* context){
+    // Only handle function declarations
+    if (node->type != NODE_FUNC_DECL) return 1; // Skip non func_decl nodes and continue traversing
+
+    RetValCtx ret_ctx = {
+        .ret_found = false,
+        .expected_type = node->func_decl_data.id->id_data.sym->type
+    };
+
+    if(!(ret_ctx.expected_type)){
+        char errorMsg[256];
+        snprintf(errorMsg, sizeof(errorMsg),
+                "Type of '%s' is NULL",
+                node->func_decl_data.id->id_data.sym->name);
+        addError(errorMsg, node->line_no, node->char_no); 
+
+        return 1;
+    }
+
+    // Traverse only the function body to find return statements
+    traverseAST(node->func_decl_data.body, validateReturnStmtsCallback, &ret_ctx);
+
+    // Non-void functions must have return stmts
+    if(!(ret_ctx.ret_found) && strcmp(ret_ctx.expected_type, TYPE_VOID) != 0 ){
+        char errorMsg[256];
+        snprintf(errorMsg, sizeof(errorMsg),
+                "Missing return statement in function '%s' with non-void return type",
+                node->func_decl_data.id->id_data.sym->name);
+        addError(errorMsg, node->line_no, node->char_no); 
+    }
+
+    return 1; // Look for other func declarations
+}
+void validateFunctionReturnTypes(ASTNode* root){
+    traverseAST(root, validateFuncRetTypesCallback, NULL);
 }
