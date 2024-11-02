@@ -23,41 +23,6 @@ ASTNode* createASTNode(NodeType type, int line_no, int char_no) {
     return node;
 }
 
-const char* getDataTypeFromAST(ASTNode* node){
-    const char* type = NULL;
-    switch(node->type){
-        case NODE_ID:
-            type = node->id_data.sym->type;
-            break;
-
-        case NODE_ID_REF:
-            if(node->id_ref_data.ref)
-                type = node->id_ref_data.ref->type;
-            break;
-            
-        case NODE_INT_LITERAL:
-            type = "int";
-            break;
-            
-        case NODE_CHAR_LITERAL:
-            type = "char";
-            break;
-            
-        case NODE_STR_LITERAL:
-            type = "string";
-            break;
-
-        case NODE_EXPR_TERM:
-            type = getDataTypeFromAST(node->expr_data.left);
-            break;
-
-        default:
-            type = NULL;
-            break;
-    }
-
-    return type;
-}
 
 void traverseAST(ASTNode* node, ASTTraversalCallback callback, void* context) {
     if (!node) return;

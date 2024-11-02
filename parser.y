@@ -30,6 +30,8 @@ SymbolTable* currentScope;
 const char *folderPathForAST_Vis = "AST_Vis"; 
 int scopeDepth = 0;
 
+
+
 ASTNode* root;
 ASTNode* createProgramNode(ASTNode* stmt_list);
 ASTNode* createStmtListNode(ASTNode* stmtList, ASTNode* stmt);
@@ -364,6 +366,7 @@ int main(int argc, char *argv[]){
     int exportAST_flag = 0;  // Flag to determine whether to export AST or not
     int printAST_flag = 0;
     int printSymTable_flag = 0;
+    int debug_flag = 0;
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--export-ast") == 0) {
             exportAST_flag = 1;
@@ -374,8 +377,15 @@ int main(int argc, char *argv[]){
         if (strcmp(argv[i], "--print-sym-table") == 0) {
             printSymTable_flag = 1;
         }
+        if (strcmp(argv[i], "--debug") == 0) {
+            debug_flag = 1;
+        }
     }
 
+    // Turn on debugger
+    if(debug_flag){
+        setSemanticDebugger();
+    }
   
     symTable = createSymbolTable("global", NULL, 100);
     currentScope = symTable; // Initial current scope

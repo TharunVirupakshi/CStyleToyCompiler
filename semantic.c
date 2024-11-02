@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <assert.h>
 
 #define TYPE_VOID "void"
 #define TYPE_INT "int"
@@ -10,8 +11,10 @@
 #define TYPE_STRING "string"
 #define TYPE_UNKNOWN "unknown"
 
-bool isDebugOn = true;
-
+bool isDebugOn = false;
+void setSemanticDebugger(){
+    isDebugOn = true;
+} 
 typedef enum{
     OP_ARITHMETIC,
     OP_COMP,
@@ -67,148 +70,29 @@ const char* inferAndValidateType(ASTNode* node);
 // Main function
 SemanticStatus performSemanticAnalysis(ASTNode* root, SymbolTable* globalTable) {
     if (!root) return SEMANTIC_ERROR;
+
     checkDuplicates(globalTable);
     validateSymbolUsage(root);
-    // validateTypes(root);
-    // print errors if any
-    if(errorList){
+
+    if(errorCount > 0){
         printErrors();
-    } // Proceed if no erros
+        errorCount = 0;
+        return SEMANTIC_ERROR;
+    }
+
+    validateTypes(root);
+
+    if(errorCount > 0){
+        printErrors();
+        errorCount = 0;
+        return SEMANTIC_ERROR;
+    }
+
         // validateFunctionReturnTypes(root);
 
     return errorCount > 0 ? SEMANTIC_ERROR : SEMANTIC_SUCCESS;
 }
 
-
-
-// const char* getNodeTypeName(ASTNode* node){
-
-//     const char* name = NULL;
-
-//      switch (node->type) {
-//         case NODE_PROGRAM:
-//             sprintf(name, "PROGRAM");
-//             break;
-//         case NODE_RETURN:
-//             sprintf(name, "RETURN\\n(type: %s)\" }", node->inferedType);
-//             break;
-//         case NODE_INT_LITERAL:
-//             sprintf(name, "LITERAL\\n(int: %d)\" }", node->literal_data.value.int_value);
-//             break;
-//         case NODE_CHAR_LITERAL:
-//             sprintf(name, "LITERAL\\n(char: '%c')\" }", node->literal_data.value.char_value);
-//             break;
-//         case NODE_STR_LITERAL:
-//             sprintf(name, "LITERAL (string)\" }");
-//             break;
-//         case NODE_STMT_LIST:
-//             sprintf(name, "STMT LIST\" }");
-//             break;
-//         case NODE_STMT:
-//             sprintf(name, "STMT\" }");
-//             break;
-//         case NODE_BLOCK_STMT:
-//             sprintf(name, "BLOCK STMT\" }");
-//             break;
-//         case NODE_DECL:
-//             sprintf(name, "DECL\" }");
-//             break;
-//         case NODE_TYPE_SPEC:
-//             sprintf(name, "TYPE_SPEC (%s)\" }", node->type_data.type);
-//             break;
-//         case NODE_VAR_LIST:
-//             sprintf(name, "VAR_LIST\" }");
-//             break;
-//         case NODE_VAR:
-//             sprintf(name, "VAR\\n(name: %s, valueType: %s)\" }", node->var_data.id->id_data.sym->name, node->inferedType);
-//             break;
-//         case NODE_ID:
-//             sprintf(name, "ID\\n(name: %s)\" }", node->id_data.sym->name);
-//             break;
-//         case NODE_ID_REF:
-//             sprintf(name, "ID_REF\\n(name: %s)\" }", node->id_ref_data.name);
-//             break;
-//         case NODE_ASSGN:
-//             sprintf(name, "ASSGN (type: %s)\" }", node->inferedType);
-//             break;
-//         case NODE_EXPR_BINARY:
-//             sprintf(name, "EXPR\\n(binary: %s, type: %s)\" }", node->expr_data.op, node->inferedType);
-//             break;
-//         case NODE_EXPR_UNARY:
-//             sprintf(name, "EXPR\\n(unary: %s, type: %s)\" }", node->expr_data.op, node->inferedType);
-//             break;
-//         case NODE_EXPR_TERM:
-//             sprintf(name, "EXPR\\n(term, type: %s)\" }", node->inferedType);
-//             break;
-//         case NODE_IF:
-//             sprintf(name, "IF\" }");
-//             break;
-//         case NODE_IF_ELSE:
-//             sprintf(name, "IF ELSE\" }");
-//             break;
-//         case NODE_IF_COND:
-//             sprintf(name, "IF_COND\" }");
-//             break; 
-//         case NODE_IF_BRANCH:
-//             sprintf(name, "IF_BRANCH\" }");
-//             break; 
-//         case NODE_ELSE_BRANCH:
-//             sprintf(name, "ELSE_BRANCH\" }");
-//             break; 
-//         case NODE_WHILE:
-//             sprintf(name, "WHILE\" }");
-//             break;
-//         case NODE_WHILE_COND:
-//             sprintf(name, "WHILE_COND\" }");
-//             break;
-//         case NODE_WHILE_BODY:
-//             sprintf(name, "WHILE_BODY\" }");
-//             break;
-//         case NODE_FOR:
-//             sprintf(name, "FOR\" }");
-//             break;
-//         case NODE_FOR_INIT:
-//             sprintf(name, "FOR_INIT\" }");
-//             break;
-//         case NODE_FOR_COND:
-//             sprintf(name, "FOR_COND\" }");
-//             break;
-//         case NODE_FOR_UPDATION:
-//             sprintf(name, "FOR_UPDATION\" }");
-//             break;
-//         case NODE_EXPR_COMMA_LIST:
-//             sprintf(name, "EXPR_COMMA_LIST\" }");
-//             break; 
-//         case NODE_FOR_BODY:
-//             sprintf(name, "FOR_BODY\" }");
-//             break;
-//         case NODE_FUNC_DECL:
-//             sprintf(name, "FUNC_DECL\\n(name: %s, param_cnt: %d)\" }", node->func_decl_data.id->id_data.sym->name, node->func_decl_data.param_count);
-//             break;
-//         case NODE_FUNC_BODY:
-//             sprintf(name, "FUNC_BODY\" }");
-//             break;
-//         case NODE_PARAM_LIST:
-//             sprintf(name, "PARAM_LIST\" }");
-//             break;
-//         case NODE_PARAM:
-//             sprintf(name, "PARAM\\n(type: %s)\" }", node->param_data.type_spec->type_data.type);
-//             break;
-//         case NODE_FUNC_CALL:
-//             sprintf(name, "FUNC_CALL\\n(name: %s, arg_cnt: %d)\" }", node->func_call_data.id->id_ref_data.name, node->func_call_data.arg_count);
-//             break;
-//         case NODE_ARG_LIST:
-//             sprintf(name, "ARG_LIST\" }");
-//             break;
-//         case NODE_ARG:
-//             sprintf(name, "ARG\" }");
-//             break;
-//         default:
-//             sprintf(name, "UNKNOWN\" }");
-//             break;
-//     }
-//     return name;
-// }
 
 
 
@@ -228,8 +112,10 @@ void addError(const char* message, int line, int char_no) {
 // Function to print all stored errors
 void printErrors() {
     for (int i = 0; i < errorCount; i++) {
-        printf("Error: %s at (line %d, char %d)\n", errorList[i].message, errorList[i].line, errorList[i].char_no);
-        free(errorList[i].message); // Free each error message after printing
+        if(errorList[i].message){
+            printf("Error: %s at (line %d, char %d)\n", errorList[i].message, errorList[i].line, errorList[i].char_no);
+            free(errorList[i].message); // Free each error message after printing
+        }
     }
     free(errorList); // Free the entire list at the end
     errorList = NULL; // Reset the list pointer
@@ -280,9 +166,13 @@ int validateSymbolUsageCallback(ASTNode* root, void* cxt){
             char errorMsg[256];
             snprintf(errorMsg, sizeof(errorMsg), "Undeclared variable '%s'", varName);
             addError(errorMsg, root->line_no, root->char_no);  // Adding error with line and char info
+            root->id_ref_data.ref = NULL; 
+            assert(root->id_ref_data.ref == NULL);
+            return 0;
         }else{
             // Bind the id_ref node to sym
-
+            if(isDebugOn) printf("Found ref for %s in scope %s\n", varName, foundSymbol->scope->scopeName);
+            assert(foundSymbol != NULL);
             root->id_ref_data.ref = foundSymbol;
         }
     }
@@ -443,8 +333,6 @@ void validateSymbolUsage(ASTNode* root){
     // }
 }
 
-
-
 const char* promoteType(const char* leftType, const char* rightType) {
     if (!leftType || !rightType) return NULL;
 
@@ -465,9 +353,17 @@ const char* promoteType(const char* leftType, const char* rightType) {
 
 void validateFunctionCallArgs(ASTNode* func_call_node) {
     // Get function call identifier and its symbol
-    if(isDebugOn) printf("Validating func call args\n");
+    if(!func_call_node){
+        if(isDebugOn) printf("func call node is NULL\n");
+        return;
+    }
+
+    if(isDebugOn) printf("Validating func call args for '%s()'\n", func_call_node->func_call_data.id->id_ref_data.name);
 
     symbol* func_symbol = func_call_node->func_call_data.id->id_ref_data.ref;
+    if(isDebugOn){
+         if(!func_symbol) printf("Func sym not found!\n");
+    }
     if (!func_symbol || !func_symbol->is_function) {
         addError("Called identifier is not a function", func_call_node->line_no, func_call_node->char_no);
         return;
@@ -494,22 +390,35 @@ void validateFunctionCallArgs(ASTNode* func_call_node) {
 
 
     while (arg_node && param_node) {
+
+        if (arg_node->arg_list_data.arg == NULL || arg_node->arg_list_data.arg->arg_data.arg == NULL) {
+            addError("Invalid argument node structure", arg_node->line_no, arg_node->char_no);
+            return;
+        }
+
         // Get expected parameter type
         const char* expected_type = param_node->param_list_data.param->param_data.type_spec->type_data.type;
 
         // Infer argument type
         const char* arg_type = inferAndValidateType(arg_node->arg_list_data.arg->arg_data.arg);
 
-        if(!expected_type && !arg_type) return;
-
-        // Type mismatch check
-        if (strcmp(arg_type, expected_type) != 0) {
-            char errorMsg[256];
-            snprintf(errorMsg, sizeof(errorMsg),
-                     "Type mismatch in argument %d for function '%s': expected (%s), got (%s)",
-                     arg_index + 1, func_symbol->name, expected_type, arg_type);
-            addError(errorMsg, arg_node->line_no, arg_node->char_no);
+        if(isDebugOn){
+            if(!arg_type) printf("Type of Arg %d is NULL\n", arg_index);
+            if(!expected_type) printf("Type of Param %d is NULL\n", arg_index);
         }
+
+        if(expected_type && arg_type){
+            // Type mismatch check
+            if (strcmp(arg_type, expected_type) != 0) {
+                char errorMsg[256];
+                snprintf(errorMsg, sizeof(errorMsg),
+                        "Type mismatch in argument %d for function '%s': expected (%s), got (%s)",
+                        arg_index + 1, func_symbol->name, expected_type, arg_type);
+                addError(errorMsg, arg_node->arg_list_data.arg->line_no, arg_node->arg_list_data.arg->char_no);
+            }
+        }
+
+     
 
         // Move to the next argument and parameter
         arg_node = arg_node->arg_list_data.arg_list;
@@ -542,8 +451,15 @@ const char* inferAndValidateType(ASTNode* node) {
 
         case NODE_ID_REF:
             if(isDebugOn) printf("Getting type of ID ref (%s)\n", node->id_ref_data.name);
-            type = node->id_ref_data.ref ? node->id_ref_data.ref->type : NULL;
-            
+
+            if (node->id_ref_data.ref != NULL){
+                if(isDebugOn) printf("ref type is not NULL\n");
+                type = node->id_ref_data.ref->type ? node->id_ref_data.ref->type : NULL;
+            }else{
+                if(isDebugOn) printf("ref type is NULL\n");
+                type = NULL;
+            }
+
             if(!type){
                 char errorMsg[256]; 
                 snprintf(errorMsg, sizeof(errorMsg),"Type of '%s' is NULL", node->id_ref_data.name);
@@ -795,6 +711,11 @@ int validateTypesCallback(ASTNode* node, void* context) {
         }
 
         case NODE_EXPR_UNARY: {
+            const char* type = inferAndValidateType(node);
+            return 0;
+        }
+
+        case NODE_EXPR_TERM: {
             const char* type = inferAndValidateType(node);
             return 0;
         }

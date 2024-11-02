@@ -1,12 +1,14 @@
 
-string a="str";
+// string a="str";
 
 
-int foo(int a);
+int foo(int a, int b, int c);
+int b;
+foo(1 ,!b, 1);
 
 
 int foo1(int a, int b, char c, string str) return a;
-int b = 2;
+// int b = 2;
 foo1(1, b, 'c', "a"); // VALID
 
 
