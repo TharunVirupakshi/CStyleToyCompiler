@@ -7,6 +7,65 @@
 
 extern int cur_line, cur_char;
 
+bool isASTDebugOn = false;
+void setASTDebugger(){
+    isASTDebugOn = true;
+}
+
+const char* getNodeName(NodeType type) {
+    switch (type) {
+        case NODE_PROGRAM:       return "PROGRAM";
+        case NODE_STMT_LIST:     return "STMT_LIST";
+        case NODE_STMT:          return "STMT";
+        case NODE_DECL:          return "DECL";
+        case NODE_ASSIGN_STMT:   return "ASSIGN_STMT";
+        case NODE_ASSGN:         return "ASSGN";
+        case NODE_EXPR_STMT:     return "EXPR_STMT";
+        case NODE_IF:            return "IF";
+        case NODE_IF_ELSE:       return "IF_ELSE";
+        case NODE_IF_COND:       return "IF_COND";
+        case NODE_IF_BRANCH:     return "IF_BRANCH";
+        case NODE_ELSE_BRANCH:   return "ELSE_BRANCH";
+        case NODE_BLOCK_STMT:    return "BLOCK_STMT";
+        case NODE_LOOP_STMT:     return "LOOP_STMT";
+        case NODE_FOR:           return "FOR";
+        case NODE_FOR_INIT:      return "FOR_INIT";
+        case NODE_FOR_COND:      return "FOR_COND";
+        case NODE_FOR_UPDATION:  return "FOR_UPDATION";
+        case NODE_FOR_BODY:      return "FOR_BODY";
+        case NODE_EXPR_COMMA_LIST: return "EXPR_COMMA_LIST";
+        case NODE_WHILE:         return "WHILE";
+        case NODE_WHILE_COND:    return "WHILE_COND";
+        case NODE_WHILE_BODY:    return "WHILE_BODY";
+        case NODE_FUNC_DECL:     return "FUNC_DECL";
+        case NODE_FUNC_BODY:     return "FUNC_BODY";
+        case NODE_FUNC_CALL:     return "FUNC_CALL";
+        case NODE_ARG_LIST:      return "ARG_LIST";
+        case NODE_ARG:           return "ARG";
+        case NODE_VAR_LIST:      return "VAR_LIST";
+        case NODE_VAR:           return "VAR";
+        case NODE_TYPE_SPEC:     return "TYPE_SPEC";
+        case NODE_EXPR_BINARY:   return "EXPR_BINARY";
+        case NODE_EXPR_UNARY:    return "EXPR_UNARY";
+        case NODE_EXPR_TERM:     return "EXPR_TERM";
+        case NODE_OP:            return "OP";
+        case NODE_UNARY_OP:      return "UNARY_OP";
+        case NODE_INT_LITERAL:   return "INT_LITERAL";
+        case NODE_CHAR_LITERAL:  return "CHAR_LITERAL";
+        case NODE_STR_LITERAL:   return "STR_LITERAL";
+        case NODE_ID:            return "ID";
+        case NODE_ID_REF:        return "ID_REF";
+        case NODE_ARRAY_DECL:    return "ARRAY_DECL";
+        case NODE_PARAM_LIST:    return "PARAM_LIST";
+        case NODE_PARAM:         return "PARAM";
+        case NODE_EXPR_LIST:     return "EXPR_LIST";
+        case NODE_RETURN:        return "RETURN";
+        case NODE_COMMA:         return "COMMA";
+        case NODE_EMPTY:         return "EMPTY";
+        default:                 return "UNKNOWN_TYPE";
+    }
+}
+
 // Function to create an empty AST node
 ASTNode* createASTNode(NodeType type, int line_no, int char_no) {
     static int node_id = 0;
@@ -342,6 +401,7 @@ void traverseASTPostorder(ASTNode* node, ASTTraversalCallback callback, void* co
             break;
 
         case NODE_PARAM:
+            traverseASTPostorder(node->param_data.type_spec, callback, context);
             traverseASTPostorder(node->param_data.id, callback, context);
             break;
 
@@ -578,6 +638,7 @@ void printAST(ASTNode* node, int indent, bool isLast) {
         case NODE_PARAM:
             printf("PARAM (type: %s)\n", node->param_data.type_spec->type_data.type);
             printAST(node->param_data.id, indent+1, true);
+            printAST(node->param_data.type_spec, indent+1, true);
             break;
 
         case NODE_FUNC_CALL:
@@ -606,6 +667,9 @@ void printAST(ASTNode* node, int indent, bool isLast) {
 
 int freeASTCallback(ASTNode* node, void* context) {
     if (node == NULL) return 0;
+
+    if(isASTDebugOn) printf("Freeing %s\n", getNodeName(node->type));
+
     (*(int*)context)++;
     // Free any dynamically allocated data within the node if necessary
     // e.g., freeing identifiers, literals, or other node-specific data
@@ -905,9 +969,11 @@ void exportASTNodeAsJSON(FILE *file, ASTNode *node, int parentID, int *edgeBuffe
             exportASTNodeAsJSON(file, node->param_list_data.param, currentID, edgeBufferSize, edgeBuffer, 0);
             break;
         case NODE_PARAM:
+            exportASTNodeAsJSON(file, node->param_data.type_spec, currentID, edgeBufferSize, edgeBuffer, 0);
             exportASTNodeAsJSON(file, node->param_data.id, currentID, edgeBufferSize, edgeBuffer, 0);
             break;
         case NODE_FUNC_CALL:
+            exportASTNodeAsJSON(file, node->func_call_data.id, currentID, edgeBufferSize, edgeBuffer, 0);
             exportASTNodeAsJSON(file, node->func_call_data.arg_list, currentID, edgeBufferSize, edgeBuffer, 0);
             break;
         case NODE_ARG_LIST:
@@ -990,10 +1056,14 @@ void exportASTAsJSON(const char *folderPath, ASTNode *root) {
         fprintf(htmlFile, "            margin: 0;\n");
         fprintf(htmlFile, "            font-family: 'Courier New', Courier, monospace;\n");
         fprintf(htmlFile, "        }\n");
+        fprintf(htmlFile, "        #node-count {\n");
+        fprintf(htmlFile, "            padding: 0 1em;\n");
+        fprintf(htmlFile, "        }\n");
         fprintf(htmlFile, "    </style>\n");
         fprintf(htmlFile, "</head>\n");
         fprintf(htmlFile, "<body>\n");
         fprintf(htmlFile, "    <h1 style=\"text-align:center\">Abstract Syntax Tree (AST) Graph</h1>\n");
+        fprintf(htmlFile, "    <h4 id=\"node-count\"></h4>\n");
         fprintf(htmlFile, "    <div id=\"mynetwork\"></div>\n");
         fprintf(htmlFile, "    <script>\n");
         fprintf(htmlFile, "        fetch(\"ast.json\")\n");
@@ -1009,6 +1079,8 @@ void exportASTAsJSON(const char *folderPath, ASTNode *root) {
         fprintf(htmlFile, "                    layout: { hierarchical: { parentCentralization: true, shakeTowards: 'roots', direction: 'UD', sortMethod: 'directed', nodeSpacing: 150 } }\n");
         fprintf(htmlFile, "                };\n");
         fprintf(htmlFile, "                const network = new vis.Network(container, dataSet, options);\n");
+        fprintf(htmlFile, "                const nodeCntDisplay = document.getElementById('node-count');\n");
+        fprintf(htmlFile, "                nodeCntDisplay.innerText = `Nodes: ${nodes?.length}`;\n");
         fprintf(htmlFile, "            })\n");
         fprintf(htmlFile, "            .catch(error => console.error('Error loading the JSON data:', error));\n");
         fprintf(htmlFile, "    </script>\n");

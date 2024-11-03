@@ -88,9 +88,15 @@ SemanticStatus performSemanticAnalysis(ASTNode* root, SymbolTable* globalTable) 
         return SEMANTIC_ERROR;
     }
 
-        // validateFunctionReturnTypes(root);
+    validateFunctionReturnTypes(root);
 
-    return errorCount > 0 ? SEMANTIC_ERROR : SEMANTIC_SUCCESS;
+    if(errorCount > 0){
+        printErrors();
+        errorCount = 0;
+        return SEMANTIC_ERROR;
+    }
+
+    return SEMANTIC_SUCCESS;
 }
 
 
@@ -745,6 +751,7 @@ void validateTypes(ASTNode* root) {
 
 
 typedef struct {
+    ASTNode* func_decl_node;
     bool ret_found;
     const char* expected_type;
 } RetValCtx; 
@@ -764,8 +771,8 @@ int validateReturnStmtsCallback(ASTNode* node, void* ctx){
         if(strcmp(ret_type, expected_type) != 0){
             char errorMsg[256];
             snprintf(errorMsg, sizeof(errorMsg),
-                     "Return type mismatch: expected %s, got %s",
-                     expected_type, ret_type);
+                     "Return type mismatch: expected (%s), got (%s) for '%s()'",
+                     expected_type, ret_type, val_ctx->func_decl_node->func_decl_data.id->id_data.sym->name);
             addError(errorMsg, node->line_no, node->char_no);
             
         }
@@ -781,6 +788,7 @@ int validateFuncRetTypesCallback(ASTNode* node, void* context){
     if (node->type != NODE_FUNC_DECL) return 1; // Skip non func_decl nodes and continue traversing
 
     RetValCtx ret_ctx = {
+        .func_decl_node = node,
         .ret_found = false,
         .expected_type = node->func_decl_data.id->id_data.sym->type
     };
@@ -802,7 +810,7 @@ int validateFuncRetTypesCallback(ASTNode* node, void* context){
     if(!(ret_ctx.ret_found) && strcmp(ret_ctx.expected_type, TYPE_VOID) != 0 ){
         char errorMsg[256];
         snprintf(errorMsg, sizeof(errorMsg),
-                "Missing return statement in function '%s' with non-void return type",
+                "Missing return statement in function '%s' with (non-void) return type",
                 node->func_decl_data.id->id_data.sym->name);
         addError(errorMsg, node->line_no, node->char_no); 
     }

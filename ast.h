@@ -66,7 +66,8 @@ typedef enum NodeType {
     NODE_EMPTY
 } NodeType;
 
-
+const char* getNodeName(NodeType type); 
+void setASTDebugger();
 
 typedef struct ASTNode {
     NodeType type;  // Type of the node (enum to identify node type)

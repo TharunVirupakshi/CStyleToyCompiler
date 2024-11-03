@@ -367,6 +367,8 @@ int main(int argc, char *argv[]){
     int printAST_flag = 0;
     int printSymTable_flag = 0;
     int debug_flag = 0;
+    int debug_ast_flag = 0;
+    int debug_semantic_flag = 0;
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--export-ast") == 0) {
             exportAST_flag = 1;
@@ -380,12 +382,25 @@ int main(int argc, char *argv[]){
         if (strcmp(argv[i], "--debug") == 0) {
             debug_flag = 1;
         }
+        if (strcmp(argv[i], "--debug-ast") == 0) {
+            debug_ast_flag = 1;
+        }
+        if (strcmp(argv[i], "--debug-semantic") == 0) {
+            debug_semantic_flag = 1;
+        }
     }
 
-    // Turn on debugger
+    // Turn on debuggers
     if(debug_flag){
+        setASTDebugger();
         setSemanticDebugger();
     }
+
+    if(debug_ast_flag) setASTDebugger();
+    if(debug_semantic_flag) setSemanticDebugger();
+
+
+    
   
     symTable = createSymbolTable("global", NULL, 100);
     currentScope = symTable; // Initial current scope

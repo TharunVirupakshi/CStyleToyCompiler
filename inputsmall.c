@@ -2,14 +2,42 @@
 // string a="str";
 
 
-int foo(int a, int b, int c);
-int b;
-foo(1 ,!b, 1);
 
 
-int foo1(int a, int b, char c, string str) return a;
-// int b = 2;
-foo1(1, b, 'c', "a"); // VALID
+// int foo(int a, int b, int c) return 1; // Missing return
+
+// foo(1 ,1, 1);
+
+
+// int foo1(int a, int b, char c, string str) return c; // Wrong return type
+// // int b = 2;
+// foo1(1, b, 'c', "a"); // VALID
+
+// void foo3(int c){
+//     return 1; // invalid
+// }
+
+// void foo4(); //No return valid
+
+// int foo5(){
+
+//     // Nested return stmts
+//     if(b) return 'c'; //Invalid
+//     for(;;){
+//         if(b) return 'c';
+//         return "str"; //Invalid
+//     }
+
+//     // Does not affect foo5()
+//     string foo6(){
+//         return 1; //Invalid
+//         return "str";
+//     }
+
+//     if(foo(1, 2, 3)) return foo6(); // Invalid
+
+//     return 1; // Valid
+// }
 
 
 
