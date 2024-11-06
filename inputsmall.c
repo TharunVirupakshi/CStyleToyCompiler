@@ -1,5 +1,8 @@
-int a = 1, b = a++, c = --b, d = b--, e = ++d;
+int a = 1 + !2, b = !a + 1 * 3 + 4;
+string str = "a";
+a = !(-b/2)+ ++(b)*2;
 
+a = (b || str) && !(a++);
 
 // a = 1
 

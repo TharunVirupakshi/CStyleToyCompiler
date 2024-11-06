@@ -84,6 +84,7 @@ char* newLabel();
 
 // Functions to generate TAC code for expressions, assignments, etc.
 TAC* generateCode(ASTNode* node);
+void attachValueOfExprTerm(ASTNode* node, Operand** opr);
 TAC* generateCodeForBinaryExpr(ASTNode* node);
 TAC* generateCodeForAssignment(ASTNode* node);
 

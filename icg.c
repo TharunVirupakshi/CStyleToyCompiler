@@ -165,61 +165,76 @@ void appendTAC(TACList* list, TAC* newTAC) {
 
 
 // Generate code for a binary expression
-// TAC* generateCodeForBinaryExpr(ASTNode* node) {
-//     if (node->type != NODE_EXPR_BINARY) return NULL;
-
-//     TAC* leftCode = generateCode(node->expr_data.left);
-//     TAC* rightCode = generateCode(node->expr_data.right);
-
-//     char* leftResult = leftCode ? leftCode->result : NULL;
-//     char* rightResult = rightCode ? rightCode->result : NULL;
-//     char* result = newTempVar();
+TAC* generateCodeForBinaryExpr(ASTNode* node) {
+    if(isDebug) printf("GenCode for BIN EXPR\n"); 
     
-//     TAC* instr = NULL;
+    if (node->type != NODE_EXPR_BINARY) return NULL;
 
-//     if(!(node->expr_data.op)){
-//         fprintf(stderr, "Operator is NULL\n");
-//         exit(1); 
-//     }
+    
 
-//     const char* op = node->expr_data.op;
+    Operand* opr1;
+    Operand* opr2;
 
-//     switch (getOpType(op)) {
-//         case OP_ARITHMETIC:
-//             if(strcmp(op, "+") == 0)        instr = createTAC(TAC_ADD, result, leftResult, rightResult);
-//             else if(strcmp(op, "-") == 0)   instr = createTAC(TAC_SUB, result, leftResult, rightResult);
-//             else if(strcmp(op, "*") == 0)   instr = createTAC(TAC_MUL, result, leftResult, rightResult);
-//             else if(strcmp(op, "/") == 0)   instr = createTAC(TAC_DIV, result, leftResult, rightResult); 
-//             break;
+
+    if(node->expr_data.left->type == NODE_EXPR_TERM){
+        attachValueOfExprTerm(node->expr_data.left, &opr1);
+    }else{
+        TAC* leftCode = generateCode(node->expr_data.left);
+        opr1 = makeOperand(ID_REF, leftCode->result); 
+    }
+
+    if(node->expr_data.right->type == NODE_EXPR_TERM){
+        attachValueOfExprTerm(node->expr_data.right, &opr2);
+    }else{
+        TAC* rightCode = generateCode(node->expr_data.right);
+        opr2 = makeOperand(ID_REF, rightCode->result); 
+    }
+
+
+    if(!(node->expr_data.op)){
+        fprintf(stderr, "Operator is NULL\n");
+        exit(1); 
+    }
+
+    const char* op = node->expr_data.op;
+    TACOp tac_op;
+
+    switch (getOpType(op)) {
+        case OP_ARITHMETIC:
+            if(strcmp(op, "+") == 0)        tac_op = TAC_ADD;
+            else if(strcmp(op, "-") == 0)   tac_op = TAC_SUB;
+            else if(strcmp(op, "*") == 0)   tac_op = TAC_MUL;
+            else if(strcmp(op, "/") == 0)   tac_op = TAC_DIV; 
+            break;
         
 
-//         case OP_LOGICAL:
-//             if (strcmp(op, "&&") == 0)       instr = createTAC(TAC_AND, result, leftResult, rightResult);
-//             else if (strcmp(op, "||") == 0)  instr = createTAC(TAC_OR, result, leftResult, rightResult);
-//             break;
+        case OP_LOGICAL:
+            if (strcmp(op, "&&") == 0)      tac_op = TAC_AND; 
+            else if (strcmp(op, "||") == 0) tac_op = TAC_OR; 
+            break;
 
-//         case OP_COMP:
-//             if (strcmp(op, "==") == 0)       instr = createTAC(TAC_EQ, result, leftResult, rightResult);
-//             else if (strcmp(op, "!=") == 0)  instr = createTAC(TAC_NEQ, result, leftResult, rightResult);
-//             else if (strcmp(op, "<") == 0)   instr = createTAC(TAC_LT, result, leftResult, rightResult);
-//             else if (strcmp(op, "<=") == 0)  instr = createTAC(TAC_LEQ, result, leftResult, rightResult);
-//             else if (strcmp(op, ">") == 0)   instr = createTAC(TAC_GT, result, leftResult, rightResult);
-//             else if (strcmp(op, ">=") == 0)  instr = createTAC(TAC_GEQ, result, leftResult, rightResult);
-//             break;
+        case OP_COMP:
+            if (strcmp(op, "==") == 0)      tac_op = TAC_EQ; 
+            else if (strcmp(op, "!=") == 0) tac_op = TAC_NEQ; 
+            else if (strcmp(op, "<") == 0)  tac_op = TAC_LT; 
+            else if (strcmp(op, "<=") == 0) tac_op = TAC_LEQ; 
+            else if (strcmp(op, ">") == 0)  tac_op = TAC_GT; 
+            else if (strcmp(op, ">=") == 0) tac_op = TAC_GEQ; 
+            break;
 
-//         default:
-//         fprintf(stderr, "Unsupported binary operator\n");
-//         exit(1);
-//     }
+        default:
+        fprintf(stderr, "Unsupported binary operator\n");
+        exit(1);
+    }
 
-//     if (leftCode) leftCode->next = rightCode;
-//     if (rightCode) rightCode->next = instr;
-    
-//     return leftCode ? leftCode : instr;
-// }
+    TAC* newTac = createTAC(tac_op, newTempVar(), opr1, opr2);
+    appendTAC(codeList, newTac); 
+
+    return newTac;
+}
 
 void attachValueOfExprTerm(ASTNode* node, Operand** opr){
-    // if(isDebug) printf("Extracting val from EXPR_TERM\n");
+    if(isDebug) printf("Extracting val from EXPR_TERM\n");
     if(node->type != NODE_EXPR_TERM) return;
 
     ASTNode* valNode = node->expr_data.left;
@@ -337,19 +352,25 @@ TAC* genCodeForUnaryExpr(ASTNode* node){
 }
 
 // Generate code for an assignment statement
-// TAC* generateCodeForAssignment(ASTNode* node) {
-//     if (node->type != NODE_ASSIGN_STMT) return NULL;
-
-//     TAC* rhsCode = generateCode(node->assgn_data.right);
-//     char* rhsResult = rhsCode ? rhsCode->result : NULL;
-//     char* lhs = node->assgn_data.left->id_ref_data.name;
-
-//     TAC* instr = createTAC(TAC_ASSIGN, lhs, rhsResult, NULL);
-
-//     if (rhsCode) rhsCode->next = instr;
+TAC* generateCodeForAssignment(ASTNode* node) {
+    if(isDebug) printf("GenCode for NODE_ASSGN\n");
+    if (node->type != NODE_ASSGN) return NULL;
     
-//     return rhsCode ? rhsCode : instr;
-// }
+    Operand* opr1;
+    char* result = strdup(node->assgn_data.left->id_ref_data.name); 
+
+    if(node->assgn_data.right->type == NODE_EXPR_TERM){
+       attachValueOfExprTerm(node->assgn_data.right, &opr1); 
+    }else{
+       TAC* rhsCode = generateCode(node->assgn_data.right);
+       opr1 = makeOperand(ID_REF, rhsCode->result); 
+    }
+
+    TAC* code = createTAC(TAC_ASSIGN, result, opr1, NULL);
+    appendTAC(codeList, code);
+
+    return code;
+}
 
  
 
@@ -418,15 +439,14 @@ TAC* generateCode(ASTNode* node) {
             return generateCodeForDecl(node);
         }
         case NODE_EXPR_BINARY:
-            return NULL;
-            // return generateCodeForBinaryExpr(node);
+            return generateCodeForBinaryExpr(node);
 
         case NODE_EXPR_UNARY:
             return genCodeForUnaryExpr(node);
         case NODE_EXPR_TERM:
             return NULL;
-        case NODE_ASSIGN_STMT:
-            return NULL;
+        case NODE_ASSGN:
+            return generateCodeForAssignment(node);
             // return generateCodeForAssignment(node);
         default:
             fprintf(stderr, "Unsupported AST node type\n");
@@ -459,8 +479,10 @@ void printTACInstruction(TAC* instr) {
             break;
         case TAC_AND:
             printf("%s = %s AND %s\n", instr->result, opr1, opr2);
+            break;
         case TAC_OR:
             printf("%s = %s OR %s\n", instr->result, opr1, opr2);
+            break;
         case TAC_NEG:
             printf("%s = -%s\n", instr->result, opr1);
             break;        
