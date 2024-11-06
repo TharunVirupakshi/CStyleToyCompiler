@@ -264,10 +264,65 @@ TAC* genCodeForUnaryExpr(ASTNode* node){
     TACOp op;
     if(strcmp(node_op, "-") == 0)                op = TAC_NEG;
     else if(strcmp(node_op, "!") == 0)           op = TAC_NOT;
-    else if(strcmp(node_op, "POST_INC") == 0)    op = TAC_POST_INC;
-    else if(strcmp(node_op, "POST_DEC") == 0)    op = TAC_POST_DEC;
-    else if(strcmp(node_op, "PRE_INC") == 0)     op = TAC_PRE_INC;
-    else if(strcmp(node_op, "PRE_INC") == 0)     op = TAC_PRE_INC;
+    else if(strcmp(node_op, "POST_INC") == 0){
+        // Assign the original value
+        op = TAC_ASSIGN;
+        char* result = newTempVar();
+        TAC* newTac = createTAC(op, result, opr1, NULL);
+        appendTAC(codeList, newTac); 
+
+        // Increment later
+        int temp_val = 1;
+        Operand* opr2 = makeOperand(INT_VAL, &temp_val);
+        TAC* postInc = createTAC(TAC_ADD, opr1->id_ref, opr1, opr2);
+
+        appendTAC(codeList, postInc);
+        return newTac;
+    }   
+    else if(strcmp(node_op, "POST_DEC") == 0){
+        // Assign the original value
+        op = TAC_ASSIGN;
+        char* result = newTempVar();
+        TAC* newTac = createTAC(op, result, opr1, NULL);
+        appendTAC(codeList, newTac);  
+
+        // Decrement later
+        int temp_val = 1;
+        Operand* opr2 = makeOperand(INT_VAL, &temp_val);
+        TAC* postInc = createTAC(TAC_SUB, opr1->id_ref, opr1, opr2);
+        appendTAC(codeList, postInc);
+        return newTac;
+    }    
+    else if(strcmp(node_op, "PRE_INC") == 0){
+        // Increment First
+        int temp_val = 1;
+        Operand* opr2 = makeOperand(INT_VAL, &temp_val);
+        TAC* postInc = createTAC(TAC_ADD, opr1->id_ref, opr1, opr2);
+        appendTAC(codeList, postInc);
+
+        // Assign the incremented value
+        op = TAC_ASSIGN;
+        char* result = newTempVar();
+        TAC* newTac = createTAC(op, result, opr1, NULL);
+        appendTAC(codeList, newTac);  
+        
+        return newTac;        
+    }
+    else if(strcmp(node_op, "PRE_DEC") == 0){
+        // Decrement First
+        int temp_val = 1;
+        Operand* opr2 = makeOperand(INT_VAL, &temp_val);
+        TAC* postInc = createTAC(TAC_SUB, opr1->id_ref, opr1, opr2);
+        appendTAC(codeList, postInc);
+
+        // Assign the decremented value
+        op = TAC_ASSIGN;
+        char* result = newTempVar();
+        TAC* newTac = createTAC(op, result, opr1, NULL);
+        appendTAC(codeList, newTac);  
+        
+        return newTac; 
+    }
     else{
         fprintf(stderr, "Unsupported operator\n");
         exit(1);  
@@ -365,6 +420,9 @@ TAC* generateCode(ASTNode* node) {
         case NODE_EXPR_BINARY:
             return NULL;
             // return generateCodeForBinaryExpr(node);
+
+        case NODE_EXPR_UNARY:
+            return genCodeForUnaryExpr(node);
         case NODE_EXPR_TERM:
             return NULL;
         case NODE_ASSIGN_STMT:
@@ -399,6 +457,16 @@ void printTACInstruction(TAC* instr) {
         case TAC_DIV:
             printf("%s = %s / %s\n", instr->result, opr1, opr2);
             break;
+        case TAC_AND:
+            printf("%s = %s AND %s\n", instr->result, opr1, opr2);
+        case TAC_OR:
+            printf("%s = %s OR %s\n", instr->result, opr1, opr2);
+        case TAC_NEG:
+            printf("%s = -%s\n", instr->result, opr1);
+            break;        
+        case TAC_NOT:
+            printf("%s = !%s\n", instr->result, opr1);
+            break; 
         default:
             fprintf(stderr, "Unknown TAC operation\n");
             break;
