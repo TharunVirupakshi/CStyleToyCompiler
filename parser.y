@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <stdbool.h>
 #include "semantic.h"
+#include "icg.h"
 
 #define GLOBAL "global"
 #define FUNCTION "function"
@@ -363,12 +364,16 @@ void yyerror(const char* s) {
 }
 
 int main(int argc, char *argv[]){
-    int exportAST_flag = 0;  // Flag to determine whether to export AST or not
+
+    // Run time flags
+    int exportAST_flag = 0;  
     int printAST_flag = 0;
     int printSymTable_flag = 0;
     int debug_flag = 0;
     int debug_ast_flag = 0;
     int debug_semantic_flag = 0;
+    int debug_icg_flag = 0;
+
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--export-ast") == 0) {
             exportAST_flag = 1;
@@ -388,19 +393,23 @@ int main(int argc, char *argv[]){
         if (strcmp(argv[i], "--debug-semantic") == 0) {
             debug_semantic_flag = 1;
         }
+        if (strcmp(argv[i], "--debug-icg") == 0) {
+            debug_icg_flag = 1;
+        }
     }
 
     // Turn on debuggers
     if(debug_flag){
         setASTDebugger();
         setSemanticDebugger();
+        setICGDebugger();
     }
 
-    if(debug_ast_flag) setASTDebugger();
+    if(debug_ast_flag)      setASTDebugger();
     if(debug_semantic_flag) setSemanticDebugger();
+    if(debug_icg_flag)      setICGDebugger();
 
 
-    
   
     symTable = createSymbolTable("global", NULL, 100);
     currentScope = symTable; // Initial current scope
@@ -409,17 +418,11 @@ int main(int argc, char *argv[]){
 
     SemanticStatus sem_stat = performSemanticAnalysis(root, symTable);
 
-    if(sem_stat == SEMANTIC_SUCCESS)
-        printf("\nPARSING SUCCESS\n");
-    
-    printf("\n\n");
-
     if(printAST_flag){
         printAST(root, 0, false);
         printf("\n\n");
     } 
 
-    
     if(printSymTable_flag){
         printf("\n\n");
         printSymbolTable(symTable);
@@ -429,6 +432,20 @@ int main(int argc, char *argv[]){
     if (exportAST_flag) {
         exportASTAsJSON(folderPathForAST_Vis, root);
     }
+
+    if(sem_stat == SEMANTIC_SUCCESS){
+        printf("\nPARSING SUCCESS\n");
+
+        startICG(root);
+
+        printf("\nThreeAddressCode------------------------\n");
+        printTAC();
+    }
+        
+    
+    printf("\n\n");
+
+    
 
 
     freeAST(root);

@@ -15,13 +15,6 @@ bool isDebugOn = false;
 void setSemanticDebugger(){
     isDebugOn = true;
 } 
-typedef enum{
-    OP_ARITHMETIC,
-    OP_COMP,
-    OP_LOGICAL,
-    OP_INC_DEC,
-    OP_UNKNOWN
-}OpType;
 
 
 OpType getOpType(const char* op) {

@@ -1,3 +1,8 @@
+int a = 1, b = 2 + 4;
+
+// a = 1
+
+
 
 // string a="str";
 
