@@ -28,6 +28,7 @@ typedef enum {
     TAC_LABEL,
     TAC_GOTO,
     TAC_IF_GOTO,
+    TAC_IF_FALSE_GOTO,
     TAC_CALL,
     TAC_PARAM,
     TAC_RETURN,
@@ -54,16 +55,28 @@ typedef struct Operand{
         int int_val;
         char char_val;
         char* str_val;
-        char* id_ref;
+        struct{
+            char* name;
+            symbol* sym;
+        }id_ref;
     };
 
 } Operand;
 
 typedef struct TAC {
+    int tac_id;
+    Label* label; // Label of this TAC
+
     TACOp op;
     char* result;
     Operand* operand1;
     Operand* operand2;
+
+    List* truelist;
+    List* falselist;
+
+    Label* target_label;
+
     struct TAC* next;  // Linked list of instructions
 } TAC;
 
@@ -71,6 +84,16 @@ typedef struct TACList {
     TAC* head;
     TAC* tail;
 } TACList;
+
+typedef struct List {
+    struct TAC* tac;    // Pointer to the TAC instruction to be patched later
+    struct List* next;   // Pointer to the next instruction in the list
+} List;
+
+typedef struct Label {
+    char* name;      // The name of the label, e.g., "L1"
+    struct TAC* tac; // Pointer to the TAC instruction where the label is used
+} Label;
 
 void setICGDebugger();
 void startICG(ASTNode* root);

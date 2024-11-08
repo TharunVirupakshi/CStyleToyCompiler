@@ -8,7 +8,7 @@
 #include <errno.h>
 #include <stdbool.h>
 #include "semantic.h"
-#include "icg.h"
+// #include "icg.h"
 
 #define GLOBAL "global"
 #define FUNCTION "function"
@@ -95,8 +95,8 @@ ASTNode* createArgNode(ASTNode* arg);
 %right ASSIGN
 %left EQ NEQ
 %left LT GT LEQ GEQ
-%left AND
 %left OR
+%left AND
 %left PLUS MINUS
 %left MULT DIV
 %nonassoc UNARY
@@ -402,12 +402,12 @@ int main(int argc, char *argv[]){
     if(debug_flag){
         setASTDebugger();
         setSemanticDebugger();
-        setICGDebugger();
+        /* setICGDebugger(); */
     }
 
     if(debug_ast_flag)      setASTDebugger();
     if(debug_semantic_flag) setSemanticDebugger();
-    if(debug_icg_flag)      setICGDebugger();
+    /* if(debug_icg_flag)      setICGDebugger(); */
 
 
   
@@ -435,11 +435,11 @@ int main(int argc, char *argv[]){
 
     if(sem_stat == SEMANTIC_SUCCESS){
         printf("\nPARSING SUCCESS\n");
-
+/* 
         startICG(root);
 
-        printf("\nThreeAddressCode------------------------\n");
-        printTAC();
+        printf("\nThreeAddressCode------------------------\n\n");
+        printTAC(); */
     }
         
     

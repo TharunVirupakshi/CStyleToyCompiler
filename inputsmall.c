@@ -1,9 +1,36 @@
 int a = 1 + !2, b = !a + 1 * 3 + 4;
 string str = "a";
+char c = 'c';
+c++;
 a = !(-b/2)+ ++(b)*2;
 
-a = (b || str) && !(a++);
 
+a || b && c;
+
+/*
+
+0:  if a goto 6
+1:  goto 2
+2:  if b goto 4
+3:  goto 6
+4:  if c goto 6
+5:  goto 6
+6:
+
+*/
+
+
+
+
+// a = (b || str) && !(a++);
+// a++;
+// a;
+
+// {
+//     int a = 1;
+//     a = 2;
+//     b = 2;
+// }
 // a = 1
 
 

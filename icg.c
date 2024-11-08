@@ -6,6 +6,12 @@
 
 int tempVarCounter = 0;
 int labelCounter = 0;
+int instructionCounter = 0;
+
+// Function to get the index of the next instruction
+int getNextInstruction() {
+    return instructionCounter;
+}
 
 bool isDebug = false;
 void setICGDebugger(){
@@ -16,7 +22,7 @@ TACList* codeList;
 
 // Runner
 void startICG(ASTNode* root){
-   printf("Generating ICG...\n");
+   if(isDebug) printf("Generating ICG...\n");
    codeList = createTACList();
    TAC* head = generateCode(root);
    if(isDebug) printf("ICG Done\n");
@@ -54,6 +60,59 @@ TAC* createTAC(TACOp op, char* result, Operand* operand1, Operand* operand2) {
     return instr;   
 }
 
+// Create a new list with a single TAC node
+List* makeList(TAC* tac) {
+    List* newList = (List*)malloc(sizeof(List));
+    if (!newList) {
+        fprintf(stderr, "Memory allocation failed for makeList\n");
+        exit(1);
+    }
+    newList->tac = tac;   // Set the TAC pointer to the given TAC instruction
+    newList->next = NULL;
+    return newList;
+}
+
+// Merge two lists of TAC instructions
+List* merge(List* list1, List* list2) {
+    if (!list1) return list2;
+    if (!list2) return list1;
+
+    List* temp = list1;
+    while (temp->next) {
+        temp = temp->next;
+    }
+    temp->next = list2;
+    return list1;
+}
+
+// Backpatch all TAC instructions in the list with the given target label name
+void backpatch(List* list, Label* label) {
+    List* temp = list;
+    while (temp) {
+        if (temp->tac) {
+            // Update the result (target label) of the GOTO or IF_GOTO instruction
+            if (temp->tac->result) {
+                free(temp->tac->result);
+            }
+            temp->tac->target_label = label;
+        }
+        temp = temp->next;
+    }
+}
+
+char* generateScopeSuffixedName(const char* name, int scope_id) {
+    int suffix_len = snprintf(NULL, 0, "_%d", scope_id);
+    char* suffixed_name = (char*)malloc(strlen(name) + suffix_len + 1);
+
+    if (!suffixed_name) {
+        fprintf(stderr, "Memory allocation failed for suffixed name\n");
+        exit(1);
+    }
+
+    sprintf(suffixed_name, "%s_%d", name, scope_id);
+    return suffixed_name;
+}
+
 Operand* makeOperand(ValueType type, void* val){
     if(isDebug) printf("Making operand\n");
 
@@ -89,8 +148,8 @@ Operand* makeOperand(ValueType type, void* val){
             }
             break;
         case ID_REF:
-            opr->id_ref = strdup((char*)val);
-            if (!opr->id_ref) {
+            opr->id_ref.name = strdup((char*)val);
+            if (!opr->id_ref.name) {
                 fprintf(stderr, "Memory allocation for string failed\n");
                 free(opr);
                 exit(1);
@@ -121,12 +180,12 @@ char* getFormattedValueFromOperand(Operand* opr) {
         if(isDebug) printf("Formatting string to string\n");
         size_t len = strlen(opr->str_val) + 3;  // Account for quotes and null terminator
         val = (char*)malloc(len);
-        if (val) sprintf(val, "\"%s\"", opr->str_val);
+        if (val) sprintf(val, "%s", opr->str_val);
     } else if (opr->type == ID_REF) {
         if(isDebug) printf("Formatting id_ref to string\n"); 
-        size_t len = strlen(opr->id_ref) + 1;  // For ID reference without quotes
+        size_t len = strlen(opr->id_ref.name) + 1;  // For ID reference without quotes
         val = (char*)malloc(len);
-        if (val) sprintf(val, "%s", opr->id_ref);
+        if (val) sprintf(val, "%s", opr->id_ref.name);
     }
 
     if (!val) {
@@ -156,6 +215,8 @@ void appendTAC(TACList* list, TAC* newTAC) {
         list->tail->next = newTAC;
     }
     list->tail = newTAC;
+    newTAC->tac_id = instructionCounter;
+    instructionCounter++;
     if(isDebug) printf("Append TAC success\n");
 }
 
@@ -170,25 +231,12 @@ TAC* generateCodeForBinaryExpr(ASTNode* node) {
     
     if (node->type != NODE_EXPR_BINARY) return NULL;
 
-    
 
-    Operand* opr1;
-    Operand* opr2;
+    Operand* opr1 = NULL;
+    Operand* opr2 = NULL;
 
 
-    if(node->expr_data.left->type == NODE_EXPR_TERM){
-        attachValueOfExprTerm(node->expr_data.left, &opr1);
-    }else{
-        TAC* leftCode = generateCode(node->expr_data.left);
-        opr1 = makeOperand(ID_REF, leftCode->result); 
-    }
-
-    if(node->expr_data.right->type == NODE_EXPR_TERM){
-        attachValueOfExprTerm(node->expr_data.right, &opr2);
-    }else{
-        TAC* rightCode = generateCode(node->expr_data.right);
-        opr2 = makeOperand(ID_REF, rightCode->result); 
-    }
+   
 
 
     if(!(node->expr_data.op)){
@@ -200,28 +248,83 @@ TAC* generateCodeForBinaryExpr(ASTNode* node) {
     TACOp tac_op;
 
     switch (getOpType(op)) {
-        case OP_ARITHMETIC:
+        case OP_COMP:
+        case OP_ARITHMETIC:{  
+            
+            if(node->expr_data.left->type == NODE_EXPR_TERM){
+                attachValueOfExprTerm(node->expr_data.left, &opr1);
+            }else{
+                TAC* leftCode = generateCode(node->expr_data.left);
+                opr1 = makeOperand(ID_REF, leftCode->result); 
+            }
+
+            if(node->expr_data.right->type == NODE_EXPR_TERM){
+                attachValueOfExprTerm(node->expr_data.right, &opr2);
+            }else{
+                TAC* rightCode = generateCode(node->expr_data.right);
+                opr2 = makeOperand(ID_REF, rightCode->result); 
+            }
+
             if(strcmp(op, "+") == 0)        tac_op = TAC_ADD;
             else if(strcmp(op, "-") == 0)   tac_op = TAC_SUB;
             else if(strcmp(op, "*") == 0)   tac_op = TAC_MUL;
             else if(strcmp(op, "/") == 0)   tac_op = TAC_DIV; 
-            break;
-        
-
-        case OP_LOGICAL:
-            if (strcmp(op, "&&") == 0)      tac_op = TAC_AND; 
-            else if (strcmp(op, "||") == 0) tac_op = TAC_OR; 
-            break;
-
-        case OP_COMP:
-            if (strcmp(op, "==") == 0)      tac_op = TAC_EQ; 
+            else if (strcmp(op, "==") == 0) tac_op = TAC_EQ; 
             else if (strcmp(op, "!=") == 0) tac_op = TAC_NEQ; 
             else if (strcmp(op, "<") == 0)  tac_op = TAC_LT; 
             else if (strcmp(op, "<=") == 0) tac_op = TAC_LEQ; 
             else if (strcmp(op, ">") == 0)  tac_op = TAC_GT; 
             else if (strcmp(op, ">=") == 0) tac_op = TAC_GEQ; 
-            break;
+            
+            
+            TAC* newTac = createTAC(tac_op, newTempVar(), opr1, opr2);
+            appendTAC(codeList, newTac); 
 
+            return newTac;
+        }
+        case OP_LOGICAL:{
+            if (strcmp(op, "&&") == 0){
+                TACOp left_op = TAC_IF_FALSE_GOTO;
+                TAC* l_opr1 = NULL; 
+
+                if(node->expr_data.left->type == NODE_EXPR_TERM){
+                    attachValueOfExprTerm(node->expr_data.left, &l_opr1);
+                }else{
+                    TAC* leftSubCode = generateCode(node->expr_data.left);
+                    l_opr1 = makeOperand(ID_REF, leftSubCode->result); 
+                    if(node->expr_data.left->type == NODE_EXPR_BINARY);
+                }
+                
+                TAC* leftCode = createTAC(left_op, NULL, l_opr1, NULL);
+                List* truelist = makeList(leftCode);
+                appendTAC(codeList, leftCode);
+                
+
+                TACOp right_op = TAC_IF_FALSE_GOTO;
+                TAC* r_opr1 = NULL;
+
+                if(node->expr_data.right->type == NODE_EXPR_TERM){
+                    attachValueOfExprTerm(node->expr_data.right, &r_opr1);
+                }else{
+                    TAC* rightSubCode = generateCode(node->expr_data.right);
+                    r_opr1 = makeOperand(ID_REF, rightSubCode->result); 
+                }
+
+                TAC* right_code = createTAC(right_op, NULL, r_opr1, NULL);
+                truelist = merge(truelist, makeList(right_code)); 
+                appendTAC(codeList, right_code);
+
+
+                
+                // Here the true list needs to be backpatched with the correct label.
+
+
+
+
+            }      
+            else if (strcmp(op, "||") == 0) tac_op = TAC_OR; 
+            break;
+        }
         default:
         fprintf(stderr, "Unsupported binary operator\n");
         exit(1);
@@ -252,9 +355,15 @@ void attachValueOfExprTerm(ASTNode* node, Operand** opr){
             *opr = makeOperand(STR_VAL, (char*)valNode->literal_data.value.str_value);
         }else if(valNode->type == NODE_ID_REF){
             if(isDebug) printf("Extracting ID_REF\n");
-            *opr = makeOperand(ID_REF, (char*)valNode->id_ref_data.name);
+    
+            char* suffixed_name = generateScopeSuffixedName(valNode->id_ref_data.name, valNode->id_ref_data.scope->table_id);
+        
+            *opr = makeOperand(ID_REF, suffixed_name);
+            (*opr)->id_ref.sym = valNode->id_ref_data.ref;
         }
 }
+
+
 
 TAC* genCodeForUnaryExpr(ASTNode* node){
     if(isDebug) printf("GenCode for EXPR_UNARY\n");
@@ -289,7 +398,7 @@ TAC* genCodeForUnaryExpr(ASTNode* node){
         // Increment later
         int temp_val = 1;
         Operand* opr2 = makeOperand(INT_VAL, &temp_val);
-        TAC* postInc = createTAC(TAC_ADD, opr1->id_ref, opr1, opr2);
+        TAC* postInc = createTAC(TAC_ADD, opr1->id_ref.name, opr1, opr2);
 
         appendTAC(codeList, postInc);
         return newTac;
@@ -304,7 +413,7 @@ TAC* genCodeForUnaryExpr(ASTNode* node){
         // Decrement later
         int temp_val = 1;
         Operand* opr2 = makeOperand(INT_VAL, &temp_val);
-        TAC* postInc = createTAC(TAC_SUB, opr1->id_ref, opr1, opr2);
+        TAC* postInc = createTAC(TAC_SUB, opr1->id_ref.name, opr1, opr2);
         appendTAC(codeList, postInc);
         return newTac;
     }    
@@ -312,7 +421,7 @@ TAC* genCodeForUnaryExpr(ASTNode* node){
         // Increment First
         int temp_val = 1;
         Operand* opr2 = makeOperand(INT_VAL, &temp_val);
-        TAC* postInc = createTAC(TAC_ADD, opr1->id_ref, opr1, opr2);
+        TAC* postInc = createTAC(TAC_ADD, opr1->id_ref.name, opr1, opr2);
         appendTAC(codeList, postInc);
 
         // Assign the incremented value
@@ -327,7 +436,7 @@ TAC* genCodeForUnaryExpr(ASTNode* node){
         // Decrement First
         int temp_val = 1;
         Operand* opr2 = makeOperand(INT_VAL, &temp_val);
-        TAC* postInc = createTAC(TAC_SUB, opr1->id_ref, opr1, opr2);
+        TAC* postInc = createTAC(TAC_SUB, opr1->id_ref.name, opr1, opr2);
         appendTAC(codeList, postInc);
 
         // Assign the decremented value
@@ -351,13 +460,29 @@ TAC* genCodeForUnaryExpr(ASTNode* node){
     return newTac;
 }
 
+TAC* genCodeForTermExpr(ASTNode* node){
+    if(isDebug) printf("GenCode for TERM EXPR\n");
+    if (node->type != NODE_EXPR_TERM) return NULL;
+
+    Operand* opr1 = NULL;
+    char* result = newTempVar();
+
+    attachValueOfExprTerm(node->expr_data.left, &opr1);
+
+    TAC* code = createTAC(TAC_ASSIGN, result, opr1, NULL);
+    appendTAC(codeList, code);
+
+    return code;
+
+}
+
 // Generate code for an assignment statement
 TAC* generateCodeForAssignment(ASTNode* node) {
     if(isDebug) printf("GenCode for NODE_ASSGN\n");
     if (node->type != NODE_ASSGN) return NULL;
     
     Operand* opr1;
-    char* result = strdup(node->assgn_data.left->id_ref_data.name); 
+    char* result = strdup(generateScopeSuffixedName(node->assgn_data.left->id_ref_data.name, node->assgn_data.left->id_ref_data.ref->scope->table_id)); 
 
     if(node->assgn_data.right->type == NODE_EXPR_TERM){
        attachValueOfExprTerm(node->assgn_data.right, &opr1); 
@@ -381,7 +506,7 @@ TAC* genCodeForVar(ASTNode* node){
 
     Operand* opr1;
 
-    char* result = strdup(node->var_data.id->id_data.sym->name);
+    char* result = strdup(generateScopeSuffixedName(node->var_data.id->id_data.sym->name, node->var_data.id->id_data.sym->scope->table_id));
 
     if(node->var_data.value == NULL){
         opr1 = NULL;
@@ -392,7 +517,6 @@ TAC* genCodeForVar(ASTNode* node){
             TAC* rhsCode = generateCode(node->var_data.value);
             opr1 = makeOperand(ID_REF, rhsCode->result);
         }    
-
     }
     TAC* code = createTAC(TAC_ASSIGN, result, opr1, NULL);
     
@@ -444,9 +568,12 @@ TAC* generateCode(ASTNode* node) {
         case NODE_EXPR_UNARY:
             return genCodeForUnaryExpr(node);
         case NODE_EXPR_TERM:
-            return NULL;
+            return genCodeForTermExpr(node); 
         case NODE_ASSGN:
             return generateCodeForAssignment(node);
+
+        case NODE_BLOCK_STMT:
+            return generateCode(node->block_stmt_data.stmt_list);
             // return generateCodeForAssignment(node);
         default:
             fprintf(stderr, "Unsupported AST node type\n");
