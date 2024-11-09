@@ -47,6 +47,10 @@ typedef enum{
     STR_TO_INT,
 } TypeConversion;
 
+typedef struct Label Label;
+typedef struct List List;
+
+
 typedef struct Operand{
     ValueType type;
     TypeConversion typeConv;
@@ -68,7 +72,7 @@ typedef struct TAC {
     Label* label; // Label of this TAC
 
     TACOp op;
-    char* result;
+    const char* result;
     Operand* operand1;
     Operand* operand2;
 
@@ -76,6 +80,7 @@ typedef struct TAC {
     List* falselist;
 
     Label* target_label;
+    int target_jump;
 
     struct TAC* next;  // Linked list of instructions
 } TAC;
@@ -95,6 +100,12 @@ typedef struct Label {
     struct TAC* tac; // Pointer to the TAC instruction where the label is used
 } Label;
 
+
+typedef struct BoolExprInfo {
+    List* trueList;
+    List* falseList;
+} BoolExprInfo;
+
 void setICGDebugger();
 void startICG(ASTNode* root);
 
@@ -106,9 +117,9 @@ char* newTempVar();
 char* newLabel();
 
 // Functions to generate TAC code for expressions, assignments, etc.
-TAC* generateCode(ASTNode* node);
+TAC* generateCode(ASTNode* node, BoolExprInfo* bool_info);
 void attachValueOfExprTerm(ASTNode* node, Operand** opr);
-TAC* generateCodeForBinaryExpr(ASTNode* node);
+TAC* generateCodeForBinaryExpr(ASTNode* node, BoolExprInfo* bool_info);
 TAC* generateCodeForAssignment(ASTNode* node);
 
 // Function to create a TAC instruction
