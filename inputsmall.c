@@ -1,15 +1,14 @@
-(1 || 2) && 3 * 3 || 4+1;
+1 || 2 && !3;
+
 
 /*
-
-0:  if a goto 6
-1:  goto 2
-2:  if b goto 4
-3:  goto 6
-4:  if c goto 6
-5:  goto 6
-6:
-
+0: if 1 goto 2
+1: goto 6
+2: if_false 1 goto 6
+3: goto 4
+4: t0 = 1
+5: goto 7
+6: t0 = 0
 */
 
 
