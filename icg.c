@@ -330,14 +330,14 @@ TAC* generateCodeForBinaryExpr(ASTNode* node, BoolExprInfo* bool_info) {
                 // Generate TAC to store the boolean result in a temporary variable
               
                 // Generate code for left
-                TAC* leftIfCode = createTAC(TAC_IF_GOTO, NULL, l_opr1, NULL);
-                TAC* leftGotoCode = createTAC(TAC_GOTO, NULL, NULL, NULL);
+                TAC* leftIfCode = createTAC(TAC_IF_FALSE_GOTO, NULL, l_opr1, NULL);
+                // TAC* leftGotoCode = createTAC(TAC_GOTO, NULL, NULL, NULL);
                 appendTAC(codeList, leftIfCode);
-                appendTAC(codeList, leftGotoCode);
+                // appendTAC(codeList, leftGotoCode);
 
-                l_info.trueList = makeList(leftIfCode);
-                l_info.falseList = makeList(leftGotoCode);
-                backpatch(l_info.trueList, getNextInstruction());
+                // l_info.trueList = makeList(leftIfCode);
+                l_info.falseList = makeList(leftIfCode);
+                // backpatch(l_info.trueList, getNextInstruction());
                 if(isDebug) printf("Generated code for left\n");
 
                 // Process right child
@@ -355,12 +355,12 @@ TAC* generateCodeForBinaryExpr(ASTNode* node, BoolExprInfo* bool_info) {
                 
             
                 // Generate code for right
-                TAC* rightIfCode = createTAC(TAC_IF_GOTO, NULL, r_opr1, NULL);
-                TAC* rightGotoCode = createTAC(TAC_GOTO, NULL, NULL, NULL);
+                TAC* rightIfCode = createTAC(TAC_IF_FALSE_GOTO, NULL, r_opr1, NULL);
+                // TAC* rightGotoCode = createTAC(TAC_GOTO, NULL, NULL, NULL);
                 appendTAC(codeList, rightIfCode);
-                appendTAC(codeList, rightGotoCode);
-                r_info.trueList = makeList(rightIfCode);
-                r_info.falseList = makeList(rightGotoCode);
+                // appendTAC(codeList, rightGotoCode);
+                r_info.trueList = NULL;
+                r_info.falseList = makeList(rightIfCode);
                 if(isDebug) printf("Generated code for right\n"); 
                 
 
@@ -411,13 +411,13 @@ TAC* generateCodeForBinaryExpr(ASTNode* node, BoolExprInfo* bool_info) {
                 
                 // Generate code for left
                 TAC* leftIfCode = createTAC(TAC_IF_GOTO, NULL, l_opr1, NULL);
-                TAC* leftGotoCode = createTAC(TAC_GOTO, NULL, NULL, NULL);
+                // TAC* leftGotoCode = createTAC(TAC_GOTO, NULL, NULL, NULL);
                 appendTAC(codeList, leftIfCode);
-                appendTAC(codeList, leftGotoCode);
+                // appendTAC(codeList, leftGotoCode);
 
                 l_info.trueList = makeList(leftIfCode);
-                l_info.falseList = makeList(leftGotoCode);
-                backpatch(l_info.falseList, getNextInstruction());
+                // l_info.falseList = makeList(leftGotoCode);
+                // backpatch(l_info.falseList, getNextInstruction());
                 if(isDebug) printf("Generated code for left\n");
                 
 
@@ -435,12 +435,12 @@ TAC* generateCodeForBinaryExpr(ASTNode* node, BoolExprInfo* bool_info) {
                
 
                 // Generate code for right
-                TAC* rightIfCode = createTAC(TAC_IF_GOTO, NULL, r_opr1, NULL);
-                TAC* rightGotoCode = createTAC(TAC_GOTO, NULL, NULL, NULL);
+                TAC* rightIfCode = createTAC(TAC_IF_FALSE_GOTO, NULL, r_opr1, NULL);
+                // TAC* rightGotoCode = createTAC(TAC_GOTO, NULL, NULL, NULL);
                 appendTAC(codeList, rightIfCode);
-                appendTAC(codeList, rightGotoCode);
-                List* r_trueList = makeList(rightIfCode);
-                List* r_falseList = makeList(rightGotoCode);
+                // appendTAC(codeList, rightGotoCode);
+                List* r_trueList = NULL;
+                List* r_falseList = makeList(rightIfCode);
                 if(isDebug) printf("Generated code for right\n"); 
 
                 // if(rightSubCode){
@@ -449,7 +449,7 @@ TAC* generateCodeForBinaryExpr(ASTNode* node, BoolExprInfo* bool_info) {
                 //     backpatch(l_info.falseList, rightIfCode->tac_id);
                 // }
                 
-                bool_info->trueList = merge(l_info.trueList,  r_trueList);    
+                bool_info->trueList = l_info.trueList;    
                 bool_info->falseList = r_falseList;
                 
 
@@ -457,7 +457,7 @@ TAC* generateCodeForBinaryExpr(ASTNode* node, BoolExprInfo* bool_info) {
                 if(isDebug) printf("Generating Code for bool result\n");
                 // Generate TAC to store the boolean result in a temporary variable
                 char* result = newTempVar();
-                leftIfCode->result = result; // To give access to other parent bool expr
+                leftIfCode->result = result; // To give access to other parent bool
 
                 int val_1 = 1;
                 TAC* assignTrue = createTAC(TAC_ASSIGN, result, makeOperand(INT_VAL, &val_1), NULL);
@@ -525,21 +525,21 @@ TAC* genCodeForUnaryExpr(ASTNode* node, BoolExprInfo* bool_info){
         // Generate TAC to store the boolean result in a temporary variable
         char* result = newTempVar();
         // Generate code for left
-        TAC* leftIfCode = createTAC(TAC_IF_FALSE_GOTO, result, l_opr1, NULL);
-        TAC* leftGotoCode = createTAC(TAC_GOTO, result, NULL, NULL);
+        TAC* leftIfCode = createTAC(TAC_IF_GOTO, result, l_opr1, NULL);
+        // TAC* leftGotoCode = createTAC(TAC_GOTO, result, NULL, NULL);
         appendTAC(codeList, leftIfCode);
-        appendTAC(codeList, leftGotoCode); 
+        // appendTAC(codeList, leftGotoCode); 
 
         bool_info->trueList = makeList(leftIfCode);
-        bool_info->falseList = makeList(leftGotoCode);
-        backpatch(l_info.trueList, getNextInstruction());
+        bool_info->falseList = NULL;
+        // backpatch(l_info.trueList, getNextInstruction());
         if(isDebug) printf("Generated code for left\n");
 
         if(isDebug) printf("Generating Code for bool result\n");
         int val_1 = 1;
         TAC* assignTrue = createTAC(TAC_ASSIGN, result, makeOperand(INT_VAL, &val_1), NULL);
         appendTAC(codeList, assignTrue);
-        backpatch(bool_info->trueList, assignTrue->tac_id);
+        // backpatch(bool_info->trueList, assignTrue->tac_id);
         TAC* skipCode = createTAC(TAC_GOTO, NULL, NULL, NULL);
         appendTAC(codeList, skipCode);
         skipCode->target_jump = getNextInstruction() + 1;
@@ -547,7 +547,7 @@ TAC* genCodeForUnaryExpr(ASTNode* node, BoolExprInfo* bool_info){
         int val_0 = 0;
         TAC* assignFalse = createTAC(TAC_ASSIGN, result, makeOperand(INT_VAL, &val_0), NULL);
         appendTAC(codeList, assignFalse); 
-        backpatch(bool_info->falseList, assignFalse->tac_id);
+        backpatch(bool_info->trueList, assignFalse->tac_id);
 
         if(isDebug) printf("Generated code for bool(OR) expr, result stored in %s\n", leftIfCode->result);
         return leftIfCode; 
