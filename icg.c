@@ -811,7 +811,66 @@ TAC* genCodeForUnaryExpr(ASTNode* node, BoolExprInfo* bool_info){
     return newTac;
 }
 
-TAC* genCodeForIfElse(ASTNode* node){
+TAC* genCodeForIfElse(ASTNode* node, BoolExprInfo* bool_info){
+    if(isDebug) printf("[DEBUG] GenCode for IF_ELSE \n");
+    if(node->type != NODE_IF_ELSE) return NULL;
+    
+    BoolExprInfo cond_info = {NULL, NULL};
+ 
+    ASTNode* cond = node->if_else_data.condition->if_cond_data.cond;
+    Operand* cond_opr = NULL;
+    TAC* cond_code = NULL;
+
+    if(cond->type == NODE_EXPR_TERM){
+        attachValueOfExprTerm(cond, &cond_opr);
+    }else{
+        cond_code = generateCode(cond, &cond_info);
+        cond_opr = makeOperand(ID_REF, cond_code->result);
+        if(isDebug) printf("[DEBUG] Cond code result %s\n", cond_code->result); 
+    } 
+
+    TAC* ifFalseCode = createTAC(TAC_IF_FALSE_GOTO, NULL, cond_opr, NULL);
+    appendTAC(codeList, ifFalseCode);
+
+    List* temp = NULL;
+    if(isDebug){
+        printf("[DEBUG] Cond truelist: ");
+        temp = cond_info.trueList;
+        while(temp){
+            printf("%d ", temp->tac->tac_id);
+            temp = temp->next;
+        }
+        printf("\n[DEBUG] Cond falselist: ");
+        temp = cond_info.falseList;
+        while(temp){
+            printf("%d ", temp->tac->tac_id);
+            temp = temp->next;
+        }
+        printf("\n");
+    }
+
+    bool_info->falseList = makeList(ifFalseCode);
+
+    BoolExprInfo b_info = {NULL, NULL}; // Dummy
+    TAC* if_branch_code = generateCode(node->if_else_data.if_branch->if_else_branch.branch, &b_info);
+    
+    TAC* skipCode = NULL;
+    // Generate SKIP code if Else part exists
+    if(node->if_else_data.else_branch->if_else_branch.branch){
+        skipCode = createTAC(TAC_GOTO, NULL, NULL, NULL);
+        appendTAC(codeList, skipCode);
+        backpatch(bool_info->falseList, getNextInstruction());
+
+        BoolExprInfo b_info = {NULL, NULL}; // Dummy
+        TAC* else_branch_code = generateCode(node->if_else_data.else_branch->if_else_branch.branch, &b_info);
+        skipCode->target_jump = getNextInstruction(); // Patch the Skip Code with correct jump
+    }else{
+        backpatch(bool_info->falseList, getNextInstruction()); 
+    }
+
+     
+
+    return ifFalseCode;
 
 }
 
@@ -931,6 +990,8 @@ TAC* generateCode(ASTNode* node, BoolExprInfo* bool_info) {
         case NODE_BLOCK_STMT:
             return generateCode(node->block_stmt_data.stmt_list, bool_info);
             // return generateCodeForAssignment(node);
+        case NODE_IF_ELSE:
+            return genCodeForIfElse(node, bool_info);
         default:
             fprintf(stderr, "Unsupported AST node type\n");
             exit(1);
@@ -993,7 +1054,6 @@ void printTAC() {
         printf("No CodeList\n");
         return;
     }
-    if(isDebug) printf("[DEBUG] Printing TAC\n");
     TAC* current = codeList->head;
     while (current) {
         printTACInstruction(current);
