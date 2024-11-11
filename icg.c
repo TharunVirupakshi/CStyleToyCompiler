@@ -24,10 +24,10 @@ TACList* codeList;
 
 // Runner
 void startICG(ASTNode* root){
-   if(isDebug) printf("Generating ICG...\n");
-   codeList = createTACList();
-   TAC* head = generateCode(root, &global_bool_info);
-   if(isDebug) printf("ICG Done\n");
+    if(isDebug) printf("[DEBUG] Starting ICG generation...\n");
+    codeList = createTACList();
+    generateCode(root, &global_bool_info);
+    if(isDebug) printf("[DEBUG] ICG generation completed.\n");
 }
 
 // Generate a new temporary variable name
@@ -59,20 +59,54 @@ TAC* createTAC(TACOp op, char* result, Operand* operand1, Operand* operand2) {
         fprintf(stderr, "Memory allocation failed\n");
         exit(1);
     } 
-    if(isDebug) printf("Creating TAC\n");
     instr->op = op;
-    if(isDebug) printf("Result %s\n", result);
     instr->result = result ? strdup(result) : NULL;
     instr->operand1 = operand1;
     instr->operand2 = operand2;
     instr->next = NULL;
-    if(isDebug) printf("Created TAC\n");
+    if(isDebug){
+        printf("[DEBUG] Created TAC for operation: %s, Result: %s\n", getOperatorString(op), result ? result : "NULL");
+    } 
     return instr;   
 }
 
+
+const char* getOperatorString(TACOp op) {
+    switch (op) {
+        case TAC_ADD:            return "+";
+        case TAC_SUB:            return "-";
+        case TAC_MUL:            return "*";
+        case TAC_DIV:            return "/";
+        case TAC_AND:            return "AND";
+        case TAC_OR:             return "OR";
+        case TAC_NOT:            return "!";
+        case TAC_NEG:            return "- (NEG)";
+        case TAC_EQ:             return "==";
+        case TAC_NEQ:            return "!=";
+        case TAC_LT:             return "<";
+        case TAC_GT:             return ">";
+        case TAC_LEQ:            return "<=";
+        case TAC_GEQ:            return ">=";
+        case TAC_POST_INC:       return "POST_INC";
+        case TAC_POST_DEC:       return "POST_DEC";
+        case TAC_PRE_INC:        return "PRE_INC";
+        case TAC_PRE_DEC:        return "PRE_DEC";
+        case TAC_ASSIGN:         return "=";
+        case TAC_LABEL:          return "LABEL";
+        case TAC_GOTO:           return "GOTO";
+        case TAC_IF_GOTO:        return "IF_GOTO";
+        case TAC_IF_FALSE_GOTO:  return "IF_FALSE_GOTO";
+        case TAC_CALL:           return "CALL";
+        case TAC_PARAM:          return "PARAM";
+        case TAC_RETURN:         return "RETURN";
+        default:                 return "UNKNOWN_OPERATOR";
+    }
+}
+
+
 // Create a new list with a single TAC node
 List* makeList(TAC* tac) {
-    if(isDebug) printf("Making true/false list\n");
+    if(isDebug) printf("[DEBUG] Creating a new true/false list for TAC node %d\n", tac->tac_id);
     List* newList = (List*)malloc(sizeof(List));
     if (!newList) {
         fprintf(stderr, "Memory allocation failed for makeList\n");
@@ -87,7 +121,7 @@ List* makeList(TAC* tac) {
 List* merge(List* list1, List* list2) {
     if (!list1) return list2;
     if (!list2) return list1;
-    if(isDebug) printf("Merging list\n"); 
+    if(isDebug) printf("[DEBUG] Merged two true/false lists\n");
     List* temp = list1;
     while (temp->next) {
         temp = temp->next;
@@ -102,6 +136,7 @@ void backpatch(List* list, int instr_no) {
     while (temp) {
         if (temp->tac) {
             temp->tac->target_jump = instr_no;
+            if(isDebug) printf("[DEBUG] Backpatched TAC %d to jump to instruction %d\n", temp->tac->tac_id, instr_no);
         }
         temp = temp->next;
     }
@@ -140,11 +175,12 @@ Operand* makeOperand(ValueType type, const void* val){
             // printf("Int val\n");
             int int_val = *((int*)val);
             opr->int_val = int_val;
-            if (isDebug) printf("Set opr val: %d\n", opr->int_val);
+            if (isDebug) printf("[DEBUG] Created INT operand with value: %d\n", opr->int_val);
             break;
         }
         case CHAR_VAL:
             opr->char_val = *((char*)val);
+            if (isDebug) printf("[DEBUG] Created CHAR operand with value: %c\n", opr->char_val);
             break;
         case STR_VAL:
             opr->str_val = strdup((char*)val);
@@ -153,6 +189,7 @@ Operand* makeOperand(ValueType type, const void* val){
                 free(opr);
                 exit(1);
             }
+            if (isDebug) printf("[DEBUG] Created STR operand with value: %s\n", opr->str_val);
             break;
         case ID_REF:
             opr->id_ref.name = strdup((char*)val);
@@ -161,6 +198,7 @@ Operand* makeOperand(ValueType type, const void* val){
                 free(opr);
                 exit(1);
             }
+            if (isDebug) printf("[DEBUG] Created ID_REF operand with name: %s\n", opr->id_ref.name);
             break;
         default:
             fprintf(stderr, "Unknown operand type\n");
@@ -176,20 +214,16 @@ char* getFormattedValueFromOperand(Operand* opr) {
     if(!opr) return val;
 
     if (opr->type == INT_VAL) {
-        if(isDebug) printf("Formatting int %d to string\n", opr->int_val);
         val = (char*)malloc(20);  // Allocate enough space for an integer
         if (val) sprintf(val, "%d", opr->int_val);
     } else if (opr->type == CHAR_VAL) {
-        if(isDebug) printf("Formatting char %c to string\n", opr->char_val);
         val = (char*)malloc(4);  // Allocate enough space for a char (e.g., "'a'")
         if (val) sprintf(val, "'%c'", opr->char_val);
     } else if (opr->type == STR_VAL) {
-        if(isDebug) printf("Formatting string to string\n");
         size_t len = strlen(opr->str_val) + 3;  // Account for quotes and null terminator
         val = (char*)malloc(len);
         if (val) sprintf(val, "%s", opr->str_val);
     } else if (opr->type == ID_REF) {
-        if(isDebug) printf("Formatting id_ref to string\n"); 
         size_t len = strlen(opr->id_ref.name) + 1;  // For ID reference without quotes
         val = (char*)malloc(len);
         if (val) sprintf(val, "%s", opr->id_ref.name);
@@ -224,7 +258,7 @@ void appendTAC(TACList* list, TAC* newTAC) {
     list->tail = newTAC;
     newTAC->tac_id = instructionCounter;
     instructionCounter++;
-    if(isDebug) printf("Append TAC success\n");
+    if (isDebug) printf("[DEBUG] Appended TAC %d\n", newTAC->tac_id);
 }
 
 
@@ -234,24 +268,23 @@ void attachValueOfExprTerm(ASTNode* node, Operand** opr){
 
     ASTNode* valNode = node->expr_data.left;
         if(valNode->type == NODE_INT_LITERAL){
-            if(isDebug) printf("Extracting INT_LITERAL\n"); 
             int temp = valNode->literal_data.value.int_value; 
             *opr = makeOperand(INT_VAL, &temp);
-            if(isDebug) printf("Attached %d\n", (*opr)->int_val);
+            if(isDebug) printf("[DEBUG] Attached INT_LITERAL value: %d\n", (*opr)->int_val);
         }else if(valNode->type == NODE_CHAR_LITERAL){
-            if(isDebug) printf("Extracting CHAR_LITERAL\n"); 
             char temp = valNode->literal_data.value.char_value;
-            *opr = makeOperand(CHAR_VAL, &temp); 
+            *opr = makeOperand(CHAR_VAL, &temp);
+            if (isDebug) printf("[DEBUG] Attached CHAR_LITERAL value: %c\n", (*opr)->char_val);    
         }else if(valNode->type == NODE_STR_LITERAL){
-            if(isDebug) printf("Extracting STR_LITERAL\n"); 
             *opr = makeOperand(STR_VAL, (char*)valNode->literal_data.value.str_value);
+            if (isDebug) printf("[DEBUG] Attached STR_LITERAL value: %s\n", valNode->literal_data.value.str_value);
         }else if(valNode->type == NODE_ID_REF){
-            if(isDebug) printf("Extracting ID_REF\n");
     
             char* suffixed_name = generateScopeSuffixedName(valNode->id_ref_data.name, valNode->id_ref_data.scope->table_id);
         
             *opr = makeOperand(ID_REF, suffixed_name);
             (*opr)->id_ref.sym = valNode->id_ref_data.ref;
+            if (isDebug) printf("[DEBUG] Attached ID_REF value: %s\n", suffixed_name);
         }
 }
 
@@ -260,7 +293,7 @@ void attachValueOfExprTerm(ASTNode* node, Operand** opr){
 
 // Generate code for a binary expression
 TAC* generateCodeForBinaryExpr(ASTNode* node, BoolExprInfo* bool_info) {
-    if(isDebug) printf("GenCode for BIN EXPR\n"); 
+    if(isDebug) printf("[DEBUG] GenCode for BIN EXPR\n"); 
     
     if (node->type != NODE_EXPR_BINARY) return NULL;
 
@@ -314,7 +347,7 @@ TAC* generateCodeForBinaryExpr(ASTNode* node, BoolExprInfo* bool_info) {
         }
         case OP_LOGICAL:{
             if (strcmp(op, "&&") == 0){
-
+                if(isDebug) printf("[DEBUG] Handling logical (&&) expression\n");
                 //Process left child
                 Operand* l_opr1 = NULL; 
                 BoolExprInfo l_info = {NULL, NULL};
@@ -324,21 +357,40 @@ TAC* generateCodeForBinaryExpr(ASTNode* node, BoolExprInfo* bool_info) {
                 }else{
                     leftSubCode = generateCode(node->expr_data.left, &l_info);
                     l_opr1 = makeOperand(ID_REF, leftSubCode->result); 
-                    if(isDebug) printf("Left sub expr result %s\n", leftSubCode->result);
+                    if(isDebug) printf("[DEBUG] Left sub expr result %s\n", leftSubCode->result);
                 }
 
                 // Generate TAC to store the boolean result in a temporary variable
               
                 // Generate code for left
-                TAC* leftIfCode = createTAC(TAC_IF_FALSE_GOTO, NULL, l_opr1, NULL);
+                TAC* leftIfFalseCode = createTAC(TAC_IF_FALSE_GOTO, NULL, l_opr1, NULL);
                 // TAC* leftGotoCode = createTAC(TAC_GOTO, NULL, NULL, NULL);
-                appendTAC(codeList, leftIfCode);
+                appendTAC(codeList, leftIfFalseCode);
                 // appendTAC(codeList, leftGotoCode);
 
-                // l_info.trueList = makeList(leftIfCode);
-                l_info.falseList = makeList(leftIfCode);
+                // l_info.trueList = makeList(leftIfFalseCode);
+                
+                // If leftSubCode is NULL, then l_info will be NULL
+                List* temp = NULL;
+                if(isDebug){
+                    printf("[DEBUG] Left sub expr truelist: ");
+                    temp = l_info.trueList;
+                    while(temp){
+                        printf("%d ", temp->tac->tac_id);
+                        temp = temp->next;
+                    }
+                    printf("\n[DEBUG] Left sub expr falselist: ");
+                    temp = l_info.falseList;
+                    while(temp){
+                        printf("%d ", temp->tac->tac_id);
+                        temp = temp->next;
+                    }
+                    printf("\n");
+                }
+
+                l_info.falseList = makeList(leftIfFalseCode);
                 // backpatch(l_info.trueList, getNextInstruction());
-                if(isDebug) printf("Generated code for left\n");
+                if(isDebug) printf("[DEBUG] Generated code for left\n");
 
                 // Process right child
                 Operand* r_opr1 = NULL;
@@ -348,7 +400,8 @@ TAC* generateCodeForBinaryExpr(ASTNode* node, BoolExprInfo* bool_info) {
                     attachValueOfExprTerm(node->expr_data.right, &r_opr1);
                 }else{
                     rightSubCode = generateCode(node->expr_data.right, &r_info);
-                    r_opr1 = makeOperand(ID_REF, rightSubCode->result); 
+                    r_opr1 = makeOperand(ID_REF, rightSubCode->result);
+                    if(isDebug) printf("[DEBUG] Right sub expr result %s\n", rightSubCode->result); 
                 }
                 
                 
@@ -359,9 +412,28 @@ TAC* generateCodeForBinaryExpr(ASTNode* node, BoolExprInfo* bool_info) {
                 // TAC* rightGotoCode = createTAC(TAC_GOTO, NULL, NULL, NULL);
                 appendTAC(codeList, rightIfCode);
                 // appendTAC(codeList, rightGotoCode);
+
+               if(isDebug){
+                    printf("[DEBUG] Right sub expr truelist: ");
+                    temp = r_info.trueList;
+                    while(temp){
+                        printf("%d ", temp->tac->tac_id);
+                        temp = temp->next;
+                    }
+                    printf("\n[DEBUG] Right sub expr falselist: ");
+                    temp = r_info.falseList;
+                    while(temp){
+                        printf("%d ", temp->tac->tac_id);
+                        temp = temp->next;
+                    }
+                    printf("\n");
+                }
+
                 r_info.trueList = NULL;
                 r_info.falseList = makeList(rightIfCode);
-                if(isDebug) printf("Generated code for right\n"); 
+
+                
+                if(isDebug) printf("[DEBUG] Generated code for right\n"); 
                 
 
                 // if(rightSubCode){
@@ -372,12 +444,26 @@ TAC* generateCodeForBinaryExpr(ASTNode* node, BoolExprInfo* bool_info) {
                 
                 bool_info->trueList = r_info.trueList;    
                 bool_info->falseList = merge(l_info.falseList, r_info.falseList);
-
+                if(isDebug){
+                    printf("[DEBUG] Cur Node truelist: ");
+                    temp = bool_info->trueList;
+                    while(temp){
+                        printf("%d ", temp->tac->tac_id);
+                        temp = temp->next;
+                    }
+                    printf("\n[DEBUG] Cur Node falselist: ");
+                    temp = bool_info->falseList;
+                    while(temp){
+                        printf("%d ", temp->tac->tac_id);
+                        temp = temp->next;
+                    }
+                    printf("\n");
+                }
 
                  
-                if(isDebug) printf("Generating Code for bool result\n");
+                if(isDebug) printf("[DEBUG] Generating Code for bool result\n");
                 char* result = newTempVar();
-                leftIfCode->result = result;
+                leftIfFalseCode->result = result;
 
                 int val_1 = 1;
                 TAC* assignTrue = createTAC(TAC_ASSIGN, result, makeOperand(INT_VAL, &val_1), NULL);
@@ -392,11 +478,12 @@ TAC* generateCodeForBinaryExpr(ASTNode* node, BoolExprInfo* bool_info) {
                 appendTAC(codeList, assignFalse); 
                 backpatch(bool_info->falseList, assignFalse->tac_id);
 
-                if(isDebug) printf("Generated code for bool expr\n");
-                return leftIfCode; 
+                if(isDebug) printf("[DEBUG] Generated code for bool expr\n");
+                return leftIfFalseCode; 
 
             }      
             else if (strcmp(op, "||") == 0){
+                if(isDebug) printf("[DEBUG] Handling logical (||) expression\n");
                 //Process left child
                 Operand* l_opr1 = NULL; 
                 BoolExprInfo l_info = {NULL, NULL};
@@ -406,6 +493,7 @@ TAC* generateCodeForBinaryExpr(ASTNode* node, BoolExprInfo* bool_info) {
                 }else{
                     leftSubCode = generateCode(node->expr_data.left, &l_info);
                     l_opr1 = makeOperand(ID_REF, leftSubCode->result); 
+                    if(isDebug) printf("[DEBUG] Left sub expr result %s\n", leftSubCode->result);
                 } 
 
                 
@@ -415,10 +503,28 @@ TAC* generateCodeForBinaryExpr(ASTNode* node, BoolExprInfo* bool_info) {
                 appendTAC(codeList, leftIfCode);
                 // appendTAC(codeList, leftGotoCode);
 
+                List* temp = NULL;
+                if(isDebug){
+                    printf("[DEBUG] Left sub expr truelist: ");
+                    temp = l_info.trueList;
+                    while(temp){
+                        printf("%d ", temp->tac->tac_id);
+                        temp = temp->next;
+                    }
+                    printf("\n[DEBUG] Left sub expr falselist: ");
+                    temp = l_info.falseList;
+                    while(temp){
+                        printf("%d ", temp->tac->tac_id);
+                        temp = temp->next;
+                    }
+                    printf("\n");
+                }
+
+
                 l_info.trueList = makeList(leftIfCode);
                 // l_info.falseList = makeList(leftGotoCode);
                 // backpatch(l_info.falseList, getNextInstruction());
-                if(isDebug) printf("Generated code for left\n");
+                if(isDebug) printf("[DEBUG] Generated code for left\n");
                 
 
                 // Process right child
@@ -429,7 +535,8 @@ TAC* generateCodeForBinaryExpr(ASTNode* node, BoolExprInfo* bool_info) {
                     attachValueOfExprTerm(node->expr_data.right, &r_opr1);
                 }else{
                     rightSubCode = generateCode(node->expr_data.right, &r_info);
-                    r_opr1 = makeOperand(ID_REF, rightSubCode->result); 
+                    r_opr1 = makeOperand(ID_REF, rightSubCode->result);
+                    if(isDebug) printf("[DEBUG] Right sub expr result %s\n", rightSubCode->result);  
                 }
 
                
@@ -439,9 +546,29 @@ TAC* generateCodeForBinaryExpr(ASTNode* node, BoolExprInfo* bool_info) {
                 // TAC* rightGotoCode = createTAC(TAC_GOTO, NULL, NULL, NULL);
                 appendTAC(codeList, rightIfCode);
                 // appendTAC(codeList, rightGotoCode);
+
+
+               if(isDebug){
+                    printf("[DEBUG] Right sub expr truelist: ");
+                    temp = r_info.trueList;
+                    while(temp){
+                        printf("%d ", temp->tac->tac_id);
+                        temp = temp->next;
+                    }
+                    printf("\n[DEBUG] Right sub expr falselist: ");
+                    temp = r_info.falseList;
+                    while(temp){
+                        printf("%d ", temp->tac->tac_id);
+                        temp = temp->next;
+                    }
+                    printf("\n");
+                }
+
+
+
                 List* r_trueList = NULL;
                 List* r_falseList = makeList(rightIfCode);
-                if(isDebug) printf("Generated code for right\n"); 
+                 if(isDebug) printf("[DEBUG] Generated code for right\n"); 
 
                 // if(rightSubCode){
                 //     backpatch(l_info.falseList, rightSubCode->tac_id);        // If L is TRUE, evaluate R
@@ -452,9 +579,23 @@ TAC* generateCodeForBinaryExpr(ASTNode* node, BoolExprInfo* bool_info) {
                 bool_info->trueList = l_info.trueList;    
                 bool_info->falseList = r_falseList;
                 
-
+                if(isDebug){
+                    printf("[DEBUG] Cur Node truelist: ");
+                    temp = bool_info->trueList;
+                    while(temp){
+                        printf("%d ", temp->tac->tac_id);
+                        temp = temp->next;
+                    }
+                    printf("\n[DEBUG] Cur Node falselist: ");
+                    temp = bool_info->falseList;
+                    while(temp){
+                        printf("%d ", temp->tac->tac_id);
+                        temp = temp->next;
+                    }
+                    printf("\n");
+                }
                  
-                if(isDebug) printf("Generating Code for bool result\n");
+                if(isDebug) printf("[DEBUG] Generating Code for bool result\n");
                 // Generate TAC to store the boolean result in a temporary variable
                 char* result = newTempVar();
                 leftIfCode->result = result; // To give access to other parent bool
@@ -472,7 +613,7 @@ TAC* generateCodeForBinaryExpr(ASTNode* node, BoolExprInfo* bool_info) {
                 appendTAC(codeList, assignFalse); 
                 backpatch(bool_info->falseList, assignFalse->tac_id);
 
-                if(isDebug) printf("Generated code for bool(OR) expr, result stored in %s\n", leftIfCode->result);
+                if(isDebug) printf("[DEBUG] Generated Code for bool result\n");
                 return leftIfCode; 
 
             }; 
@@ -492,7 +633,7 @@ TAC* generateCodeForBinaryExpr(ASTNode* node, BoolExprInfo* bool_info) {
 
 
 TAC* genCodeForUnaryExpr(ASTNode* node, BoolExprInfo* bool_info){
-    if(isDebug) printf("GenCode for EXPR_UNARY\n");
+    if(isDebug) printf("[DEBUG] GenCode for EXPR_UNARY\n");
     if(node->type != NODE_EXPR_UNARY) return NULL;
 
     if(!(node->expr_data.op)){
@@ -510,6 +651,9 @@ TAC* genCodeForUnaryExpr(ASTNode* node, BoolExprInfo* bool_info){
     TACOp op;
     if(strcmp(node_op, "-") == 0)                op = TAC_NEG;
     else if(strcmp(node_op, "!") == 0){
+
+        if(isDebug) printf("[DEBUG] Handling logical (!) expression\n");
+        
         Operand* l_opr1 = NULL;
 
         BoolExprInfo l_info = {NULL, NULL};
@@ -519,23 +663,57 @@ TAC* genCodeForUnaryExpr(ASTNode* node, BoolExprInfo* bool_info){
             attachValueOfExprTerm(node->expr_data.left, &l_opr1);
         }else{
             leftSubCode = generateCode(node->expr_data.left, &l_info);
-            l_opr1 = makeOperand(ID_REF, leftSubCode->result); 
+            l_opr1 = makeOperand(ID_REF, leftSubCode->result);
+            if(isDebug) printf("[DEBUG] Left sub expr result %s\n", leftSubCode->result); 
         }
 
         // Generate TAC to store the boolean result in a temporary variable
         char* result = newTempVar();
-        // Generate code for left
-        TAC* leftIfCode = createTAC(TAC_IF_GOTO, result, l_opr1, NULL);
+        // Generate code for left. If true, then result must be false
+        TAC* leftIfCode = createTAC(TAC_IF_GOTO, result, l_opr1, NULL); 
         // TAC* leftGotoCode = createTAC(TAC_GOTO, result, NULL, NULL);
         appendTAC(codeList, leftIfCode);
         // appendTAC(codeList, leftGotoCode); 
 
+        List* temp = NULL;
+        if(isDebug){
+            printf("[DEBUG] Left sub expr truelist: ");
+            temp = l_info.trueList;
+            while(temp){
+                printf("%d ", temp->tac->tac_id);
+                temp = temp->next;
+            }
+            printf("\n[DEBUG] Left sub expr falselist: ");
+            temp = l_info.falseList;
+            while(temp){
+                printf("%d ", temp->tac->tac_id);
+                temp = temp->next;
+            }
+            printf("\n");
+        }
+            if(isDebug) printf("[DEBUG] Generated code for left\n");
+
         bool_info->trueList = makeList(leftIfCode);
         bool_info->falseList = NULL;
-        // backpatch(l_info.trueList, getNextInstruction());
-        if(isDebug) printf("Generated code for left\n");
+        if(isDebug){
+            printf("[DEBUG] Cur Node truelist: ");
+            temp = bool_info->trueList;
+            while(temp){
+                printf("%d ", temp->tac->tac_id);
+                temp = temp->next;
+            }
+            printf("\n[DEBUG] Cur Node falselist: ");
+            temp = bool_info->falseList;
+            while(temp){
+                printf("%d ", temp->tac->tac_id);
+                temp = temp->next;
+            }
+            printf("\n");
+        }
 
-        if(isDebug) printf("Generating Code for bool result\n");
+        // backpatch(l_info.trueList, getNextInstruction());
+
+        if(isDebug) printf("[DEBUG] Generating Code for bool result\n");
         int val_1 = 1;
         TAC* assignTrue = createTAC(TAC_ASSIGN, result, makeOperand(INT_VAL, &val_1), NULL);
         appendTAC(codeList, assignTrue);
@@ -547,9 +725,9 @@ TAC* genCodeForUnaryExpr(ASTNode* node, BoolExprInfo* bool_info){
         int val_0 = 0;
         TAC* assignFalse = createTAC(TAC_ASSIGN, result, makeOperand(INT_VAL, &val_0), NULL);
         appendTAC(codeList, assignFalse); 
-        backpatch(bool_info->trueList, assignFalse->tac_id);
-
-        if(isDebug) printf("Generated code for bool(OR) expr, result stored in %s\n", leftIfCode->result);
+        backpatch(bool_info->trueList, assignFalse->tac_id); // If value is true, then make it false for !operator
+        
+        if(isDebug) printf("[DEBUG] Generated Code for bool result\n");
         return leftIfCode; 
 
     } 
@@ -633,8 +811,13 @@ TAC* genCodeForUnaryExpr(ASTNode* node, BoolExprInfo* bool_info){
     return newTac;
 }
 
+TAC* genCodeForIfElse(ASTNode* node){
+
+}
+
+
 TAC* genCodeForTermExpr(ASTNode* node){
-    if(isDebug) printf("GenCode for TERM EXPR\n");
+    if(isDebug) printf("[DEBUG] GenCode for TERM EXPR\n");
     if (node->type != NODE_EXPR_TERM) return NULL;
 
     Operand* opr1 = NULL;
@@ -651,7 +834,7 @@ TAC* genCodeForTermExpr(ASTNode* node){
 
 // Generate code for an assignment statement
 TAC* generateCodeForAssignment(ASTNode* node) {
-    if(isDebug) printf("GenCode for NODE_ASSGN\n");
+    if(isDebug) printf("[DEBUG] GenCode for NODE_ASSGN\n");
     if (node->type != NODE_ASSGN) return NULL;
     BoolExprInfo b_info = {NULL, NULL};
     Operand* opr1;
@@ -673,7 +856,7 @@ TAC* generateCodeForAssignment(ASTNode* node) {
  
 
 TAC* genCodeForVar(ASTNode* node){
-    if(isDebug) printf("GenCode for VAR\n");
+    if(isDebug) printf("[DEBUG] GenCode for VAR\n");
     if(node->type != NODE_VAR) return NULL;
 
 
@@ -699,7 +882,7 @@ TAC* genCodeForVar(ASTNode* node){
 }
 
 TAC* genCodeForVarList(ASTNode* node){
-    if(isDebug) printf("GenCode for VAR_LIST\n");
+    if(isDebug) printf("[DEBUG] GenCode for VAR_LIST\n");
     if(!node) return NULL;
     if(node->type != NODE_VAR_LIST) return NULL;
 
@@ -710,7 +893,7 @@ TAC* genCodeForVarList(ASTNode* node){
 
 
 TAC* generateCodeForDecl(ASTNode* node){
-    if(isDebug) printf("GenCode for DECL\n");
+    if(isDebug) printf("[DEBUG] GenCode for DECL\n");
     if(node->type != NODE_DECL) return NULL;
 
     TAC* code_var_list = genCodeForVarList(node->decl_data.var_list);
@@ -810,7 +993,7 @@ void printTAC() {
         printf("No CodeList\n");
         return;
     }
-    if(isDebug) printf("Printing TAC\n");
+    if(isDebug) printf("[DEBUG] Printing TAC\n");
     TAC* current = codeList->head;
     while (current) {
         printTACInstruction(current);

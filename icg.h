@@ -117,6 +117,7 @@ char* newTempVar();
 char* newLabel();
 
 // Functions to generate TAC code for expressions, assignments, etc.
+const char* getOperatorString(TACOp op);
 TAC* generateCode(ASTNode* node, BoolExprInfo* bool_info);
 void attachValueOfExprTerm(ASTNode* node, Operand** opr);
 TAC* generateCodeForBinaryExpr(ASTNode* node, BoolExprInfo* bool_info);
