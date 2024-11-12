@@ -28,6 +28,10 @@ SymbolTable* symTable;
 // Current Scope
 SymbolTable* currentScope;
 
+// List of break/continue stmts
+BrkCntStmtsList* brkCntList = NULL;
+BrkCntStmtsList* brkCntListHEAD = NULL;
+
 const char *folderPathForAST_Vis = "AST_Vis"; 
 int scopeDepth = 0;
 
@@ -65,6 +69,8 @@ ASTNode* createParamNode(ASTNode* type_spec, const char* id);
 ASTNode* createFuncCallNode(const char* id, ASTNode* arg_list);
 ASTNode* createArgListNode(ASTNode* arg_list, ASTNode* arg);
 ASTNode* createArgNode(ASTNode* arg);
+ASTNode* createBreakNode();
+ASTNode* createContinueNode();
 %}
 
 
@@ -87,7 +93,7 @@ ASTNode* createArgNode(ASTNode* arg);
 
 %token <strval> ID STR_LITERAL
 %token <ival> INT_LITERAL CHAR_LITERAL
-%token IF ELSE WHILE FOR RETURN INT FLOAT CHAR VOID STRING
+%token IF ELSE WHILE FOR RETURN BREAK CONTINUE INT FLOAT CHAR VOID STRING
 %token PLUS MINUS MULT DIV INC DEC
 %token EQ NEQ LEQ GEQ LT GT ASSIGN
 %token AND OR NOT
@@ -102,8 +108,8 @@ ASTNode* createArgNode(ASTNode* arg);
 %nonassoc UNARY
 
 %type <node> program type_spec expr expr_list stmt block_stmt decl_stmt decl cond_stmt loop_stmt 
-%type <node> assgn_expr func_call func_call_stmt func_decl stmt_list ret_stmt assgn_stmt for_init for_expr
-%type <node> var_list var param params arg_list expr_stmt expr_list_item body block_stmt_without_scope
+%type <node> assgn_expr func_call func_call_stmt func_decl stmt_list ret_stmt break_stmt continue_stmt assgn_stmt for_init for_expr
+%type <node> var_list var param params arg_list expr_stmt expr_list_item body block_stmt_without_scope 
 %type <func_header_data> func_header
 %type <cond_footer_data> else_part
 
@@ -133,6 +139,8 @@ stmt:
     | ret_stmt          { $$ = $1; }
     | func_decl         { $$ = $1; }
     | func_call_stmt    { $$ = $1; }
+    | break_stmt        { $$ = $1; }
+    | continue_stmt     { $$ = $1; }
     | ';'               { $$ = NULL; }
     ;
 
@@ -180,7 +188,17 @@ body:
     | ret_stmt                  { $$ = $1; }
     | func_decl                 { $$ = $1; }
     | func_call_stmt            { $$ = $1; }
+    | break_stmt                { $$ = $1; }
+    | continue_stmt             { $$ = $1; }
     | ';'                       { $$ = NULL; }
+
+break_stmt:
+    BREAK ';'                   { $$ = createBreakNode(); }
+    ;
+
+continue_stmt:
+    CONTINUE ';'                { $$ = createContinueNode(); }
+    ;
 
 // Conditional statement
 cond_stmt:
@@ -414,9 +432,10 @@ int main(int argc, char *argv[]){
     symTable = createSymbolTable("global", NULL, 100);
     currentScope = symTable; // Initial current scope
     
+    
     yyparse();
 
-    SemanticStatus sem_stat = performSemanticAnalysis(root, symTable);
+    SemanticStatus sem_stat = performSemanticAnalysis(root, symTable, brkCntListHEAD);
 
     if(printAST_flag){
         printAST(root, 0, false);
@@ -484,6 +503,43 @@ ASTNode* createBlockStmtNode(ASTNode* stmt_list){
 ASTNode* createReturnNode(ASTNode* return_value){
     ASTNode* node = createASTNode(NODE_RETURN, cur_line, cur_char);
     node->return_data.return_value = return_value;
+    node->return_data.associated_node = NULL;
+    return node;
+}
+
+ASTNode* createBreakNode(){
+    ASTNode* node = createASTNode(NODE_BREAK_STMT, cur_line, cur_char);
+    node->break_continue_stmt_data.associated_loop_node = NULL;
+
+    // Add to the list
+    BrkCntStmtsList* list = (BrkCntStmtsList*)malloc(sizeof(BrkCntStmtsList));
+    list->node = node;
+    list->next = NULL;
+    if(!brkCntListHEAD){
+        brkCntList = list;
+        brkCntListHEAD = list;
+    }else{
+        brkCntList->next = list;
+        brkCntList = brkCntList->next;
+    }            
+
+    return node;
+}
+ASTNode* createContinueNode(){
+    ASTNode* node = createASTNode(NODE_CONTINUE_STMT, cur_line, cur_char);
+    node->break_continue_stmt_data.associated_loop_node = NULL;
+
+    // Add to the list
+    BrkCntStmtsList* list = (BrkCntStmtsList*)malloc(sizeof(BrkCntStmtsList));
+    list->node = node;
+    list->next = NULL;
+    if(!brkCntListHEAD){
+        brkCntList = list;
+        brkCntListHEAD = list;
+    }else{
+        brkCntList->next = list;
+        brkCntList = brkCntList->next;
+    } 
 
     return node;
 }

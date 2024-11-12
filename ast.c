@@ -108,6 +108,8 @@ void traverseAST(ASTNode* node, ASTTraversalCallback callback, void* context) {
         case NODE_TYPE_SPEC:
         case NODE_ID:
         case NODE_ID_REF:
+        case NODE_BREAK_STMT:
+        case NODE_CONTINUE_STMT:
             // Leaf nodes
             break;
 
@@ -272,6 +274,8 @@ void traverseASTPostorder(ASTNode* node, ASTTraversalCallback callback, void* co
         case NODE_TYPE_SPEC:
         case NODE_ID:
         case NODE_ID_REF:
+        case NODE_BREAK_STMT:
+        case NODE_CONTINUE_STMT:
             // Leaf nodes
             break;
 
@@ -453,6 +457,14 @@ void printAST(ASTNode* node, int indent, bool isLast) {
         case NODE_RETURN:
             printf("RETURN\n");
             printAST(node->return_data.return_value, indent + 1, true); // Recursively print the return value
+            break;
+
+        case NODE_BREAK_STMT:
+            printf("BREAK\n");
+            break;
+
+        case NODE_CONTINUE_STMT:
+            printf("CONTINUE\n");
             break;
 
         case NODE_INT_LITERAL:
@@ -717,6 +729,17 @@ void exportASTNodeAsJSON(FILE *file, ASTNode *node, int parentID, int *edgeBuffe
         case NODE_PROGRAM:
             fprintf(file, "PROGRAM\" }");
             break;
+        case NODE_BREAK_STMT:{
+            char* status = node->break_continue_stmt_data.associated_loop_node != NULL ? "Assigned" : "Unassigned";
+            fprintf(file, "BREAK\\n(%s)\" }", status);
+            break;
+        }
+        case NODE_CONTINUE_STMT:{
+            char* status = node->break_continue_stmt_data.associated_loop_node != NULL ? "Assigned" : "Unassigned";
+            fprintf(file, "CONTINUE\\n(%s)\" }", status);
+            break;
+        }
+            
         case NODE_RETURN:
             fprintf(file, "RETURN\\n(type: %s)\" }", node->inferedType);
             break;
@@ -866,6 +889,7 @@ void exportASTNodeAsJSON(FILE *file, ASTNode *node, int parentID, int *edgeBuffe
         case NODE_RETURN:
             exportASTNodeAsJSON(file, node->return_data.return_value, currentID, edgeBufferSize, edgeBuffer, 0);
             break;
+        
         case NODE_STMT_LIST:
             exportASTNodeAsJSON(file, node->stmt_list_data.stmt_list, currentID, edgeBufferSize, edgeBuffer, 0);
             exportASTNodeAsJSON(file, node->stmt_list_data.stmt, currentID, edgeBufferSize, edgeBuffer, 0);

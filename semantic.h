@@ -17,13 +17,19 @@ typedef enum{
     OP_UNKNOWN
 }OpType;
 
+typedef struct BrkCntStmtsList{
+    ASTNode* node;
+    struct BrkCntStmtsList* next;
+}BrkCntStmtsList;
+
 
 // Function to perform semantic analysis
-SemanticStatus performSemanticAnalysis(ASTNode* root, SymbolTable* globalTable);
+SemanticStatus performSemanticAnalysis(ASTNode* root, SymbolTable* globalTable, BrkCntStmtsList* list);
 
 // Helper function to validate symbol declarations for id_ref nodes
 void validateSymbolUsage(ASTNode* root);
 void checkDuplicates(SymbolTable* table);
+void validateLoops(ASTNode* node, BrkCntStmtsList* list);
 void validateTypes(ASTNode* root);
 void validateFunctionReturnTypes(ASTNode* root);
 void setSemanticDebugger();

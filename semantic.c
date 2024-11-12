@@ -61,11 +61,12 @@ const char* inferAndValidateType(ASTNode* node);
 // const char* getNodeTypeName(ASTNode* node);
 
 // Main function
-SemanticStatus performSemanticAnalysis(ASTNode* root, SymbolTable* globalTable) {
+SemanticStatus performSemanticAnalysis(ASTNode* root, SymbolTable* globalTable, BrkCntStmtsList* list) {
     if (!root) return SEMANTIC_ERROR;
 
     checkDuplicates(globalTable);
     validateSymbolUsage(root);
+    validateLoops(root, list);
 
     if(errorCount > 0){
         printErrors();
@@ -743,11 +744,56 @@ void validateTypes(ASTNode* root) {
 
 
 
+
+
+
+int validateBreakContinueStmtsCallback(ASTNode* node, void* ctx){
+    if(node->type == NODE_WHILE || node->type == NODE_FOR) return 0;
+
+    if(node->type == NODE_BREAK_STMT || node->type == NODE_CONTINUE_STMT){
+        ASTNode* loop_node = (ASTNode*)(ctx);
+        node->break_continue_stmt_data.associated_loop_node = loop_node;
+
+        return 0;
+    } 
+
+    return 1;
+}
+
+int validateLoopsCallback(ASTNode* node, void* context){
+    if(node->type == NODE_WHILE){
+        traverseAST(node->while_data.while_body->while_body_data.body, validateBreakContinueStmtsCallback, node);
+    }else if(node->type == NODE_FOR){
+        traverseAST(node->for_data.body->for_body_data.body, validateBreakContinueStmtsCallback, node);
+    }
+
+    return 1;
+}
+
+void validateLoops(ASTNode* node, BrkCntStmtsList* list){
+    traverseAST(node, validateLoopsCallback, NULL);
+
+    // Check for invalid/unassigned break/continue stmts
+    BrkCntStmtsList* temp = list;
+    while(temp){
+        if(temp->node->type == NODE_BREAK_STMT || temp->node->type == NODE_CONTINUE_STMT){
+            if(temp->node->break_continue_stmt_data.associated_loop_node == NULL){
+                char errorMsg[256];
+                char* type = temp->node->type == NODE_BREAK_STMT ? "break" : temp->node->type == NODE_CONTINUE_STMT ? "continue" : " ";
+                snprintf(errorMsg, sizeof(errorMsg), "\"%s\" must be within loop body", type);
+                addError(errorMsg, node->line_no, node->char_no); 
+            }
+        }
+        temp = temp->next;
+    }
+}
+
+
 typedef struct {
     ASTNode* func_decl_node;
     bool ret_found;
     const char* expected_type;
-} RetValCtx; 
+} RetValCtx;
 
 int validateReturnStmtsCallback(ASTNode* node, void* ctx){
 
@@ -769,6 +815,10 @@ int validateReturnStmtsCallback(ASTNode* node, void* ctx){
             addError(errorMsg, node->line_no, node->char_no);
             
         }
+
+        // Bind the reutrn stmt with the associated node
+        node->return_data.associated_node = val_ctx->func_decl_node;
+
         return 0; // Stop traversing further down this branch
     }
 
@@ -813,3 +863,4 @@ int validateFuncRetTypesCallback(ASTNode* node, void* context){
 void validateFunctionReturnTypes(ASTNode* root){
     traverseAST(root, validateFuncRetTypesCallback, NULL);
 }
+

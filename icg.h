@@ -32,6 +32,7 @@ typedef enum {
     TAC_CALL,
     TAC_PARAM,
     TAC_RETURN,
+    
 } TACOp;
 
 typedef enum{
@@ -82,6 +83,8 @@ typedef struct TAC {
     Label* target_label;
     int target_jump;
 
+    char* comments;
+
     struct TAC* next;  // Linked list of instructions
 } TAC;
 
@@ -106,6 +109,12 @@ typedef struct BoolExprInfo {
     List* falseList;
 } BoolExprInfo;
 
+typedef struct LoopInfo {
+  ASTNode* loop_node;
+  List* breakList;
+  List* continueList;
+} LoopInfo;
+
 void setICGDebugger();
 void startICG(ASTNode* root);
 
@@ -122,6 +131,9 @@ TAC* generateCode(ASTNode* node, BoolExprInfo* bool_info);
 void attachValueOfExprTerm(ASTNode* node, Operand** opr);
 TAC* generateCodeForBinaryExpr(ASTNode* node, BoolExprInfo* bool_info);
 TAC* generateCodeForAssignment(ASTNode* node);
+// Function to append comments to the TAC instruction
+void appendComments(TAC* instr, const char* new_comment);
+
 
 // Function to create a TAC instruction
 TAC* createTAC(TACOp op, char* result, Operand* operand1, Operand* operand2);

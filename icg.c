@@ -8,6 +8,35 @@ int tempVarCounter = 0;
 int labelCounter = 0;
 int instructionCounter = 1;
 
+#define MAX_LOOP_STACK_SIZE 100
+LoopInfo loopStack[MAX_LOOP_STACK_SIZE];
+int loopStackTop = -1;
+
+void pushLoopInfo(ASTNode* loop_node) {
+    if (loopStackTop >= MAX_LOOP_STACK_SIZE - 1) {
+        fprintf(stderr, "Loop stack overflow\n");
+        exit(1);
+    }
+    loopStackTop++;
+    loopStack[loopStackTop].loop_node = loop_node;
+    loopStack[loopStackTop].breakList = NULL;
+    loopStack[loopStackTop].continueList = NULL;
+}
+
+void popLoopInfo() {
+    if (loopStackTop < 0) {
+        fprintf(stderr, "Loop stack underflow\n");
+        exit(1);
+    }
+    loopStackTop--;
+}
+
+LoopInfo* getCurrentLoopInfo() {
+    if (loopStackTop < 0) return NULL;
+    return &loopStack[loopStackTop];
+}
+
+
 // Function to get the index of the next instruction
 int getNextInstruction() {
     return instructionCounter;
@@ -64,11 +93,48 @@ TAC* createTAC(TACOp op, char* result, Operand* operand1, Operand* operand2) {
     instr->operand1 = operand1;
     instr->operand2 = operand2;
     instr->next = NULL;
+    instr->comments = NULL;
     if(isDebug){
         printf("[DEBUG] Created TAC for operation: %s, Result: %s\n", getOperatorString(op), result ? result : "NULL");
     } 
     return instr;   
 }
+
+
+void appendComments(TAC* instr, const char* new_comment) {
+    if (new_comment == NULL || !instr) return;  // Nothing to append
+
+    if (instr->comments == NULL) {
+        // Allocate and set the new comment if it doesn't exist
+        instr->comments = strdup(new_comment);
+        if (!instr->comments) {
+            fprintf(stderr, "Memory allocation failed for comments\n");
+            exit(1);
+        }
+    } else {
+        // Calculate the total length needed for the new string
+        size_t existing_length = strlen(instr->comments);
+        size_t new_length = strlen(new_comment);
+        size_t total_length = existing_length + new_length + 3; // +3 for ", " and '\0'
+
+        // Allocate a new block of memory
+        char* updated_comments = malloc(total_length);
+        if (!updated_comments) {
+            fprintf(stderr, "Memory allocation failed for appending comments\n");
+            exit(1);
+        }
+
+        // Copy the existing comments and append the new comment
+        strcpy(updated_comments, instr->comments);
+        strcat(updated_comments, ", ");
+        strcat(updated_comments, new_comment);
+
+        // Free the old comments and assign the new string
+        free(instr->comments);
+        instr->comments = updated_comments;
+    }
+}
+
 
 
 const char* getOperatorString(TACOp op) {
@@ -280,7 +346,7 @@ void attachValueOfExprTerm(ASTNode* node, Operand** opr){
             if (isDebug) printf("[DEBUG] Attached STR_LITERAL value: %s\n", valNode->literal_data.value.str_value);
         }else if(valNode->type == NODE_ID_REF){
     
-            char* suffixed_name = generateScopeSuffixedName(valNode->id_ref_data.name, valNode->id_ref_data.scope->table_id);
+            char* suffixed_name = generateScopeSuffixedName(valNode->id_ref_data.name, valNode->id_ref_data.ref->scope->table_id);
         
             *opr = makeOperand(ID_REF, suffixed_name);
             (*opr)->id_ref.sym = valNode->id_ref_data.ref;
@@ -735,6 +801,12 @@ TAC* genCodeForUnaryExpr(ASTNode* node, BoolExprInfo* bool_info){
         // Assign the original value
         op = TAC_ASSIGN;
         char* result = newTempVar();
+        if(node->expr_data.left->type == NODE_EXPR_TERM){
+            attachValueOfExprTerm(node->expr_data.left, &opr1);
+        }else{
+            fprintf(stderr, "Error: Unsupported node for POST_INC\n");
+            exit(0);
+        }
         TAC* newTac = createTAC(op, result, opr1, NULL);
         appendTAC(codeList, newTac); 
 
@@ -742,12 +814,19 @@ TAC* genCodeForUnaryExpr(ASTNode* node, BoolExprInfo* bool_info){
         int temp_val = 1;
         Operand* opr2 = makeOperand(INT_VAL, &temp_val);
         TAC* postInc = createTAC(TAC_ADD, opr1->id_ref.name, opr1, opr2);
+        appendComments(postInc, "POST INC");
 
         appendTAC(codeList, postInc);
         return newTac;
     }   
     else if(strcmp(node_op, "POST_DEC") == 0){
         // Assign the original value
+        if(node->expr_data.left->type == NODE_EXPR_TERM){
+            attachValueOfExprTerm(node->expr_data.left, &opr1);
+        }else{
+            fprintf(stderr, "Error: Unsupported node for POST_INC\n");
+            exit(0);
+        }
         op = TAC_ASSIGN;
         char* result = newTempVar();
         TAC* newTac = createTAC(op, result, opr1, NULL);
@@ -756,16 +835,24 @@ TAC* genCodeForUnaryExpr(ASTNode* node, BoolExprInfo* bool_info){
         // Decrement later
         int temp_val = 1;
         Operand* opr2 = makeOperand(INT_VAL, &temp_val);
-        TAC* postInc = createTAC(TAC_SUB, opr1->id_ref.name, opr1, opr2);
-        appendTAC(codeList, postInc);
+        TAC* postDec = createTAC(TAC_SUB, opr1->id_ref.name, opr1, opr2);
+        appendComments(postDec, "POST INC");
+        appendTAC(codeList, postDec);
         return newTac;
     }    
     else if(strcmp(node_op, "PRE_INC") == 0){
+        if(node->expr_data.left->type == NODE_EXPR_TERM){
+            attachValueOfExprTerm(node->expr_data.left, &opr1);
+        }else{
+            fprintf(stderr, "Error: Unsupported node for POST_INC\n");
+            exit(0);
+        }
         // Increment First
         int temp_val = 1;
         Operand* opr2 = makeOperand(INT_VAL, &temp_val);
-        TAC* postInc = createTAC(TAC_ADD, opr1->id_ref.name, opr1, opr2);
-        appendTAC(codeList, postInc);
+        TAC* preInc = createTAC(TAC_ADD, opr1->id_ref.name, opr1, opr2);
+        appendComments(preInc, "PRE INC");
+        appendTAC(codeList, preInc);
 
         // Assign the incremented value
         op = TAC_ASSIGN;
@@ -776,11 +863,18 @@ TAC* genCodeForUnaryExpr(ASTNode* node, BoolExprInfo* bool_info){
         return newTac;        
     }
     else if(strcmp(node_op, "PRE_DEC") == 0){
+        if(node->expr_data.left->type == NODE_EXPR_TERM){
+            attachValueOfExprTerm(node->expr_data.left, &opr1);
+        }else{
+            fprintf(stderr, "Error: Unsupported node for POST_INC\n");
+            exit(0);
+        }
         // Decrement First
         int temp_val = 1;
         Operand* opr2 = makeOperand(INT_VAL, &temp_val);
-        TAC* postInc = createTAC(TAC_SUB, opr1->id_ref.name, opr1, opr2);
-        appendTAC(codeList, postInc);
+        TAC* preDec = createTAC(TAC_SUB, opr1->id_ref.name, opr1, opr2);
+        appendComments(preDec, "PRE DEC");
+        appendTAC(codeList, preDec);
 
         // Assign the decremented value
         op = TAC_ASSIGN;
@@ -825,11 +919,13 @@ TAC* genCodeForIfElse(ASTNode* node, BoolExprInfo* bool_info){
         attachValueOfExprTerm(cond, &cond_opr);
     }else{
         cond_code = generateCode(cond, &cond_info);
+        appendComments(cond_code, "IF COND");
         cond_opr = makeOperand(ID_REF, cond_code->result);
         if(isDebug) printf("[DEBUG] Cond code result %s\n", cond_code->result); 
     } 
 
     TAC* ifFalseCode = createTAC(TAC_IF_FALSE_GOTO, NULL, cond_opr, NULL);
+    appendComments(ifFalseCode, "IF COND CHECK");
     appendTAC(codeList, ifFalseCode);
 
     List* temp = NULL;
@@ -853,27 +949,143 @@ TAC* genCodeForIfElse(ASTNode* node, BoolExprInfo* bool_info){
 
     BoolExprInfo b_info = {NULL, NULL}; // Dummy
     TAC* if_branch_code = generateCode(node->if_else_data.if_branch->if_else_branch.branch, &b_info);
-    
+    appendComments(if_branch_code, "IF BODY"); 
     TAC* skipCode = NULL;
     // Generate SKIP code if Else part exists
     if(node->if_else_data.else_branch->if_else_branch.branch){
-        skipCode = createTAC(TAC_GOTO, NULL, NULL, NULL);
+        skipCode = createTAC(TAC_GOTO, NULL, NULL, NULL); 
+        appendComments(skipCode, "IF BODY END");
         appendTAC(codeList, skipCode);
         backpatch(bool_info->falseList, getNextInstruction());
 
         BoolExprInfo b_info = {NULL, NULL}; // Dummy
         TAC* else_branch_code = generateCode(node->if_else_data.else_branch->if_else_branch.branch, &b_info);
+        appendComments(else_branch_code, "ELSE BODY");
         skipCode->target_jump = getNextInstruction(); // Patch the Skip Code with correct jump
     }else{
         backpatch(bool_info->falseList, getNextInstruction()); 
     }
 
-     
+ 
 
     return ifFalseCode;
 
 }
 
+TAC* genCodeForBrkContStmts(ASTNode* node){
+    TAC* code = NULL;
+    if(node->type == NODE_BREAK_STMT){
+        LoopInfo* curLoopInfo = getCurrentLoopInfo();
+
+        if(curLoopInfo->loop_node == node->break_continue_stmt_data.associated_loop_node){
+
+            code = createTAC(TAC_GOTO, NULL, NULL, NULL);
+            appendComments(code, "BREAK");
+            appendTAC(codeList, code);
+
+            if(!curLoopInfo->breakList){
+                curLoopInfo->breakList = makeList(code);
+            }else{
+                curLoopInfo->breakList = merge(curLoopInfo->breakList, makeList(code));
+            }
+        }  
+    }else if(node->type == NODE_CONTINUE_STMT){
+        LoopInfo* curLoopInfo = getCurrentLoopInfo();
+
+        if(curLoopInfo->loop_node == node->break_continue_stmt_data.associated_loop_node){
+
+            code = createTAC(TAC_GOTO, NULL, NULL, NULL);
+            appendComments(code, "CONTINUE");
+            appendTAC(codeList, code);
+
+            if(!curLoopInfo->continueList){
+                curLoopInfo->continueList = makeList(code);
+            }else{
+                curLoopInfo->continueList = merge(curLoopInfo->continueList, makeList(code));
+            }
+        }   
+    }
+
+    return code;
+}
+
+TAC* genCodeForWhileLoop(ASTNode* node, BoolExprInfo* bool_info){
+    if(isDebug) printf("[DEBUG] GenCode for WHILE LOOP\n");
+    if(node->type != NODE_WHILE) return NULL;
+    
+    BoolExprInfo cond_info = {NULL, NULL};
+ 
+    ASTNode* cond = node->while_data.condition->while_cond_data.cond;
+    Operand* cond_opr = NULL;
+    TAC* cond_code = NULL;
+
+    if(cond->type == NODE_EXPR_TERM){
+        attachValueOfExprTerm(cond, &cond_opr);
+    }else{
+        cond_code = generateCode(cond, &cond_info);
+        appendComments(cond_code, "WHILE COND");
+        cond_opr = makeOperand(ID_REF, cond_code->result);
+        if(isDebug) printf("[DEBUG] Cond code result %s\n", cond_code->result); 
+    } 
+
+    TAC* ifFalseCode = createTAC(TAC_IF_FALSE_GOTO, NULL, cond_opr, NULL);
+    appendComments(ifFalseCode, "CHECK WHILE COND");
+    appendTAC(codeList, ifFalseCode);
+
+    List* temp = NULL;
+    if(isDebug){
+        printf("[DEBUG] Cond truelist: ");
+        temp = cond_info.trueList;
+        while(temp){
+            printf("%d ", temp->tac->tac_id);
+            temp = temp->next;
+        }
+        printf("\n[DEBUG] Cond falselist: ");
+        temp = cond_info.falseList;
+        while(temp){
+            printf("%d ", temp->tac->tac_id);
+            temp = temp->next;
+        }
+        printf("\n");
+    }
+
+    bool_info->falseList = makeList(ifFalseCode);
+
+    BoolExprInfo b_info = {NULL, NULL}; // Dummy
+    
+    pushLoopInfo(node);
+    LoopInfo* loop_info = getCurrentLoopInfo();
+    if(!loop_info){
+        fprintf(stderr, "Loop Info stack is NULL");
+        exit(0);
+    }
+    
+
+    TAC* while_body_code = NULL;
+    if(node->while_data.while_body){
+        while_body_code = generateCode(node->while_data.while_body->while_body_data.body, &b_info);
+    }
+    
+    
+
+    TAC* skipCode = createTAC(TAC_GOTO, NULL, NULL, NULL);
+    skipCode->target_jump = ifFalseCode->tac_id;
+    appendComments(skipCode, "WHILE LOOP END");
+    appendTAC(codeList, skipCode);
+
+    if(cond_code){
+        backpatch(loop_info->continueList, cond_code->tac_id);
+    }else{
+        backpatch(loop_info->continueList, ifFalseCode->tac_id);
+    }
+     
+    bool_info->falseList = merge(bool_info->falseList, loop_info->breakList);
+    backpatch(bool_info->falseList, getNextInstruction());
+    appendComments(ifFalseCode->next, "WHILE BODY");
+    popLoopInfo();
+
+    return ifFalseCode; 
+}
 
 TAC* genCodeForTermExpr(ASTNode* node){
     if(isDebug) printf("[DEBUG] GenCode for TERM EXPR\n");
@@ -992,6 +1204,11 @@ TAC* generateCode(ASTNode* node, BoolExprInfo* bool_info) {
             // return generateCodeForAssignment(node);
         case NODE_IF_ELSE:
             return genCodeForIfElse(node, bool_info);
+        case NODE_WHILE:
+            return genCodeForWhileLoop(node, bool_info);
+        case NODE_BREAK_STMT:
+        case NODE_CONTINUE_STMT:
+            return genCodeForBrkContStmts(node);
         default:
             fprintf(stderr, "Unsupported AST node type\n");
             exit(1);
@@ -1004,48 +1221,69 @@ void printTACInstruction(TAC* instr) {
 
     char* opr1 = getFormattedValueFromOperand(instr->operand1);
     char* opr2 = getFormattedValueFromOperand(instr->operand2);
-    printf("%d : ", instr->tac_id);
+    char instr_buffer[256];
     switch (instr->op) {
         case TAC_ASSIGN:
-            printf("%s = %s\n", instr->result, opr1);
+            sprintf(instr_buffer, "%s = %s", instr->result, opr1);
             break;
         case TAC_ADD:
-            printf("%s = %s + %s\n", instr->result, opr1, opr2);
+            sprintf(instr_buffer, "%s = %s + %s", instr->result, opr1, opr2);
             break;
         case TAC_SUB:
-            printf("%s = %s - %s\n", instr->result, opr1, opr2);
+            sprintf(instr_buffer, "%s = %s - %s", instr->result, opr1, opr2);
             break;
         case TAC_MUL:
-            printf("%s = %s * %s\n", instr->result, opr1, opr2);
+            sprintf(instr_buffer, "%s = %s * %s", instr->result, opr1, opr2);
             break;
         case TAC_DIV:
-            printf("%s = %s / %s\n", instr->result, opr1, opr2);
+            sprintf(instr_buffer, "%s = %s / %s", instr->result, opr1, opr2);
             break;
         case TAC_AND:
-            printf("%s = %s AND %s\n", instr->result, opr1, opr2);
+            sprintf(instr_buffer, "%s = %s AND %s", instr->result, opr1, opr2);
             break;
         case TAC_OR:
-            printf("%s = %s OR %s\n", instr->result, opr1, opr2);
+            sprintf(instr_buffer, "%s = %s OR %s", instr->result, opr1, opr2);
             break;
         case TAC_NEG:
-            printf("%s = -%s\n", instr->result, opr1);
+            sprintf(instr_buffer, "%s = -%s", instr->result, opr1);
             break;        
         case TAC_NOT:
-            printf("%s = !%s\n", instr->result, opr1);
+            sprintf(instr_buffer, "%s = !%s", instr->result, opr1);
             break;
         case TAC_IF_GOTO:
-            printf("IF %s GOTO %d\n", opr1, instr->target_jump); 
+            sprintf(instr_buffer, "IF %s GOTO %d", opr1, instr->target_jump); 
             break;
         case TAC_IF_FALSE_GOTO:
-            printf("IF FALSE %s GOTO %d\n", opr1, instr->target_jump);
+            sprintf(instr_buffer, "IF FALSE %s GOTO %d", opr1, instr->target_jump);
             break;
         case TAC_GOTO:
-            printf("GOTO %d\n", instr->target_jump);
+            sprintf(instr_buffer, "GOTO %d", instr->target_jump);
             break;
         default:
             fprintf(stderr, "Unknown TAC operation\n");
             break;
     }
+
+    if (instr->comments != NULL) {
+        // Allocate memory for the complete comment string with prefix
+        char* comments = malloc(strlen(instr->comments) + 4); // 4 = 2 for "//", 1 for space, 1 for '\0'
+        if (!comments) {
+            fprintf(stderr, "Memory allocation failed for comments\n");
+            exit(1);
+        }
+
+        // Format the comment string
+        sprintf(comments, "// %s", instr->comments);
+        printf("%d : %-40s %s\n", instr->tac_id, instr_buffer, comments);
+
+        // Free the allocated memory for comments
+        free(comments);
+    } else {
+        printf("%d : %s\n", instr->tac_id, instr_buffer); 
+    }
+
+   
+
 }
 
 // Function to print the entire TAC linked list

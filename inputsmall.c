@@ -1,15 +1,17 @@
-int a;
-
-if(a && 1) a = 1;
+while(2){
+    int a = 1;
+    a++;
+    if(a && 2){
+        --a;
+        break;
+    }else if(2) continue;
+};
 
 /*
-0: if 1 goto 2
-1: goto 6
-2: if_false 1 goto 6
-3: goto 4
-4: t0 = 1
-5: goto 7
-6: t0 = 0
+0: IF FALSE a GOTO 3
+1: a = 1;
+2: GOTO 0
+3: 
 */
 
 

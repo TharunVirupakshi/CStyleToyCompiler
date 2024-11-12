@@ -62,6 +62,8 @@ typedef enum NodeType {
     NODE_PARAM,
     NODE_EXPR_LIST,      // List of expressions in for loop
     NODE_RETURN,
+    NODE_BREAK_STMT,
+    NODE_CONTINUE_STMT,
     NODE_COMMA,
     NODE_EMPTY
 } NodeType;
@@ -268,7 +270,13 @@ typedef struct ASTNode {
         // Return node data (for return statements in functions)
         struct {
             struct ASTNode* return_value; // The expression being returned (can be NULL for "void" return)
+            struct ASTNode* associated_node; 
         } return_data;
+
+        struct {
+            struct ASTNode* associated_loop_node;
+        } break_continue_stmt_data;
+
     };
 
 } ASTNode;
