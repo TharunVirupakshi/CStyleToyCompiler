@@ -371,50 +371,60 @@ TAC* generateCodeForBinaryExpr(ASTNode* node, BoolExprInfo* bool_info) {
     
     if (node->type != NODE_EXPR_BINARY) return NULL;
 
-
-    Operand* opr1 = NULL;
-    Operand* opr2 = NULL;
-
     if(!(node->expr_data.op)){
         fprintf(stderr, "Operator is NULL\n");
         exit(1); 
     }
 
     const char* op = node->expr_data.op;
-    TACOp tac_op;
 
     switch (getOpType(op)) {
         case OP_COMP:
         case OP_ARITHMETIC:{  
             BoolExprInfo b_info = {NULL, NULL, NULL, NULL, NULL}; 
 
+            Operand* l_opr1 = NULL; 
+            BoolExprInfo l_info = {NULL, NULL, NULL, NULL, NULL};
+            TAC* leftSubCode = NULL;
             if(node->expr_data.left->type == NODE_EXPR_TERM){
-                attachValueOfExprTerm(node->expr_data.left, &opr1);
+                attachValueOfExprTerm(node->expr_data.left, &l_opr1);
             }else{
-                TAC* leftCode = generateCode(node->expr_data.left, &b_info);
-                opr1 = makeOperand(ID_REF, leftCode->result); 
+                leftSubCode = generateCode(node->expr_data.left, &l_info);
+                const char* l_result = l_info.bool_resut != NULL ? l_info.bool_resut : leftSubCode->result;
+                l_opr1 = makeOperand(ID_REF, l_result); 
+                if(isDebug) printf("[DEBUG] Left sub expr result %s\n", l_result);
             }
 
+            Operand* r_opr1 = NULL;
+            BoolExprInfo r_info = {NULL, NULL};
+            TAC* rightSubCode = NULL;
             if(node->expr_data.right->type == NODE_EXPR_TERM){
-                attachValueOfExprTerm(node->expr_data.right, &opr2);
+                attachValueOfExprTerm(node->expr_data.right, &r_opr1);
             }else{
-                TAC* rightCode = generateCode(node->expr_data.right, &b_info);
-                opr2 = makeOperand(ID_REF, rightCode->result); 
+                rightSubCode = generateCode(node->expr_data.right, &r_info);
+                const char* r_result = r_info.bool_resut != NULL ? r_info.bool_resut : rightSubCode->result;
+                r_opr1 = makeOperand(ID_REF, r_result);
+                if(isDebug) printf("[DEBUG] Right sub expr result %s\n", r_result); 
             }
 
-            if(strcmp(op, "+") == 0)        tac_op = TAC_ADD;
-            else if(strcmp(op, "-") == 0)   tac_op = TAC_SUB;
-            else if(strcmp(op, "*") == 0)   tac_op = TAC_MUL;
-            else if(strcmp(op, "/") == 0)   tac_op = TAC_DIV; 
-            else if (strcmp(op, "==") == 0) tac_op = TAC_EQ; 
-            else if (strcmp(op, "!=") == 0) tac_op = TAC_NEQ; 
-            else if (strcmp(op, "<") == 0)  tac_op = TAC_LT; 
-            else if (strcmp(op, "<=") == 0) tac_op = TAC_LEQ; 
-            else if (strcmp(op, ">") == 0)  tac_op = TAC_GT; 
-            else if (strcmp(op, ">=") == 0) tac_op = TAC_GEQ; 
+            TACOp tac_op;
+
+            if(strcmp(op, "+") == 0)            tac_op = TAC_ADD;
+            else if(strcmp(op, "-") == 0)       tac_op = TAC_SUB;
+            else if(strcmp(op, "*") == 0)       tac_op = TAC_MUL;
+            else if(strcmp(op, "/") == 0)       tac_op = TAC_DIV;
+            else if(strcmp(op, "<") == 0)       tac_op = TAC_LT;
+            else if(strcmp(op, ">") == 0)       tac_op = TAC_GT;
+            else if(strcmp(op, "<=") == 0)      tac_op = TAC_LEQ;
+            else if(strcmp(op, ">=") == 0)      tac_op = TAC_GEQ;
+            else if(strcmp(op, "==") == 0)      tac_op = TAC_EQ;
+            else if(strcmp(op, "!=") == 0)      tac_op = TAC_NEQ;
+            else {
+                fprintf(stderr, "Unsupported operator");
+                exit(1);
+            }
             
-            
-            TAC* newTac = createTAC(tac_op, newTempVar(), opr1, opr2);
+            TAC* newTac = createTAC(tac_op, newTempVar(), l_opr1, r_opr1);
             appendTAC(codeList, newTac); 
 
             return newTac;
@@ -705,10 +715,9 @@ TAC* generateCodeForBinaryExpr(ASTNode* node, BoolExprInfo* bool_info) {
         exit(1);
     }
 
-    TAC* newTac = createTAC(tac_op, newTempVar(), opr1, opr2);
-    appendTAC(codeList, newTac); 
 
-    return newTac;
+
+    return NULL;
 }
 
 
@@ -1407,18 +1416,27 @@ void printTACInstruction(TAC* instr) {
         case TAC_DIV:
             sprintf(instr_buffer, "%s = %s / %s", instr->result, opr1, opr2);
             break;
-        case TAC_AND:
-            sprintf(instr_buffer, "%s = %s AND %s", instr->result, opr1, opr2);
+        case TAC_EQ:
+            sprintf(instr_buffer, "%s = %s == %s", instr->result, opr1, opr2);
             break;
-        case TAC_OR:
-            sprintf(instr_buffer, "%s = %s OR %s", instr->result, opr1, opr2);
+        case TAC_NEQ:
+            sprintf(instr_buffer, "%s = %s != %s", instr->result, opr1, opr2);
+            break;
+        case TAC_GT:
+            sprintf(instr_buffer, "%s = %s > %s", instr->result, opr1, opr2);
+            break;
+        case TAC_LT:
+            sprintf(instr_buffer, "%s = %s < %s", instr->result, opr1, opr2);
+            break;
+        case TAC_GEQ:
+            sprintf(instr_buffer, "%s = %s >= %s", instr->result, opr1, opr2);
+            break;
+        case TAC_LEQ:
+            sprintf(instr_buffer, "%s = %s <= %s", instr->result, opr1, opr2);
             break;
         case TAC_NEG:
             sprintf(instr_buffer, "%s = -%s", instr->result, opr1);
             break;        
-        case TAC_NOT:
-            sprintf(instr_buffer, "%s = !%s", instr->result, opr1);
-            break;
         case TAC_IF_GOTO:
             sprintf(instr_buffer, "IF %s GOTO %d", opr1, instr->target_jump); 
             break;
