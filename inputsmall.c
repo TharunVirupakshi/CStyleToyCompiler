@@ -1,11 +1,8 @@
-while(2){
-    int a = 1;
-    a++;
-    if(a && 2){
-        --a;
-        break;
-    }else if(2) continue;
-};
+int a = 1, b = 2;
+for(; ; );
+while(a && 2 && !1);
+
+if(a && 3) a = 3;
 
 /*
 0: IF FALSE a GOTO 3

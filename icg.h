@@ -107,6 +107,9 @@ typedef struct Label {
 typedef struct BoolExprInfo {
     List* trueList;
     List* falseList;
+    TAC* begin_tac;         // Beginning TAC block
+    TAC* end_tac;          // Enging TAC block
+    const char* bool_resut; // To store intermediate bool expr result
 } BoolExprInfo;
 
 typedef struct LoopInfo {
