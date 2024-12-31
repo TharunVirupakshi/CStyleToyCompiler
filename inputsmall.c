@@ -4,6 +4,10 @@ while(2 == 2 && 1 <= 3 != 4);
 
 if(a && 3) a = 3;
 
+int foo(){
+    return 1;
+}
+
 /*
 0: IF FALSE a GOTO 3
 1: a = 1;
