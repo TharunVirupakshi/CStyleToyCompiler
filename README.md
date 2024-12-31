@@ -1,7 +1,15 @@
 # C Style Toy Compiler
 
 ## Overview
-This project is a toy compiler designed to demonstrate the components of a basic compiler. The project includes:
+This project is a toy compiler designed for to demonstrate the components of a basic compiler. *While the compiler adopts a C-style syntax, it does not adhere to it strictly*. Notably:
+
+- Executable code does not need to reside within a function (like main() in C); it can be written and executed at the top level, similar to JavaScript or Python.
+
+- The compiler allows function declarations within another function, providing flexibility in structure similar to JavaScript.
+
+- It supports [hoisting](https://developer.mozilla.org/en-US/docs/Glossary/Hoisting) within a scope, allowing variable names to be used before their declaration, akin to JavaScript.
+
+The project includes:
 
 1. **Lexical Analysis**: Tokenizes the source code into meaningful symbols.
 2. **Syntax Analysis**: Parses tokens into an Abstract Syntax Tree (AST).
@@ -82,9 +90,9 @@ if(a && 3) a = 3;
 
 ### Prerequisites
 
-- GCC or any compatible C compiler.
-- Yacc (or Bison) for parsing.
-- Flex (or Lex) for lexical analysis.
+- [GCC](https://gcc.gnu.org/) or any compatible C compiler.
+- [Yacc](https://en.wikipedia.org/wiki/Yacc) (or [Bison](https://www.gnu.org/software/bison/)) for parsing.
+- [Flex](https://en.wikipedia.org/wiki/Flex_(lexical_analyser_generator)) (or Lex) for lexical analysis.
 - Make (optional for build automation).
 
 ### Building the Compiler
@@ -94,7 +102,7 @@ if(a && 3) a = 3;
     ```bash
     lex lexer.l && yacc -d parser.y
     ```
-3. Compile the source files:
+3. Compile the source files (compilation order):
    ```bash
    gcc symTable.c ast.c semantic.c icg.c lex.yy.c y.tab.c -ll -ly
    ```
