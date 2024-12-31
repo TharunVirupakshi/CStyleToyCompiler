@@ -24,6 +24,11 @@ The lexical analyzer uses a set of rules to convert the source code into tokens.
 The parser builds the Abstract Syntax Tree (AST) from the tokens using grammar rules.
 
 ### 3. Abstract Syntax Tree (AST)
+<img width="1258" alt="Screenshot 2024-12-31 at 5 31 59 PM" src="https://github.com/user-attachments/assets/ea3bb4ec-bb55-4ac4-8bd9-91bb6398704b" />
+<img width="1280" alt="Screenshot 2024-12-31 at 5 28 49 PM" src="https://github.com/user-attachments/assets/b7a4c2aa-7a73-4aae-9f2c-73b456fb0686" />
+<img width="1280" alt="Screenshot 2024-12-31 at 5 29 38 PM" src="https://github.com/user-attachments/assets/60e84cb8-5f98-4c16-bf4e-788165573ec0" />
+<img width="791" alt="Screenshot 2024-12-31 at 5 31 13 PM" src="https://github.com/user-attachments/assets/103f8975-a03f-4eee-bb6f-1c420322c9da" />
+
 - **Files**: `ast.c`, `ast.h`
 - **Key Features**:
   - Hierarchical representation of the source code structure.
@@ -31,6 +36,8 @@ The parser builds the Abstract Syntax Tree (AST) from the tokens using grammar r
   - Includes functionality for traversal, visualization (JSON export), and memory management.
 
 ### 4. Symbol Table
+<img width="962" alt="Screenshot 2024-12-31 at 5 37 34 PM" src="https://github.com/user-attachments/assets/80180998-6dda-4b1e-ac29-c84805b9549b" />
+
 - **Files**: `symTable.c`, `symTable.h`
 - **Key Features**:
   - Manages variable/function declarations.
@@ -38,6 +45,11 @@ The parser builds the Abstract Syntax Tree (AST) from the tokens using grammar r
   - Detects duplicate declarations and undeclared variables.
 
 ### 5. Semantic Analysis
+<img width="842" alt="Screenshot 2024-12-31 at 5 31 34 PM" src="https://github.com/user-attachments/assets/62b66572-821a-4263-b9d9-b0a3d2c737e4" />
+<img width="842" alt="Screenshot 2024-12-31 at 5 37 12 PM" src="https://github.com/user-attachments/assets/47490b37-0e8c-4552-b56c-caf1c35e86c5" />
+<img width="842" alt="Screenshot 2024-12-31 at 5 39 11 PM" src="https://github.com/user-attachments/assets/ceeffd0f-e0b5-458e-b05b-58a702c20ebf" />
+
+
 - **Files**: `semantic.c`, `semantic.h`
 - **Key Features**:
   - Validates symbol usage, types, and return types.
@@ -46,6 +58,19 @@ The parser builds the Abstract Syntax Tree (AST) from the tokens using grammar r
   - Ensures proper usage of control statements like `break` and `continue`.
 
 ### 6. Intermediate Code Generation (ICG)
+
+##### Sample Input Code
+```c
+int a = 1, b = 2;
+for(; ; );
+while(2 == 2 && 1 <= 3 != 4);
+
+if(a && 3) a = 3;
+```
+##### Three Address Code
+<img width="740" alt="Screenshot 2024-12-31 at 5 40 24 PM" src="https://github.com/user-attachments/assets/80577f1c-4faa-44c3-8c3b-bf564f7b5f52" />
+
+
 - **Files**: `icg.c`, `icg.h`
 - **Key Features**:
   - Generates TAC for expressions, conditionals, and loops.
