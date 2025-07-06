@@ -7,6 +7,7 @@
 int tempVarCounter = 0;
 int labelCounter = 0;
 int instructionCounter = 1;
+const char* ret_val_var = "ret_val";
 
 #define MAX_FUNCTIONS 100
 ASTNode* functionQueue[MAX_FUNCTIONS];
@@ -69,7 +70,12 @@ void startICG(ASTNode* root){
     if(isDebug) printf("[DEBUG] Starting ICG generation...\n");
     codeList = createTACList();
     funcQ = createFuncQ();
+
     generateCode(root, &global_bool_info);
+    TAC* code_end = createTAC(TAC_END, NULL, NULL, NULL);
+    appendTAC(codeList, code_end);
+    appendComments(code_end, "END OF PROGRAM");
+
     startICGforFunctions(funcQ);
     if(isDebug) printf("[DEBUG] ICG generation completed.\n");
 }
@@ -210,6 +216,7 @@ const char* getOperatorString(TACOp op) {
         case TAC_POP_ARG:        return "POP_ARG";
         case TAC_PUSH_ARG:       return "PUSH_ARG";
         case TAC_RETURN:         return "RETURN";
+        case TAC_END:            return "END";
         default:                 return "UNKNOWN_OPERATOR";
     }
 }
@@ -1440,9 +1447,24 @@ TAC* genCodeForParam(ASTNode* node, int argNo){
     return code;
 }
 
-TAC* genCodeForVarList(ASTNode* node){
-    if(isDebug) printf("[DEBUG] GenCode for VAR_LIST\n");
+TAC* genCodeForArg(ASTNode* node, int argNo){
     if(!node) return NULL;
+    if(isDebug) printf("[DEBUG] genCodeForArg() for node type %s\n", getNodeName(node->type)); 
+    if(node->type != NODE_ARG){
+        fprintf(stderr, "Unsupported node type %s for genCodeForArg(). Expected NODE_ARG\n", getNodeName(node->type)); 
+        exit(1);
+    }
+    BoolExprInfo b_info = {NULL, NULL};
+    TAC* code_arg = generateCode(node->arg_data.arg, &b_info);
+    Operand* opr1 = makeOperand(ID_REF, code_arg->result);
+    TAC* code_push = createTAC(TAC_PUSH_ARG, NULL, opr1, NULL); 
+    appendTAC(codeList, code_push);
+    return code_arg;
+}
+
+TAC* genCodeForVarList(ASTNode* node){
+    if(!node) return NULL;
+    if(isDebug) printf("[DEBUG] GenCode for VAR_LIST\n");
     if(node->type != NODE_VAR_LIST) return NULL;
 
     TAC* code_var_list = genCodeForVarList(node->var_list_data.var_list);
@@ -1451,13 +1473,26 @@ TAC* genCodeForVarList(ASTNode* node){
 }
 
 TAC* genCodeForParamList(ASTNode* node, int argNum){
-    if(isDebug) printf("[DEBUG] GenCode for PARAM_LIST\n"); 
     if(!node) return NULL;
+    if(isDebug) printf("[DEBUG] GenCode for PARAM_LIST\n"); 
     if(node->type != NODE_PARAM_LIST) return NULL; 
 
     TAC* code_param = genCodeForParam(node->param_data.id, argNum);
     TAC* code_param_list = genCodeForParamList(node->param_list_data.param_list, argNum - 1);
     return code_param;
+}
+
+TAC* genCodeForArgList(ASTNode* node, int argNum){
+    if(!node) return NULL;
+    if(isDebug) printf("[DEBUG] genCodeForArgList() for node type %s\n", getNodeName(node->type)); 
+    if(node->type != NODE_ARG_LIST){
+        fprintf(stderr, "Unsupported node type %s for genCodeForArgList()\n", getNodeName(node->type)); 
+        exit(1);
+    } 
+
+    TAC* code_arg_list = genCodeForArgList(node->arg_list_data.arg_list, argNum - 1);
+    TAC* code_arg = genCodeForArg(node->arg_list_data.arg, argNum);
+    return code_arg_list;
 }
 
 
@@ -1485,6 +1520,32 @@ TAC* genCodeForFuncDecl(ASTNode* node, BoolExprInfo* bool_info){
     appendComments(codeList->tail, "FUNC END");
     return code_param_list;
 }
+
+TAC* genCodeForFuncCall(ASTNode* node){
+    if(isDebug) printf("[DEBUG] genCodeForFuncCall() for node type: %s\n", getNodeName(node->type));
+    if(node->type != NODE_FUNC_CALL){
+        fprintf(stderr, "Unsupported node type %s for genCodeForFuncCall\n", getNodeName(node->type));
+        exit(1);
+    } 
+
+    ASTNode* argList = node->func_call_data.arg_list;
+    int argCnt = node->func_call_data.arg_count;
+
+    TAC* code_arg_list = genCodeForArgList(argList, argCnt);
+    appendComments(code_arg_list, "PUSH ARGS");
+    Operand* opr1 = makeOperand(ID_REF, node->func_call_data.id->id_ref_data.name);
+    TAC* code_func_call = createTAC(TAC_CALL, NULL, opr1, NULL);
+    appendTAC(codeList, code_func_call);
+    appendComments(code_func_call, "FUNC CALL BEGIN");
+    
+    Operand* ret_val = makeOperand(ID_REF, ret_val_var);
+    TAC* code_ret_val = createTAC(TAC_ASSIGN, newTempVar(), ret_val, NULL);
+    appendTAC(codeList, code_ret_val);
+    appendComments(code_ret_val, "FUCN CALL END, SAVE RET VAL");
+
+    return code_arg_list;
+}
+
 
 // Main function to generate TAC code for an AST node
 TAC* generateCode(ASTNode* node, BoolExprInfo* bool_info) {
@@ -1546,6 +1607,8 @@ TAC* generateCode(ASTNode* node, BoolExprInfo* bool_info) {
         }
         case NODE_FUNC_BODY:
             return generateCode(node->block_stmt_data.stmt_list, bool_info);
+        case NODE_FUNC_CALL:
+            return genCodeForFuncCall(node);
         default:
             fprintf(stderr, "Unsupported AST node type\n");
             exit(1);
@@ -1568,6 +1631,9 @@ void printTACInstruction(TAC* instr) {
             break;
         case TAC_PUSH_ARG:
             sprintf(instr_buffer, "PUSH(%s)", opr1); 
+            break;
+        case TAC_CALL:
+            sprintf(instr_buffer, "CALL %s", opr1);
             break;
         case TAC_ADD:
             sprintf(instr_buffer, "%s = %s + %s", instr->result, opr1, opr2);
@@ -1613,6 +1679,9 @@ void printTACInstruction(TAC* instr) {
             break;
         case TAC_RETURN:
             sprintf(instr_buffer, "RETURN");
+            break;
+        case TAC_END:
+            sprintf(instr_buffer, "END");
             break;
         default:
             fprintf(stderr, "Unknown TAC operation\n");

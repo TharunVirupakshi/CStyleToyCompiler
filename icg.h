@@ -32,7 +32,8 @@ typedef enum {
     TAC_CALL,
     TAC_PUSH_ARG,
     TAC_POP_ARG,
-    TAC_RETURN
+    TAC_RETURN,
+    TAC_END
 } TACOp;
 
 typedef enum{
@@ -41,7 +42,8 @@ typedef enum{
     STR_VAL,
     ID_REF,
     PUSH_ARG,
-    POP_ARG
+    POP_ARG,
+    FUN_CALL
 } ValueType;
 
 typedef enum{

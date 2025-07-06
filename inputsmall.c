@@ -2,14 +2,12 @@
 // for(int a = 1; ; );
 // // while(2 == 2 && 1 <= 3 != 4);
 
-int foo(int x, int y, int z){
+int foo(int x, int y){
     x++;
     return x;
 }
-
-int foo2(int x){
-    return x;
-}
+// int x = 2;
+foo(1, 2);
 
 // foo(1);
 
