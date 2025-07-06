@@ -414,9 +414,12 @@ void appendFuncDecl(FuncQ* funcQ, ASTNode* func_decl) {
 }
 
 void attachValueOfExprTerm(ASTNode* node, Operand** opr){
-    if(isDebug) printf("Extracting val from EXPR_TERM\n");
-    if(node->type != NODE_EXPR_TERM) return;
-
+    if(isDebug) printf("[DEBUG] Extracting val from EXPR_TERM, received type: %s\n", getNodeName(node->type));
+    if(node->type != NODE_EXPR_TERM){
+        fprintf(stderr, "Unsupported node type %s for attachValueOfExprTerm()\n", getNodeName(node->type));
+        exit(1); 
+    };
+    
     ASTNode* valNode = node->expr_data.left;
         if(valNode->type == NODE_INT_LITERAL){
             int temp = valNode->literal_data.value.int_value; 
@@ -436,6 +439,9 @@ void attachValueOfExprTerm(ASTNode* node, Operand** opr){
             *opr = makeOperand(ID_REF, suffixed_name);
             (*opr)->id_ref.sym = valNode->id_ref_data.ref;
             if (isDebug) printf("[DEBUG] Attached ID_REF value: %s\n", suffixed_name);
+        }else {
+            fprintf(stderr, "Unsupported node type %s for attachValueOfExprTerm()\n", getNodeName(node->type));
+            exit(1); 
         }
 }
 
@@ -1334,13 +1340,13 @@ TAC* genCodeForWhileLoop(ASTNode* node, BoolExprInfo* bool_info){
 }
 
 TAC* genCodeForTermExpr(ASTNode* node){
-    if(isDebug) printf("[DEBUG] GenCode for TERM EXPR\n");
+    if(isDebug) printf("[DEBUG] genCodeForTermExpr() for node type: %s\n", getNodeName(node->type));
     if (node->type != NODE_EXPR_TERM) return NULL;
 
     Operand* opr1 = NULL;
     char* result = newTempVar();
 
-    attachValueOfExprTerm(node->expr_data.left, &opr1);
+    attachValueOfExprTerm(node, &opr1);
 
     TAC* code = createTAC(TAC_ASSIGN, result, opr1, NULL);
     appendTAC(codeList, code);
@@ -1395,6 +1401,24 @@ TAC* genCodeForVar(ASTNode* node){
     appendTAC(codeList, code);
 
     return code;
+}
+
+TAC* genCodeForReturn(ASTNode* node){
+    if(isDebug) printf("[DEBUG] genCodeForReturn() for node type: %s\n", getNodeName(node->type));
+    if(node->type != NODE_RETURN) {
+        fprintf(stderr, "Unsupported AST node type %s for genCodeForReturn()\n", getNodeName(node->type));
+        exit(1);
+    }  
+    BoolExprInfo b_info = {NULL, NULL};
+    TAC* ret_val = generateCode(node->return_data.return_value, &b_info);
+
+    char* result = "ret_val";
+    Operand* opr1 = makeOperand(ID_REF, ret_val->result);
+    TAC* code_ret_val = createTAC(TAC_ASSIGN, result, opr1, NULL);
+    appendTAC(codeList, code_ret_val);
+    TAC* code_ret = createTAC(TAC_RETURN, NULL, NULL, NULL);
+    appendTAC(codeList, code_ret);
+    return ret_val;
 }
 
 TAC* genCodeForParam(ASTNode* node, int argNo){
@@ -1510,6 +1534,8 @@ TAC* generateCode(ASTNode* node, BoolExprInfo* bool_info) {
         case NODE_BREAK_STMT:
         case NODE_CONTINUE_STMT:
             return genCodeForBrkContStmts(node);
+        case NODE_RETURN:
+            return genCodeForReturn(node);
         case NODE_FUNC_DECL:{
             if (functionCount >= MAX_FUNCTIONS) {
                 fprintf(stderr, "Too many functions declared\n");
@@ -1584,6 +1610,9 @@ void printTACInstruction(TAC* instr) {
             break;
         case TAC_GOTO:
             sprintf(instr_buffer, "GOTO %d", instr->target_jump);
+            break;
+        case TAC_RETURN:
+            sprintf(instr_buffer, "RETURN");
             break;
         default:
             fprintf(stderr, "Unknown TAC operation\n");

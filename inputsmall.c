@@ -2,8 +2,13 @@
 // for(int a = 1; ; );
 // // while(2 == 2 && 1 <= 3 != 4);
 
-void foo(int x, int y){
+int foo(int x, int y, int z){
     x++;
+    return x;
+}
+
+int foo2(int x){
+    return x;
 }
 
 // foo(1);
