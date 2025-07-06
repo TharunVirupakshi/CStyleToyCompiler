@@ -1,12 +1,20 @@
-int a = 1, b = 2;
-for(; ; );
-while(2 == 2 && 1 <= 3 != 4);
+// int a = 1, b = 2;
+// for(int a = 1; ; );
+// // while(2 == 2 && 1 <= 3 != 4);
 
-if(a && 3) a = 3;
-
-int foo(){
-    return 1;
+void foo(int x, int y){
+    x++;
 }
+
+// foo(1);
+
+// if(a && 3) a = 3;
+
+// int foo(){
+//     int a = 5;
+//     a++;
+//     return 1;
+// }
 
 /*
 0: IF FALSE a GOTO 3

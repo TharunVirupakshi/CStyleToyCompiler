@@ -8,6 +8,10 @@ int tempVarCounter = 0;
 int labelCounter = 0;
 int instructionCounter = 1;
 
+#define MAX_FUNCTIONS 100
+ASTNode* functionQueue[MAX_FUNCTIONS];
+int functionCount = 1;
+
 bool isDebug = false;
 void setICGDebugger(){
     isDebug = true;
@@ -58,14 +62,46 @@ int getNextInstruction() {
 BoolExprInfo global_bool_info = {NULL, NULL, NULL, NULL, NULL};
 
 TACList* codeList;
+FuncQ* funcQ;
 
 // Runner
 void startICG(ASTNode* root){
     if(isDebug) printf("[DEBUG] Starting ICG generation...\n");
     codeList = createTACList();
+    funcQ = createFuncQ();
     generateCode(root, &global_bool_info);
+    startICGforFunctions(funcQ);
     if(isDebug) printf("[DEBUG] ICG generation completed.\n");
 }
+
+void startICGforFunctions(FuncQ* funcQ){
+    if (isDebug) printf("[DEBUG] Starting ICG generation for functions...\n");
+
+    ASTNode* func_decl;
+    while ((func_decl = dequeue(funcQ)) != NULL) {
+        if (isDebug) printf("[DEBUG] Generating TAC for function...\n");
+        genCodeForFuncDecl(func_decl, &global_bool_info);
+    }
+
+    if (isDebug) printf("[DEBUG] Completed ICG for all functions.\n");
+}
+
+
+ASTNode* dequeue(FuncQ* funcQ) {
+    if (funcQ == NULL || funcQ->head == NULL) return NULL;
+
+    FuncQNode* temp = funcQ->head;
+    funcQ->head = funcQ->head->next;
+
+    if (funcQ->head == NULL) {
+        funcQ->tail = NULL;
+    }
+
+    ASTNode* func_decl = temp->func_decl_node;
+    free(temp);  
+    return func_decl;
+}
+
 
 // Generate a new temporary variable name
 char* newTempVar() {
@@ -93,7 +129,7 @@ Label* createLabel(TAC* tac){
 TAC* createTAC(TACOp op, char* result, Operand* operand1, Operand* operand2) {
     TAC* instr = (TAC*)malloc(sizeof(TAC));
     if (!instr) {
-        fprintf(stderr, "Memory allocation failed\n");
+        fprintf(stderr, "Memory allocation failed for createTAC()\n");
         exit(1);
     } 
     instr->op = op;
@@ -171,7 +207,8 @@ const char* getOperatorString(TACOp op) {
         case TAC_IF_GOTO:        return "IF_GOTO";
         case TAC_IF_FALSE_GOTO:  return "IF_FALSE_GOTO";
         case TAC_CALL:           return "CALL";
-        case TAC_PARAM:          return "PARAM";
+        case TAC_POP_ARG:        return "POP_ARG";
+        case TAC_PUSH_ARG:       return "PUSH_ARG";
         case TAC_RETURN:         return "RETURN";
         default:                 return "UNKNOWN_OPERATOR";
     }
@@ -239,7 +276,7 @@ Operand* makeOperand(ValueType type, const void* val){
 
     Operand* opr = (Operand*)malloc(sizeof(Operand));
     if (!opr) {
-        fprintf(stderr, "Memory allocation failed\n");
+        fprintf(stderr, "Memory allocation failed for makeOperand\n");
         exit(1);
     }
     
@@ -274,6 +311,10 @@ Operand* makeOperand(ValueType type, const void* val){
             }
             if (isDebug) printf("[DEBUG] Created ID_REF operand with name: %s\n", opr->id_ref.name);
             break;
+        case POP_ARG:
+            opr->pop_stk.argNum = *((int*)val); 
+            if (isDebug) printf("[DEBUG] Created POP_ARG operand for arg no: %d\n", opr->pop_stk.argNum); 
+            break;
         default:
             fprintf(stderr, "Unknown operand type\n");
             free(opr);
@@ -301,10 +342,13 @@ char* getFormattedValueFromOperand(Operand* opr) {
         size_t len = strlen(opr->id_ref.name) + 1;  // For ID reference without quotes
         val = (char*)malloc(len);
         if (val) sprintf(val, "%s", opr->id_ref.name);
+    } else if (opr->type == POP_ARG) {
+        val = (char*)malloc(20);
+        if (val) sprintf(val, "%d", opr->pop_stk.argNum);
     }
 
     if (!val) {
-        fprintf(stderr, "Memory allocation failed\n");
+        fprintf(stderr, "Memory allocation failed for getFormattedValueFromOperand()\n");
         exit(1);
     }
 
@@ -319,6 +363,12 @@ TACList* createTACList(){
     return list;
 }
 
+FuncQ* createFuncQ(){
+    FuncQ* funcQ = (FuncQ*)malloc(sizeof(FuncQ));
+    funcQ->head = NULL;
+    funcQ->tail = NULL;
+    return funcQ;
+}
 
 void appendTAC(TACList* list, TAC* newTAC) {
     if (!list->head) {
@@ -335,6 +385,33 @@ void appendTAC(TACList* list, TAC* newTAC) {
     if (isDebug) printf("[DEBUG] Appended TAC %d\n", newTAC->tac_id);
 }
 
+void appendFuncDecl(FuncQ* funcQ, ASTNode* func_decl) {
+    if (funcQ == NULL) {
+        fprintf(stderr, "FuncQ is not inited!\n");
+        exit(1);  
+    }
+
+    if (func_decl->type != NODE_FUNC_DECL) {
+        fprintf(stderr, "Cannot append func to funcQ, unsupported node type\n");
+        exit(1); 
+    }
+    
+    FuncQNode* node = (FuncQNode*)malloc(sizeof(FuncQNode));
+    node->func_decl_node = func_decl;
+    node->next = NULL;
+
+    if (!funcQ->head) {
+        funcQ->head = node;
+    } else {
+        funcQ->tail->next = node;
+    }
+    funcQ->tail = node;
+    node->id = functionCount++;
+    if (isDebug) 
+        printf("[DEBUG] Appended new func decl node %s with id %d\n", 
+            func_decl->func_decl_data.id->id_data.sym->name,
+            node->id);
+}
 
 void attachValueOfExprTerm(ASTNode* node, Operand** opr){
     if(isDebug) printf("Extracting val from EXPR_TERM\n");
@@ -1292,7 +1369,6 @@ TAC* generateCodeForAssignment(ASTNode* node) {
 
     return code;
 }
-
  
 
 TAC* genCodeForVar(ASTNode* node){
@@ -1321,6 +1397,25 @@ TAC* genCodeForVar(ASTNode* node){
     return code;
 }
 
+TAC* genCodeForParam(ASTNode* node, int argNo){
+    if(isDebug) printf("[DEBUG] GenCode for PARAM\n");
+    if(node->type != NODE_PARAM) return NULL; 
+
+    char* result = strdup(
+        generateScopeSuffixedName(
+            node->param_data.id->id_data.sym->name, 
+            node->param_data.id->id_data.sym->scope->table_id
+        )
+    );
+
+    int val = argNo;
+    Operand* pop_arg =  makeOperand(POP_ARG, &val); 
+    TAC* code = createTAC(TAC_POP_ARG, result, pop_arg, NULL);
+    appendTAC(codeList, code);
+
+    return code;
+}
+
 TAC* genCodeForVarList(ASTNode* node){
     if(isDebug) printf("[DEBUG] GenCode for VAR_LIST\n");
     if(!node) return NULL;
@@ -1329,6 +1424,16 @@ TAC* genCodeForVarList(ASTNode* node){
     TAC* code_var_list = genCodeForVarList(node->var_list_data.var_list);
     TAC* code_var = genCodeForVar(node->var_list_data.var);
     return code_var;
+}
+
+TAC* genCodeForParamList(ASTNode* node, int argNum){
+    if(isDebug) printf("[DEBUG] GenCode for PARAM_LIST\n"); 
+    if(!node) return NULL;
+    if(node->type != NODE_PARAM_LIST) return NULL; 
+
+    TAC* code_param = genCodeForParam(node->param_data.id, argNum);
+    TAC* code_param_list = genCodeForParamList(node->param_list_data.param_list, argNum - 1);
+    return code_param;
 }
 
 
@@ -1340,9 +1445,27 @@ TAC* generateCodeForDecl(ASTNode* node){
     return code_var_list;
 }
 
+TAC* genCodeForFuncDecl(ASTNode* node, BoolExprInfo* bool_info){
+    if(isDebug) printf("[DEBUG] GenCode for FUNC_DECL\n");
+    if(node->type != NODE_FUNC_DECL) return NULL;
+
+    // generate TAC for function headers
+    ASTNode* paramList = node->func_decl_data.params;
+    int paramCnt = node->func_decl_data.param_count;
+
+    TAC* code_param_list = genCodeForParamList(paramList, paramCnt);
+    // generate TAC for function body using normal generation
+    TAC* code_body = generateCode(node->func_decl_data.body, bool_info);
+    
+    appendComments(code_param_list, "FUNC START");
+    appendComments(codeList->tail, "FUNC END");
+    return code_param_list;
+}
+
 // Main function to generate TAC code for an AST node
 TAC* generateCode(ASTNode* node, BoolExprInfo* bool_info) {
     if (!node) return NULL;
+    if (isDebug) printf("[DEBUG] generateCode() for %s\n", getNodeName(node->type));
 
     switch (node->type) {
         case NODE_PROGRAM:{
@@ -1387,6 +1510,16 @@ TAC* generateCode(ASTNode* node, BoolExprInfo* bool_info) {
         case NODE_BREAK_STMT:
         case NODE_CONTINUE_STMT:
             return genCodeForBrkContStmts(node);
+        case NODE_FUNC_DECL:{
+            if (functionCount >= MAX_FUNCTIONS) {
+                fprintf(stderr, "Too many functions declared\n");
+                exit(1);
+            }
+            appendFuncDecl(funcQ, node);
+            return NULL;  // Skip code generation now
+        }
+        case NODE_FUNC_BODY:
+            return generateCode(node->block_stmt_data.stmt_list, bool_info);
         default:
             fprintf(stderr, "Unsupported AST node type\n");
             exit(1);
@@ -1403,6 +1536,12 @@ void printTACInstruction(TAC* instr) {
     switch (instr->op) {
         case TAC_ASSIGN:
             sprintf(instr_buffer, "%s = %s", instr->result, opr1);
+            break;
+        case TAC_POP_ARG:
+            sprintf(instr_buffer, "%s = POP(%s)", instr->result, opr1);
+            break;
+        case TAC_PUSH_ARG:
+            sprintf(instr_buffer, "PUSH(%s)", opr1); 
             break;
         case TAC_ADD:
             sprintf(instr_buffer, "%s = %s + %s", instr->result, opr1, opr2);
