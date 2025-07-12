@@ -850,13 +850,13 @@ int validateFuncRetTypesCallback(ASTNode* node, void* context){
     traverseAST(node->func_decl_data.body, validateReturnStmtsCallback, &ret_ctx);
 
     // Non-void functions must have return stmts
-    if(!(ret_ctx.ret_found) && strcmp(ret_ctx.expected_type, TYPE_VOID) != 0 ){
-        char errorMsg[256];
-        snprintf(errorMsg, sizeof(errorMsg),
-                "Missing return statement in function '%s' with (non-void) return type",
-                node->func_decl_data.id->id_data.sym->name);
-        addError(errorMsg, node->line_no, node->char_no); 
-    }
+    // if(!(ret_ctx.ret_found) && strcmp(ret_ctx.expected_type, TYPE_VOID) != 0 ){
+    //     char errorMsg[256];
+    //     snprintf(errorMsg, sizeof(errorMsg),
+    //             "Missing return statement in function '%s' with (non-void) return type",
+    //             node->func_decl_data.id->id_data.sym->name);
+    //     addError(errorMsg, node->line_no, node->char_no); 
+    // }
 
     return 1; // Look for other func declarations
 }

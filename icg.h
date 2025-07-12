@@ -40,6 +40,7 @@ typedef enum{
     INT_VAL,
     CHAR_VAL,
     STR_VAL,
+    VOID_VAL,
     ID_REF,
     PUSH_ARG,
     POP_ARG,
@@ -64,6 +65,9 @@ typedef struct Operand{
         int int_val;
         char char_val;
         char* str_val;
+        struct{
+            char* val;
+        }void_val;
         struct{
             char* name;
             symbol* sym;

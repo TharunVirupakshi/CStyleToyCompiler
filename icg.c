@@ -153,7 +153,7 @@ TAC* createTAC(TACOp op, char* result, Operand* operand1, Operand* operand2) {
 
 void appendComments(TAC* instr, const char* new_comment) {
     if (new_comment == NULL || !instr) return;  // Nothing to append
-
+    if (isDebug) printf("[DEBUG] appending comments\n");
     if (instr->comments == NULL) {
         // Allocate and set the new comment if it doesn't exist
         instr->comments = strdup(new_comment);
@@ -183,6 +183,7 @@ void appendComments(TAC* instr, const char* new_comment) {
         free(instr->comments);
         instr->comments = updated_comments;
     }
+    if (isDebug) printf("[DEBUG] appending comments: DONE\n");
 }
 
 
@@ -276,8 +277,8 @@ char* generateScopeSuffixedName(const char* name, int scope_id) {
 Operand* makeOperand(ValueType type, const void* val){
     if(isDebug) printf("Making operand\n");
 
-    if (val == NULL) {
-        fprintf(stderr, "Error: val is NULL\n");
+    if (type != VOID_VAL && val == NULL) {
+        fprintf(stderr, "Error: val is NULL for Non void type\n");
         return NULL;
     }
 
@@ -289,6 +290,11 @@ Operand* makeOperand(ValueType type, const void* val){
     
     opr->type = type;
     switch (type) {
+        case VOID_VAL: {
+            opr->void_val.val = "VOID";
+            if (isDebug) printf("[DEBUG] Created VOID operand with value: %d\n", opr->int_val);
+            break; 
+        }
         case INT_VAL:{
             // printf("Int val\n");
             int int_val = *((int*)val);
@@ -335,7 +341,9 @@ char* getFormattedValueFromOperand(Operand* opr) {
     char* val = NULL;
     if(!opr) return val;
 
-    if (opr->type == INT_VAL) {
+    if (opr->type == VOID_VAL) {
+        val = "VOID";
+    } else if (opr->type == INT_VAL) {
         val = (char*)malloc(20);  // Allocate enough space for an integer
         if (val) sprintf(val, "%d", opr->int_val);
     } else if (opr->type == CHAR_VAL) {
@@ -945,7 +953,7 @@ TAC* genCodeForUnaryExpr(ASTNode* node, BoolExprInfo* bool_info){
         if(node->expr_data.left->type == NODE_EXPR_TERM){
             attachValueOfExprTerm(node->expr_data.left, &opr1);
         }else{
-            fprintf(stderr, "Error: Unsupported node for POST_INC\n");
+            fprintf(stderr, "Error: Unsupported node for POST_DEC\n");
             exit(0);
         }
         op = TAC_ASSIGN;
@@ -957,7 +965,7 @@ TAC* genCodeForUnaryExpr(ASTNode* node, BoolExprInfo* bool_info){
         int temp_val = 1;
         Operand* opr2 = makeOperand(INT_VAL, &temp_val);
         TAC* postDec = createTAC(TAC_SUB, opr1->id_ref.name, opr1, opr2);
-        appendComments(postDec, "POST INC");
+        appendComments(postDec, "POST DEC");
         appendTAC(codeList, postDec);
         return newTac;
     }    
@@ -965,7 +973,7 @@ TAC* genCodeForUnaryExpr(ASTNode* node, BoolExprInfo* bool_info){
         if(node->expr_data.left->type == NODE_EXPR_TERM){
             attachValueOfExprTerm(node->expr_data.left, &opr1);
         }else{
-            fprintf(stderr, "Error: Unsupported node for POST_INC\n");
+            fprintf(stderr, "Error: Unsupported node for PRE_INC\n");
             exit(0);
         }
         // Increment First
@@ -987,7 +995,7 @@ TAC* genCodeForUnaryExpr(ASTNode* node, BoolExprInfo* bool_info){
         if(node->expr_data.left->type == NODE_EXPR_TERM){
             attachValueOfExprTerm(node->expr_data.left, &opr1);
         }else{
-            fprintf(stderr, "Error: Unsupported node for POST_INC\n");
+            fprintf(stderr, "Error: Unsupported node for PRE_DEC\n");
             exit(0);
         }
         // Decrement First
@@ -1400,6 +1408,7 @@ TAC* genCodeForVar(ASTNode* node){
             attachValueOfExprTerm(node->var_data.value, &opr1);
         }else{
             TAC* rhsCode = generateCode(node->var_data.value, &b_info);
+            if(isDebug) printf("[DEBUG] Rhs result: %s\n", rhsCode->result);
             opr1 = makeOperand(ID_REF, rhsCode->result);
         }    
     }
@@ -1417,15 +1426,22 @@ TAC* genCodeForReturn(ASTNode* node){
         exit(1);
     }  
     BoolExprInfo b_info = {NULL, NULL};
-    TAC* ret_val = generateCode(node->return_data.return_value, &b_info);
+    TAC* ret_val = NULL;
+    Operand* opr1;
+    if(node->return_data.return_value) {
+        ret_val = generateCode(node->return_data.return_value, &b_info);
+        opr1 = makeOperand(ID_REF, ret_val->result);
+    }else{
+        opr1 = makeOperand(VOID_VAL, NULL); 
+    }   
 
     char* result = "ret_val";
-    Operand* opr1 = makeOperand(ID_REF, ret_val->result);
+    
     TAC* code_ret_val = createTAC(TAC_ASSIGN, result, opr1, NULL);
     appendTAC(codeList, code_ret_val);
     TAC* code_ret = createTAC(TAC_RETURN, NULL, NULL, NULL);
     appendTAC(codeList, code_ret);
-    return ret_val;
+    return ret_val ? ret_val : code_ret_val;
 }
 
 TAC* genCodeForParam(ASTNode* node, int argNo){
@@ -1516,8 +1532,20 @@ TAC* genCodeForFuncDecl(ASTNode* node, BoolExprInfo* bool_info){
     // generate TAC for function body using normal generation
     TAC* code_body = generateCode(node->func_decl_data.body, bool_info);
     
+    // Add implicit return with default value
+    if(codeList->tail->op != TAC_RETURN){        
+        Operand* opr1 = makeOperand(VOID_VAL, NULL);
+        TAC* code_ret_val = createTAC(TAC_ASSIGN, (char*)ret_val_var, opr1, NULL);
+        TAC* code_end = createTAC(TAC_RETURN, NULL, NULL, NULL);
+        appendTAC(codeList, code_ret_val);
+        appendTAC(codeList, code_end);
+        appendComments(code_end, "IMPLICIT RETURN");
+    }
+    
     appendComments(code_param_list, "FUNC START");
+    appendComments(code_param_list, node->func_decl_data.id->id_data.sym->name);
     appendComments(codeList->tail, "FUNC END");
+    appendComments(codeList->tail, node->func_decl_data.id->id_data.sym->name);
     return code_param_list;
 }
 
@@ -1533,17 +1561,19 @@ TAC* genCodeForFuncCall(ASTNode* node){
 
     TAC* code_arg_list = genCodeForArgList(argList, argCnt);
     appendComments(code_arg_list, "PUSH ARGS");
+
     Operand* opr1 = makeOperand(ID_REF, node->func_call_data.id->id_ref_data.name);
-    TAC* code_func_call = createTAC(TAC_CALL, NULL, opr1, NULL);
+    char* temp_var = newTempVar();
+    TAC* code_func_call = createTAC(TAC_CALL, temp_var, opr1, NULL);
     appendTAC(codeList, code_func_call);
     appendComments(code_func_call, "FUNC CALL BEGIN");
     
     Operand* ret_val = makeOperand(ID_REF, ret_val_var);
-    TAC* code_ret_val = createTAC(TAC_ASSIGN, newTempVar(), ret_val, NULL);
+    TAC* code_ret_val = createTAC(TAC_ASSIGN, temp_var, ret_val, NULL);
     appendTAC(codeList, code_ret_val);
     appendComments(code_ret_val, "FUCN CALL END, SAVE RET VAL");
 
-    return code_arg_list;
+    return code_arg_list ? code_arg_list : code_func_call;
 }
 
 

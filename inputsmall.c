@@ -2,12 +2,23 @@
 // for(int a = 1; ; );
 // // while(2 == 2 && 1 <= 3 != 4);
 
-int foo(int x, int y){
-    x++;
-    return x;
+
+// int x = 5;
+string c = foo();
+string foo(){
+    
 }
-// int x = 2;
-foo(1, 2);
+
+
+// int foo(int x, int y){
+//     x++;
+//     int foo2(){
+//         return 1;
+//     }
+//     foo2();
+//     return x;
+// }
+// foo(1, 1);
 
 // foo(1);
 
