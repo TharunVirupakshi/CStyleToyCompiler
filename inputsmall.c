@@ -1,12 +1,17 @@
-// int a = 1, b = 2;
-// for(int a = 1; ; );
+
+
 // // while(2 == 2 && 1 <= 3 != 4);
 
 
-// int x = 5;
-string c = foo();
-string foo(){
-    
+
+string c = foo(1);
+
+string foo(int i){
+   int foo() {
+     return 2;
+   }
+   foo();
+   return "3e"; 
 }
 
 

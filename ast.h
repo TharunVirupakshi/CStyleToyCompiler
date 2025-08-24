@@ -90,6 +90,7 @@ typedef struct ASTNode {
 
         // Function decl node data
         struct {
+            int global_id;                // Global function id
             struct ASTNode* id;           // Function identifier
             struct ASTNode* params;       // Root of the parameter list binary tree
             struct ASTNode* body;         // Function body (block of statements)

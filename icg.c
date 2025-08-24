@@ -12,6 +12,7 @@ const char* ret_val_var = "ret_val";
 #define MAX_FUNCTIONS 100
 ASTNode* functionQueue[MAX_FUNCTIONS];
 int functionCount = 1;
+TACList* funcCalls[INT16_MAX];
 
 bool isDebug = false;
 void setICGDebugger(){
@@ -426,6 +427,28 @@ void appendFuncDecl(FuncQ* funcQ, ASTNode* func_decl) {
         printf("[DEBUG] Appended new func decl node %s with id %d\n", 
             func_decl->func_decl_data.id->id_data.sym->name,
             node->id);
+}
+
+void appendFuncCallTAC(TAC* tac, int global_func_id) {
+    if (isDebug) printf("[DEBUG] Appending func call to %d index\n", global_func_id-1);
+    if (global_func_id > MAX_FUNCTIONS) {
+        fprintf(stderr, "Cannot append node to funcCallList, index exceeds > 100\n");
+        exit(1);
+    }
+
+    TACList* list = funcCalls[global_func_id-1];
+    if (list == NULL) {
+        list = createTACList();
+        funcCalls[global_func_id-1] = list;
+    } 
+    
+    if (!list->head) {
+        list->head = tac;
+    } else {
+        list->tail->next = tac;
+    }
+    list->tail = tac;
+    if (isDebug) printf("[DEBUG] Appended! func call to %d index\n", global_func_id-1);
 }
 
 void attachValueOfExprTerm(ASTNode* node, Operand** opr){
@@ -1541,9 +1564,34 @@ TAC* genCodeForFuncDecl(ASTNode* node, BoolExprInfo* bool_info){
         appendTAC(codeList, code_end);
         appendComments(code_end, "IMPLICIT RETURN");
     }
+
+    TACList* list = funcCalls[node->func_decl_data.global_id - 1];
     
-    appendComments(code_param_list, "FUNC START");
-    appendComments(code_param_list, node->func_decl_data.id->id_data.sym->name);
+    TAC* funCallNode = list == NULL ? NULL : list->head;
+
+    if (isDebug) {
+        printf("[DEBUG] Backpatching fun calls for Func: %s, id: %d. Func Call List Null? = %d\n", node->func_decl_data.id->id_data.sym->name, node->func_decl_data.global_id, list == NULL);
+        printf("[DEBUG] Code param list null? = %d\n", code_param_list == NULL);
+    }
+        
+    if (code_param_list != NULL) {
+        while(funCallNode != NULL && funCallNode->op == TAC_CALL){
+            funCallNode->target_jump = code_param_list->tac_id;
+            funCallNode = funCallNode->next;
+        }
+
+        appendComments(code_param_list, "FUNC START");
+        appendComments(code_param_list, node->func_decl_data.id->id_data.sym->name);
+    } else {
+        while(funCallNode != NULL && funCallNode->op == TAC_CALL){
+            funCallNode->target_jump = code_body->tac_id;
+            funCallNode = funCallNode->next;
+        }
+
+        appendComments(code_body, "FUNC START");
+        appendComments(code_body, node->func_decl_data.id->id_data.sym->name); 
+    }
+    
     appendComments(codeList->tail, "FUNC END");
     appendComments(codeList->tail, node->func_decl_data.id->id_data.sym->name);
     return code_param_list;
@@ -1567,6 +1615,7 @@ TAC* genCodeForFuncCall(ASTNode* node){
     TAC* code_func_call = createTAC(TAC_CALL, temp_var, opr1, NULL);
     appendTAC(codeList, code_func_call);
     appendComments(code_func_call, "FUNC CALL BEGIN");
+    appendFuncCallTAC(code_func_call, node->func_call_data.id->id_ref_data.ref->func_node->func_decl_data.global_id);
     
     Operand* ret_val = makeOperand(ID_REF, ret_val_var);
     TAC* code_ret_val = createTAC(TAC_ASSIGN, temp_var, ret_val, NULL);
@@ -1663,7 +1712,7 @@ void printTACInstruction(TAC* instr) {
             sprintf(instr_buffer, "PUSH(%s)", opr1); 
             break;
         case TAC_CALL:
-            sprintf(instr_buffer, "CALL %s", opr1);
+            sprintf(instr_buffer, "CALL %d (%s)", instr->target_jump, opr1);
             break;
         case TAC_ADD:
             sprintf(instr_buffer, "%s = %s + %s", instr->result, opr1, opr2);

@@ -34,7 +34,7 @@ BrkCntStmtsList* brkCntListHEAD = NULL;
 
 const char *folderPathForAST_Vis = "AST_Vis"; 
 int scopeDepth = 0;
-
+int func_id = 1;
 
 
 ASTNode* root;
@@ -801,6 +801,12 @@ int countParams(ASTNode* params) {
 ASTNode* createFuncDeclNode(ASTNode* type_spec, ASTNode* id, ASTNode* params, ASTNode* body){
     ASTNode* node = createASTNode(NODE_FUNC_DECL, cur_line, cur_char);
 
+    if (func_id >= 100) {
+        fprintf(stderr, "Max functions limit exceded\n");
+        exit(0);
+    }
+
+    node->func_decl_data.global_id = func_id++; 
     node->func_decl_data.id = id;
     id->id_data.sym->func_node = node;
 
