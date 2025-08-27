@@ -3,6 +3,8 @@
 #include <string.h>
 #include "symTable.h"
 #include "ast.h"
+#include "logger.h"
+
 #define INITIAL_LOCAL_SCOPE_CAPACITY 20
 
 int cur_table_id = 0;
@@ -23,6 +25,14 @@ SymbolTable* createSymbolTable(char* scopeName, SymbolTable* parent, int initial
     table->capacity = initial_capacity;
     table->parent = parent;
     // printf("Created SymTable: %s\n", name);
+
+    Step s;
+    s.type = PARSE_CREATE_SCOPE;
+    s.CreateScope.parent_id = parent != NULL ? parent->table_id : 0;
+    s.CreateScope.scopeName = scopeName;
+    s.CreateScope.table_id = table->table_id;
+    log_step(s);
+
     return table;
 }
 
@@ -80,6 +90,12 @@ symbol* lookupSymbol(SymbolTable* table, const char* name) {
 // Scope management
 SymbolTable* enterScope(char* name, SymbolTable* currentScope) {
     SymbolTable* newScope = createSymbolTable(name, currentScope, INITIAL_LOCAL_SCOPE_CAPACITY);
+    
+    Step s;
+    s.type = PARSE_ENTER_SCOPE;
+    s.EnterScope.scopeName = name;
+    s.EnterScope.table_id = newScope->table_id;
+    log_step(s);
 
     if(currentScope){
         currentScope->children = realloc(currentScope->children, sizeof(SymbolTable*) * (currentScope->num_children) + 1);
@@ -90,6 +106,12 @@ SymbolTable* enterScope(char* name, SymbolTable* currentScope) {
 }
 
 SymbolTable* exitScope(SymbolTable* currentScope) {
+    Step s;
+    s.type = PRASE_EXIT_SCOPE;
+    s.ExitScope.scopeName = currentScope->scopeName;
+    s.ExitScope.table_id = currentScope->table_id;
+
+    log_step(s);
     if (currentScope == NULL || currentScope->parent == NULL) {
         // Stay in the global scope if there's no parent to go back to
         return currentScope;

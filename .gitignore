@@ -4,3 +4,5 @@ lex.yy.c
 a.out
 .vscode
 AST_Vis
+Inputs
+Logs
