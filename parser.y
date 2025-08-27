@@ -589,13 +589,14 @@ int main(int argc, char *argv[]){
     if(debug_semantic_flag) setSemanticDebugger();
     if(debug_icg_flag)      setICGDebugger();
   
+    // Phase 1: Lexing + Parsing
+    start_phase(PHASE_LEX_PARSE);
+
     symTable = createSymbolTable("global", NULL, 100);
     currentScope = symTable; // Initial current scope
     
-    // Phase 1: Lexing + Parsing
-    start_phase(PHASE_LEX_PARSE);
     yyparse();
-    end_phase();
+    end_phase(); // END Phase 1
 
     SemanticStatus sem_stat = performSemanticAnalysis(root, symTable, brkCntListHEAD);
 

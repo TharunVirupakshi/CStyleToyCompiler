@@ -15,7 +15,8 @@ typedef enum {
     PARSE_REDUCE_RULE,
     PARSE_ENTER_SCOPE,
     PARSE_CREATE_SCOPE,
-    PRASE_EXIT_SCOPE
+    PARSE_EXIT_SCOPE,
+    PARSE_ADD_SYM
 } StepType;
 
 typedef struct ReadToken {
@@ -45,6 +46,16 @@ typedef struct ExitScope {
     const char* scopeName;    
 } ExitScope;
 
+typedef struct AddSymbol {
+    const char* name;
+    char* type;
+    int scope_id;
+    int is_function;
+    int line_no;
+    int char_no;
+    int is_duplicate;
+} AddSymbol;
+
 typedef struct Step {
     StepType type;
     union {
@@ -53,6 +64,7 @@ typedef struct Step {
         EnterScope EnterScope;
         CreateScope CreateScope;
         ExitScope ExitScope;
+        AddSymbol AddSymbol;
     };
 } Step;
 

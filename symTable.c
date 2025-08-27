@@ -69,6 +69,16 @@ void addSymbol(SymbolTable* table, symbol* sym) {
         }
     }
     table->symbols[table->size++] = sym;
+    Step s;
+    s.type = PARSE_ADD_SYM;
+    s.AddSymbol.name = sym->name;
+    s.AddSymbol.type = sym->type;
+    s.AddSymbol.scope_id = sym->scope->table_id;
+    s.AddSymbol.is_duplicate = sym->is_duplicate;
+    s.AddSymbol.is_function = sym->is_function;
+    s.AddSymbol.line_no = sym->line_no;
+    s.AddSymbol.char_no = sym->char_no;
+    log_step(s);
     // printf("Added symbol: %s\n", sym->name);  // Add this
 }
 
@@ -107,7 +117,7 @@ SymbolTable* enterScope(char* name, SymbolTable* currentScope) {
 
 SymbolTable* exitScope(SymbolTable* currentScope) {
     Step s;
-    s.type = PRASE_EXIT_SCOPE;
+    s.type = PARSE_EXIT_SCOPE;
     s.ExitScope.scopeName = currentScope->scopeName;
     s.ExitScope.table_id = currentScope->table_id;
 

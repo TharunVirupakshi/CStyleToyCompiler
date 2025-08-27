@@ -87,12 +87,28 @@ void log_step(Step step) {
             );
             break;
         
-        case PRASE_EXIT_SCOPE:
+        case PARSE_EXIT_SCOPE:
             fprintf(
                 log_file,
                 "    { \"type\": \"PARSE_EXIT_SCOPE\", \"table_id\": \"%d\", \"name\": \"%s\" },\n",
                 step.EnterScope.table_id,
                 step.EnterScope.scopeName
+            );
+            break; 
+
+        case PARSE_ADD_SYM:
+            fprintf(
+                log_file,
+                "    { \"type\": \"PARSE_ADD_SYM\", \"name\": \"%s\", \"sym_type\": \"%s\", "
+                "\"scope_id\": \"%d\", \"is_function\": \"%d\", \"line_no\": \"%d\", \"char_no\": \"%d\", "
+                "\"is_duplicate\": \"%d\" },\n",
+                step.AddSymbol.name,
+                step.AddSymbol.type,
+                step.AddSymbol.scope_id,
+                step.AddSymbol.is_function,
+                step.AddSymbol.line_no,
+                step.AddSymbol.char_no,
+                step.AddSymbol.is_duplicate
             );
             break; 
 
