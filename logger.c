@@ -52,7 +52,7 @@ void log_step(Step step) {
         case LEX_READ_TOKEN:
             fprintf(
                 log_file,
-                "    { \"type\": \"LEX_READ_TOKEN\", \"token\": \"%s\", \"value\": \"%s\", \"location\": \"%d:%d\" },\n",
+                "    { \"type\": \"LEX_READ_TOKEN\", \"data\": {\"token\": \"%s\", \"value\": \"%s\", \"location\": \"%d:%d\" }},\n",
                 step.readToken.tokenName,
                 step.readToken.value,
                 step.readToken.line_no,
@@ -63,7 +63,7 @@ void log_step(Step step) {
         case PARSE_REDUCE_RULE:
             fprintf(
                 log_file,
-                "    { \"type\": \"PARSE_REDUCE_RULE\", \"rule\": \"%s\" },\n",
+                "    { \"type\": \"PARSE_REDUCE_RULE\", \"data\": {\"rule\": \"%s\" }},\n",
                 step.reduceRule.rule
             );
             break;
@@ -71,7 +71,7 @@ void log_step(Step step) {
         case PARSE_CREATE_SCOPE:
             fprintf(
                 log_file,
-                "    { \"type\": \"PARSE_CREATE_SCOPE\", \"table_id\": \"%d\", \"name\": \"%s\", \"parent_id\": \"%d\" },\n",
+                "    { \"type\": \"PARSE_CREATE_SCOPE\", \"data\": {\"table_id\": \"%d\", \"name\": \"%s\", \"parent_id\": \"%d\" }},\n",
                 step.CreateScope.table_id,
                 step.CreateScope.scopeName,
                 step.CreateScope.parent_id
@@ -81,7 +81,7 @@ void log_step(Step step) {
         case PARSE_ENTER_SCOPE:
             fprintf(
                 log_file,
-                "    { \"type\": \"PARSE_ENTER_SCOPE\", \"table_id\": \"%d\", \"name\": \"%s\" },\n",
+                "    { \"type\": \"PARSE_ENTER_SCOPE\", \"data\": {\"table_id\": \"%d\", \"name\": \"%s\" }},\n",
                 step.EnterScope.table_id,
                 step.EnterScope.scopeName
             );
@@ -90,7 +90,7 @@ void log_step(Step step) {
         case PARSE_EXIT_SCOPE:
             fprintf(
                 log_file,
-                "    { \"type\": \"PARSE_EXIT_SCOPE\", \"table_id\": \"%d\", \"name\": \"%s\" },\n",
+                "    { \"type\": \"PARSE_EXIT_SCOPE\", \"data\": {\"table_id\": \"%d\", \"name\": \"%s\" }},\n",
                 step.EnterScope.table_id,
                 step.EnterScope.scopeName
             );
@@ -99,9 +99,9 @@ void log_step(Step step) {
         case PARSE_ADD_SYM:
             fprintf(
                 log_file,
-                "    { \"type\": \"PARSE_ADD_SYM\", \"name\": \"%s\", \"sym_type\": \"%s\", "
+                "    { \"type\": \"PARSE_ADD_SYM\", \"data\": {\"name\": \"%s\", \"sym_type\": \"%s\", "
                 "\"scope_id\": \"%d\", \"is_function\": \"%d\", \"line_no\": \"%d\", \"char_no\": \"%d\", "
-                "\"is_duplicate\": \"%d\" },\n",
+                "\"is_duplicate\": \"%d\" }},\n",
                 step.AddSymbol.name,
                 step.AddSymbol.type,
                 step.AddSymbol.scope_id,
