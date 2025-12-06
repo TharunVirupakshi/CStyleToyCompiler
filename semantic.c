@@ -64,9 +64,15 @@ const char* inferAndValidateType(ASTNode* node);
 SemanticStatus performSemanticAnalysis(ASTNode* root, SymbolTable* globalTable, BrkCntStmtsList* list) {
     if (!root) return SEMANTIC_ERROR;
 
+    if (isDebugOn) printf("------Checking for duplicates....\n");
     checkDuplicates(globalTable);
+    if (isDebugOn) printf("------Checking for duplicates COMPLETED!\n\n");
+    if (isDebugOn) printf("------Validating Symbol Usage....\n");
     validateSymbolUsage(root);
+    if (isDebugOn) printf("------Validating Symbol Usage COMPLETED!\n\n");
+    if (isDebugOn) printf("------Validating Loops....\n");
     validateLoops(root, list);
+    if (isDebugOn) printf("------Validating Loops COMPLETED!....\n\n");
 
     if(errorCount > 0){
         printErrors();
@@ -74,16 +80,18 @@ SemanticStatus performSemanticAnalysis(ASTNode* root, SymbolTable* globalTable, 
         return SEMANTIC_ERROR;
     }
 
+    if (isDebugOn) printf("------Validating Types....\n");
     validateTypes(root);
+    if (isDebugOn) printf("------Validating Types COMPLETED!....\n\n");
 
     if(errorCount > 0){
         printErrors();
         errorCount = 0;
         return SEMANTIC_ERROR;
     }
-
+    if (isDebugOn) printf("------Validating Function Return Types....\n");
     validateFunctionReturnTypes(root);
-
+    if (isDebugOn) printf("------Validating Function Return Types COMPLETED!!\n\n");
     if(errorCount > 0){
         printErrors();
         errorCount = 0;
@@ -176,7 +184,6 @@ int validateSymbolUsageCallback(ASTNode* root, void* cxt){
             root->id_ref_data.ref = foundSymbol;
         }
     }
-
     return 1;
 }
 
@@ -438,7 +445,7 @@ const char* inferAndValidateType(ASTNode* node) {
     
     switch (node->type) {
         case NODE_ID:
-            if(isDebugOn) printf("Getting type of ID (%s)\n", node->id_data.sym->name);
+            if(isDebugOn) printf("Getting type of ID (%s), found type: %s\n", node->id_data.sym->name, node->id_data.sym->type);
 
             type = node->id_data.sym->type;
             if(!type){
@@ -450,7 +457,7 @@ const char* inferAndValidateType(ASTNode* node) {
             break;
 
         case NODE_ID_REF:
-            if(isDebugOn) printf("Getting type of ID ref (%s)\n", node->id_ref_data.name);
+            if(isDebugOn) printf("Getting type of ID ref (%s), found type: %s\n", node->id_ref_data.name, node->id_ref_data.ref->type);
 
             if (node->id_ref_data.ref != NULL){
                 if(isDebugOn) printf("ref type is not NULL\n");
@@ -689,7 +696,7 @@ int validateTypesCallback(ASTNode* node, void* context) {
 
     switch (node->type) {
         case NODE_VAR:{
-            // printf("Validating variable\n");
+            if(isDebugOn) printf("Validating variable\n");
 
             // Check if value exists
             if(!node->var_data.value) return 0;
@@ -699,33 +706,37 @@ int validateTypesCallback(ASTNode* node, void* context) {
         }
 
         case NODE_ASSGN: {
-            // printf("Validating assignment\n");
+            if(isDebugOn) printf("Validating assignment\n");
             const char* type = inferAndValidateType(node);
             return 0;
         }
 
         case NODE_EXPR_BINARY: {
-            // printf("Validating bin expr\n");
+            if(isDebugOn) printf("Validating bin expr\n");
             const char* type = inferAndValidateType(node);
             return 0;
         }
 
         case NODE_EXPR_UNARY: {
+            if(isDebugOn) printf("Validating unary expr\n");
             const char* type = inferAndValidateType(node);
             return 0;
         }
 
         case NODE_EXPR_TERM: {
+            if(isDebugOn) printf("Validating term expr\n");
             const char* type = inferAndValidateType(node);
             return 0;
         }
 
         case NODE_RETURN: {
+            if(isDebugOn) printf("Validating return stmt\n"); 
             const char* type = inferAndValidateType(node);
             return 0;
         }
 
         case NODE_FUNC_CALL: {
+            if(isDebugOn) printf("Validating func call\n");
             const char* type = inferAndValidateType(node);
             return 0; 
         }

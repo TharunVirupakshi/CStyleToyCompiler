@@ -8,6 +8,10 @@
 #define INITIAL_LOCAL_SCOPE_CAPACITY 20
 
 int cur_table_id = 0;
+bool isSymTableDebugOn = false;
+void setSymTableDebugger(){
+    isSymTableDebugOn = true;
+} 
 
 // Create a new symbol table
 SymbolTable* createSymbolTable(char* scopeName, SymbolTable* parent, int initial_capacity) {
@@ -53,7 +57,7 @@ symbol* createSymbol(const char* name, char* type, SymbolTable* scope, int locat
     sym->line_no = line_no;
     sym->char_no = char_no;
     sym->is_duplicate = 0;  // Initialize duplicate flag to 0
-    // printf("Created symbol: %s\n", name);   
+    if(isSymTableDebugOn) printf("[SYM TABLE] Created symbol: %s, type: %s\n", name, sym->type);   
     return sym;
 }
 
@@ -79,7 +83,7 @@ void addSymbol(SymbolTable* table, symbol* sym) {
     s.AddSymbol.line_no = sym->line_no;
     s.AddSymbol.char_no = sym->char_no;
     log_step(s);
-    // printf("Added symbol: %s\n", sym->name);  // Add this
+    if(isSymTableDebugOn) printf("[SYM TABLE] Added symbol: %s, type: %s\n", sym->name, sym->type);  // Add this
 }
 
 // Look up a symbol in the current scope, searching up to parent scopes if not found

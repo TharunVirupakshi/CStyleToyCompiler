@@ -63,7 +63,9 @@ void log_step(Step step) {
         case PARSE_REDUCE_RULE:
             fprintf(
                 log_file,
-                "    { \"type\": \"PARSE_REDUCE_RULE\", \"data\": {\"rule\": \"%s\" }},\n",
+                "    { \"type\": \"PARSE_REDUCE_RULE\", \"data\": {\"ruleId\": \"%d\", \"subRuleId\": \"%d\", \"rule\": \"%s\" }},\n",
+                step.reduceRule.ruleId,
+                step.reduceRule.subRuleId,
                 step.reduceRule.rule
             );
             break;
@@ -110,7 +112,17 @@ void log_step(Step step) {
                 step.AddSymbol.char_no,
                 step.AddSymbol.is_duplicate
             );
-            break; 
+            break;
+        case PARSE_ASSGN_SYM_TYPE:
+            fprintf(
+                log_file,
+                "    { \"type\": \"PARSE_ASSGN_SYM_TYPE\", \"data\": {\"name\": \"%s\", \"sym_type\": \"%s\", "
+                "\"scope_id\": \"%d\"}},\n",
+                step.AssignSymType.name,
+                step.AssignSymType.type,
+                step.AssignSymType.scope_id
+            );
+            break;
 
         default:
             fprintf(log_file, "    { \"type\": \"UNKNOWN\" },\n");

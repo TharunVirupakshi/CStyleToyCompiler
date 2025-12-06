@@ -2,6 +2,7 @@
 #include "symTable.h"
 #include "ast.h"
 #include <stdio.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -13,9 +14,11 @@
 
 #define GLOBAL "global"
 #define FUNCTION "function"
-#define BLOCK "block"  
+#define BLOCK "block"
+#define LOGGER_NAME "PARSER"  
 
 bool isSemanticError = false;
+bool isParserDebuggerOn = false;
 
 // Declare extern to access the variables defined in lexer
 extern int cur_line;
@@ -37,13 +40,34 @@ const char *folderPathForAST_Vis = "AST_Vis";
 int scopeDepth = 0;
 int func_id = 1;
 
-void log_rule(const char* rule) {
+void log_rule(const char* rule, int ruleId, int subRuleId) {
     Step s;
     s.type = PARSE_REDUCE_RULE;
     s.reduceRule.rule = rule;
+    s.reduceRule.subRuleId = subRuleId;
+    s.reduceRule.ruleId = ruleId;
     log_step(s);
 }
 
+void log_assgn_sym_type(const char* sym_name, int scope_id, const char* type) {
+    Step s;
+    s.type = PARSE_ASSGN_SYM_TYPE;
+    s.AssignSymType.name = sym_name;
+    s.AssignSymType.scope_id = scope_id;
+    s.AssignSymType.type = (char *)type;
+    log_step(s);
+}
+
+void printLog(const char *fmt, ...) {
+    printf("[%s] ", LOGGER_NAME);
+
+    va_list args;
+    va_start(args, fmt);
+    vprintf(fmt, args);   // prints the formatted string
+    va_end(args);
+
+    printf("\n");
+}
 
 ASTNode* root;
 ASTNode* createProgramNode(ASTNode* stmt_list);
@@ -126,7 +150,7 @@ ASTNode* createContinueNode();
 // Program structure
 program: 
     stmt_list  { 
-        log_rule("program → stmt_list");
+        log_rule("program → stmt_list", 1, 1);
         $$ = createProgramNode($1); 
         root = $$; 
     }
@@ -135,11 +159,11 @@ program:
 // List of statements
 stmt_list:
       stmt_list stmt { 
-          log_rule("stmt_list → stmt_list stmt");
+          log_rule("stmt_list → stmt_list stmt", 2, 1);
           $$ = createStmtListNode($1, $2); 
       } 
     | { 
-          log_rule("stmt_list → ε");
+          log_rule("stmt_list → ε", 2, 2);
           $$ = NULL;
       }  
 ;
@@ -147,51 +171,51 @@ stmt_list:
 // Different types of statements
 stmt:
       decl_stmt { 
-          log_rule("stmt → decl_stmt"); 
+          log_rule("stmt → decl_stmt", 3, 1); 
           $$ = $1; 
       }
     | assgn_stmt { 
-          log_rule("stmt → assgn_stmt"); 
+          log_rule("stmt → assgn_stmt", 3, 2); 
           $$ = $1; 
       }
     | expr_stmt { 
-          log_rule("stmt → expr_stmt"); 
+          log_rule("stmt → expr_stmt", 3, 3); 
           $$ = $1; 
       }
     | cond_stmt { 
-          log_rule("stmt → cond_stmt"); 
+          log_rule("stmt → cond_stmt", 3, 4); 
           $$ = $1; 
       }         
     | block_stmt { 
-          log_rule("stmt → block_stmt"); 
+          log_rule("stmt → block_stmt", 3, 5); 
           $$ = $1; 
       }    
     | loop_stmt { 
-          log_rule("stmt → loop_stmt"); 
+          log_rule("stmt → loop_stmt", 3, 6); 
           $$ = $1; 
       }
     | ret_stmt { 
-          log_rule("stmt → ret_stmt"); 
+          log_rule("stmt → ret_stmt", 3, 7); 
           $$ = $1; 
       }
     | func_decl { 
-          log_rule("stmt → func_decl"); 
+          log_rule("stmt → func_decl", 3, 8); 
           $$ = $1; 
       }
     | func_call_stmt { 
-          log_rule("stmt → func_call_stmt"); 
+          log_rule("stmt → func_call_stmt", 3, 9); 
           $$ = $1; 
       }
     | break_stmt { 
-          log_rule("stmt → break_stmt"); 
+          log_rule("stmt → break_stmt", 3, 10); 
           $$ = $1; 
       }
     | continue_stmt { 
-          log_rule("stmt → continue_stmt"); 
+          log_rule("stmt → continue_stmt", 3, 11); 
           $$ = $1; 
       }
     | ';' { 
-          log_rule("stmt → ';'");
+          log_rule("stmt → ';'", 3, 12);
           $$ = NULL; 
       }
 ;
@@ -201,11 +225,11 @@ stmt:
 // Return statement
 ret_stmt:
       RETURN expr ';' { 
-          log_rule("ret_stmt → RETURN expr ;"); 
+          log_rule("ret_stmt → RETURN expr ;", 4, 1); 
           $$ = createReturnNode($2); 
       }   
     | RETURN ';' { 
-          log_rule("ret_stmt → RETURN ;"); 
+          log_rule("ret_stmt → RETURN ;", 4, 2); 
           $$ = createReturnNode(NULL);
       }
 ;
@@ -215,7 +239,7 @@ ret_stmt:
 // Function call statement
 func_call_stmt:
     func_call ';' { 
-        log_rule("func_call_stmt → func_call ;");
+        log_rule("func_call_stmt → func_call ;", 5, 1);
         $$ = $1; 
     }
     ;
@@ -223,14 +247,14 @@ func_call_stmt:
 // Assignment statement
 assgn_stmt:
     assgn_expr ';' {
-        log_rule("assgn_stmt → assgn_expr ;");
+        log_rule("assgn_stmt → assgn_expr ;", 6, 1);
         $$ = $1; 
     }
     ;
 
 assgn_expr:
     ID ASSIGN expr {
-        log_rule("assgn_expr → ID ASSIGN expr");
+        log_rule("assgn_expr → ID ASSIGN expr", 6, 2);
         $$ = createAssgnNode($1, $3); 
     } 
     ;
@@ -238,7 +262,7 @@ assgn_expr:
 // Block statement
 block_stmt:
     '{' { 
-        log_rule("block_stmt → { stmt_list }"); 
+        log_rule("block_stmt → { stmt_list }", 7, 1); 
         currentScope = enterScope("block", currentScope);
     } 
     stmt_list 
@@ -250,7 +274,7 @@ block_stmt:
 
 block_stmt_without_scope: 
     '{' stmt_list '}' { 
-        log_rule("block_stmt_without_scope → { stmt_list }");
+        log_rule("block_stmt_without_scope → { stmt_list }", 8, 1);
         $$ = createBlockStmtNode($2); 
     }
     ;
@@ -260,58 +284,58 @@ block_stmt_without_scope:
 */
 body:
     block_stmt_without_scope { 
-        log_rule("body → block_stmt_without_scope");
+        log_rule("body → block_stmt_without_scope", 9, 1);
         $$ = $1; 
     }
     | decl_stmt { 
-        log_rule("body → decl_stmt");
+        log_rule("body → decl_stmt", 9, 2);
         $$ = $1; 
     }
     | assgn_stmt { 
-        log_rule("body → assgn_stmt");
+        log_rule("body → assgn_stmt", 9, 3);
         $$ = $1; 
     }
     | expr_stmt { 
-        log_rule("body → expr_stmt");
+        log_rule("body → expr_stmt", 9, 4);
         $$ = $1; 
     }
     | cond_stmt { 
-        log_rule("body → cond_stmt");
+        log_rule("body → cond_stmt", 9, 5);
         $$ = $1; 
     }         
     | loop_stmt { 
-        log_rule("body → loop_stmt");
+        log_rule("body → loop_stmt", 9, 6);
         $$ = $1; 
     }
     | ret_stmt { 
-        log_rule("body → ret_stmt");
+        log_rule("body → ret_stmt", 9, 7);
         $$ = $1; 
     }
     | func_decl { 
-        log_rule("body → func_decl");
+        log_rule("body → func_decl", 9, 8);
         $$ = $1; 
     }
     | func_call_stmt { 
-        log_rule("body → func_call_stmt");
+        log_rule("body → func_call_stmt", 9, 9);
         $$ = $1; 
     }
     | break_stmt { 
-        log_rule("body → break_stmt");
+        log_rule("body → break_stmt", 9, 10);
         $$ = $1; 
     }
     | continue_stmt { 
-        log_rule("body → continue_stmt");
+        log_rule("body → continue_stmt", 9, 11);
         $$ = $1; 
     }
     | ';' { 
-        log_rule("body → ;");
+        log_rule("body → ;", 9, 12);
         $$ = NULL; 
     }
     ;
 
 break_stmt:
     BREAK ';' { 
-        log_rule("break_stmt → BREAK ;");
+        log_rule("break_stmt → BREAK ;", 10, 1);
         $$ = createBreakNode(); 
     }
     ;
@@ -319,7 +343,7 @@ break_stmt:
 
 continue_stmt:
     CONTINUE ';' { 
-        log_rule("continue_stmt → CONTINUE ;");
+        log_rule("continue_stmt → CONTINUE ;", 11, 1);
         $$ = createContinueNode(); 
     }
     ;
@@ -327,7 +351,7 @@ continue_stmt:
 // Conditional statement
 cond_stmt:
     IF '(' expr ')' {
-        log_rule("cond_stmt → IF '(' expr ')' body else_part");
+        log_rule("cond_stmt → IF '(' expr ')' body else_part", 12, 1);
         currentScope = enterScope("block (if)", currentScope);
     } body {
         currentScope = exitScope(currentScope);
@@ -337,13 +361,13 @@ cond_stmt:
 
 else_part:
     ELSE {
-        log_rule("else_part → body"); 
+        log_rule("else_part → body", 13, 1); 
         currentScope = enterScope("block (else)", currentScope);
     } body { 
         $$.else_body = $3; 
         currentScope = exitScope(currentScope); 
     }
-    | { log_rule("else_part → ε"); $$.else_body = NULL; }
+    | { log_rule("else_part → ε", 13, 2); $$.else_body = NULL; }
     ;
 
 
@@ -351,14 +375,14 @@ else_part:
 // Loop statements
 loop_stmt:
     WHILE '(' expr ')' {
-        log_rule("loop_stmt → WHILE '(' expr ')' body");
+        log_rule("loop_stmt → WHILE '(' expr ')' body", 14, 1);
         currentScope = enterScope("block (while)", currentScope);
     } body { 
         $$ = createWhileNode($3, $6); 
         currentScope = exitScope(currentScope); 
     } 
     | FOR '(' {
-        log_rule("loop_stmt → FOR '('");
+        log_rule("loop_stmt → FOR '('", 14, 2);
         currentScope = enterScope("block (for)", currentScope);} for_init ';' for_expr ';' for_expr ')' body {
         $$ = createForNode($4, $6, $8, $10);
         currentScope = exitScope(currentScope); 
@@ -366,37 +390,37 @@ loop_stmt:
     ; 
 
 for_init:
-    decl            { log_rule("for_init → decl"); $$ = $1; }
-    | expr_list     { log_rule("for_init → expr_list"); $$ = $1; }
-    |               { log_rule("for_init → ε"); $$ = NULL; }
+    decl            { log_rule("for_init → decl", 15, 1); $$ = $1; }
+    | expr_list     { log_rule("for_init → expr_list", 15, 2); $$ = $1; }
+    |               { log_rule("for_init → ε", 15, 3); $$ = NULL; }
     ;
 
 // Expression list for for loop
 expr_list:
-    expr_list ',' expr_list_item  { log_rule("expr_list → expr_list ',' expr_list_item"); $$ = createCommaExprList($1, $3); }
-    | expr_list_item              { log_rule("expr_list → expr_list_item"); $$ = createCommaExprList(NULL, $1); }
+    expr_list ',' expr_list_item  { log_rule("expr_list → expr_list ',' expr_list_item", 16, 1); $$ = createCommaExprList($1, $3); }
+    | expr_list_item              { log_rule("expr_list → expr_list_item", 16, 2); $$ = createCommaExprList(NULL, $1); }
     ;
 expr_list_item:
-    assgn_expr      { log_rule("expr_list_item → assgn_expr"); $$ = $1; }                   
-    | expr          { log_rule("expr_list_item → expr"); $$ = $1; }
+    assgn_expr      { log_rule("expr_list_item → assgn_expr", 17, 1); $$ = $1; }                   
+    | expr          { log_rule("expr_list_item → expr", 17, 2); $$ = $1; }
     ;
 
 for_expr:
-    expr_list       { log_rule("for_expr → expr_list"); $$ = $1; }
-    |               { log_rule("for_expr → ε"); $$ = NULL; }             
+    expr_list       { log_rule("for_expr → expr_list", 18, 1); $$ = $1; }
+    |               { log_rule("for_expr → ε", 18, 2); $$ = NULL; }             
     ;
 
 
 
 // Declaration statement
 decl_stmt:
-    decl ';'        { log_rule("decl_stmt → decl ';'"); $$ = $1; } 
+    decl ';'        { log_rule("decl_stmt → decl ';'", 19, 1); $$ = $1; } 
     ;
 
 // Declaration
 decl:
     type_spec var_list  {
-        log_rule("decl → type_spec var_list"); 
+        log_rule("decl → type_spec var_list", 20, 1); 
         setVarListType($1, $2); 
         $$ = createDeclNode($1, $2); 
     }
@@ -404,28 +428,28 @@ decl:
 
 // Type specifications
 type_spec:
-    INT       { log_rule("type_spec → INT"); $$ = createTypeNode("int"); }               
-    | CHAR    { log_rule("type_spec → CHAR"); $$ = createTypeNode("char"); }     
-    | FLOAT   { log_rule("type_spec → FLOAT"); $$ = createTypeNode("float"); }          
-    | STRING  { log_rule("type_spec → STRING"); $$ = createTypeNode("string"); }           
+    INT       { log_rule("type_spec → INT", 21, 1); $$ = createTypeNode("int"); }               
+    | CHAR    { log_rule("type_spec → CHAR", 21, 2); $$ = createTypeNode("char"); }     
+    | FLOAT   { log_rule("type_spec → FLOAT", 21, 3); $$ = createTypeNode("float"); }          
+    | STRING  { log_rule("type_spec → STRING", 21, 4); $$ = createTypeNode("string"); }           
     ;
 
 // Variable list for declarations
 var_list:
-    var_list ',' var    { log_rule("var_list → var_list ',' var"); $$ = createVarListNode($1, $3); }
-    | var               { log_rule("var_list → var"); $$ = createVarListNode(NULL, $1); }
+    var_list ',' var    { log_rule("var_list → var_list ',' var", 22, 1); $$ = createVarListNode($1, $3); }
+    | var               { log_rule("var_list → var", 22, 2); $$ = createVarListNode(NULL, $1); }
     ;             
 
 // Variable definitions
 var:
-    ID                          { log_rule("var → ID"); $$ = createVarNode($1); } 
-    | ID ASSIGN expr            { log_rule("var → ID ASSIGN expr"); $$ = createVarAssgnNode($1, $3); }
+    ID                          { log_rule("var → ID", 23, 1); $$ = createVarNode($1); } 
+    | ID ASSIGN expr            { log_rule("var → ID ASSIGN expr", 23, 2); $$ = createVarAssgnNode($1, $3); }
     ;
 
 // Function declarations
 func_decl:
     func_header params ')' body { 
-        log_rule("func_decl → func_header params ')' body");
+        log_rule("func_decl → func_header params ')' body", 24, 1);
         $$ = createFuncDeclNode($1.type, $1.id, $2, $4);
         currentScope = exitScope(currentScope);
     }
@@ -433,13 +457,13 @@ func_decl:
 
 func_header:
     type_spec ID '(' {
-        log_rule("func_header → type_spec ID '('");
+        log_rule("func_header → type_spec ID '('", 25, 1);
         $$.type = $1;
         $$.id = createFucnIdNode($2, $1);
         currentScope = enterScope((char*)$2, currentScope);
     }
     | VOID ID '(' {
-        log_rule("func_header → VOID ID '('");
+        log_rule("func_header → VOID ID '('", 25, 2);
         $$.type = createTypeNode("void");
         $$.id = createFucnIdNode($2, $$.type);
         currentScope = enterScope((char*)$2, currentScope); 
@@ -449,7 +473,7 @@ func_header:
 // Function calls
 func_call:
     ID '(' arg_list ')' { 
-        log_rule("func_call → ID '(' arg_list ')'"); 
+        log_rule("func_call → ID '(' arg_list ')'", 26, 1); 
         $$ = createFuncCallNode($1, $3); 
     }
     ;
@@ -457,15 +481,15 @@ func_call:
 // Argument list for function calls
 arg_list:
     arg_list ',' expr { 
-        log_rule("arg_list → arg_list ',' expr"); 
+        log_rule("arg_list → arg_list ',' expr", 27, 1); 
         $$ = createArgListNode($1, $3); 
     } 
     | expr { 
-        log_rule("arg_list → expr"); 
+        log_rule("arg_list → expr", 27, 2); 
         $$ = createArgListNode(NULL, $1); 
     }
     | { 
-        log_rule("arg_list → ε"); 
+        log_rule("arg_list → ε", 27, 3); 
         $$ = NULL; 
     }
     ;
@@ -473,15 +497,15 @@ arg_list:
 // Parameter list for function declarations
 params:
     params ',' param { 
-        log_rule("params → params ',' param"); 
+        log_rule("params → params ',' param", 28, 1); 
         $$ = createParamsListNode($1, $3); 
     }
     | param { 
-        log_rule("params → param"); 
+        log_rule("params → param", 28, 2); 
         $$ = createParamsListNode(NULL, $1); 
     }
     | { 
-        log_rule("params → ε"); 
+        log_rule("params → ε", 28, 3); 
         $$ = NULL; 
     }
     ;
@@ -489,7 +513,7 @@ params:
 // Parameter definition
 param:
     type_spec ID { 
-        log_rule("param → type_spec ID"); 
+        log_rule("param → type_spec ID", 29, 1); 
         $$ = createParamNode($1, $2); 
     } 
     ;
@@ -498,37 +522,37 @@ param:
 // Expression statement
 expr_stmt:
     expr ';' { 
-        log_rule("expr_stmt → expr ;"); 
+        log_rule("expr_stmt → expr ;", 30, 1); 
         $$ = $1; 
     }
     ;
 
 // Expressions
 expr:
-    expr PLUS expr          { log_rule("expr → expr PLUS expr"); $$ = createBinaryExpNode($1, $3, "+"); }              
-    | expr MINUS expr       { log_rule("expr → expr MINUS expr"); $$ = createBinaryExpNode($1, $3, "-"); }
-    | expr MULT expr        { log_rule("expr → expr MULT expr"); $$ = createBinaryExpNode($1, $3, "*"); }
-    | expr DIV expr         { log_rule("expr → expr DIV expr"); $$ = createBinaryExpNode($1, $3, "/"); }
-    | expr EQ expr          { log_rule("expr → expr EQ expr"); $$ = createBinaryExpNode($1, $3, "=="); }
-    | expr NEQ expr         { log_rule("expr → expr NEQ expr"); $$ = createBinaryExpNode($1, $3, "!="); }
-    | expr LT expr          { log_rule("expr → expr LT expr"); $$ = createBinaryExpNode($1, $3, "<"); }
-    | expr GT expr          { log_rule("expr → expr GT expr"); $$ = createBinaryExpNode($1, $3, ">"); }
-    | expr LEQ expr         { log_rule("expr → expr LEQ expr"); $$ = createBinaryExpNode($1, $3, "<="); }
-    | expr GEQ expr         { log_rule("expr → expr GEQ expr"); $$ = createBinaryExpNode($1, $3, ">="); }
-    | expr AND expr         { log_rule("expr → expr AND expr"); $$ = createBinaryExpNode($1, $3, "&&"); }
-    | expr OR expr          { log_rule("expr → expr OR expr"); $$ = createBinaryExpNode($1, $3, "||"); }
-    | NOT expr %prec UNARY  { log_rule("expr → NOT expr"); $$ = createUnaryExpNode($2, "!"); }
-    | MINUS expr %prec UNARY{ log_rule("expr → MINUS expr"); $$ = createUnaryExpNode($2, "-"); }
-    | INC expr %prec UNARY  { log_rule("expr → INC expr"); $$ = createUnaryExpNode($2, "PRE_INC"); }
-    | DEC expr %prec UNARY  { log_rule("expr → DEC expr"); $$ = createUnaryExpNode($2, "PRE_DEC"); }
-    | expr INC %prec UNARY  { log_rule("expr → expr INC"); $$ = createUnaryExpNode($1, "POST_INC"); }
-    | expr DEC %prec UNARY  { log_rule("expr → expr DEC"); $$ = createUnaryExpNode($1, "POST_DEC"); }
-    | ID                    { log_rule("expr → ID"); $$ = createTermExpNode(createIdRefNode($1)); } 
-    | INT_LITERAL           { log_rule("expr → INT_LITERAL"); $$ = createTermExpNode(createIntLiteralNode($1)); }
-    | CHAR_LITERAL          { log_rule("expr → CHAR_LITERAL"); $$ = createTermExpNode(createCharLiteralNode($1)); }
-    | STR_LITERAL           { log_rule("expr → STR_LITERAL"); $$ = createTermExpNode(createStrLiteralNode($1)); }
-    | func_call             { log_rule("expr → func_call"); $$ = $1; }
-    | '(' expr ')'          { log_rule("expr → ( expr )"); $$ = $2; }
+    expr PLUS expr          { log_rule("expr → expr PLUS expr", 31, 1); $$ = createBinaryExpNode($1, $3, "+"); }              
+    | expr MINUS expr       { log_rule("expr → expr MINUS expr", 31, 2); $$ = createBinaryExpNode($1, $3, "-"); }
+    | expr MULT expr        { log_rule("expr → expr MULT expr", 31, 3); $$ = createBinaryExpNode($1, $3, "*"); }
+    | expr DIV expr         { log_rule("expr → expr DIV expr", 31, 4); $$ = createBinaryExpNode($1, $3, "/"); }
+    | expr EQ expr          { log_rule("expr → expr EQ expr", 31, 5); $$ = createBinaryExpNode($1, $3, "=="); }
+    | expr NEQ expr         { log_rule("expr → expr NEQ expr", 31, 6); $$ = createBinaryExpNode($1, $3, "!="); }
+    | expr LT expr          { log_rule("expr → expr LT expr", 31, 7); $$ = createBinaryExpNode($1, $3, "<"); }
+    | expr GT expr          { log_rule("expr → expr GT expr", 31, 8); $$ = createBinaryExpNode($1, $3, ">"); }
+    | expr LEQ expr         { log_rule("expr → expr LEQ expr", 31, 9); $$ = createBinaryExpNode($1, $3, "<="); }
+    | expr GEQ expr         { log_rule("expr → expr GEQ expr", 31, 10); $$ = createBinaryExpNode($1, $3, ">="); }
+    | expr AND expr         { log_rule("expr → expr AND expr", 31, 11); $$ = createBinaryExpNode($1, $3, "&&"); }
+    | expr OR expr          { log_rule("expr → expr OR expr", 31, 12); $$ = createBinaryExpNode($1, $3, "||"); }
+    | NOT expr %prec UNARY  { log_rule("expr → NOT expr", 31, 13); $$ = createUnaryExpNode($2, "!"); }
+    | MINUS expr %prec UNARY{ log_rule("expr → MINUS expr", 31, 14); $$ = createUnaryExpNode($2, "-"); }
+    | INC expr %prec UNARY  { log_rule("expr → INC expr", 31, 15); $$ = createUnaryExpNode($2, "PRE_INC"); }
+    | DEC expr %prec UNARY  { log_rule("expr → DEC expr", 31, 16); $$ = createUnaryExpNode($2, "PRE_DEC"); }
+    | expr INC %prec UNARY  { log_rule("expr → expr INC", 31, 17); $$ = createUnaryExpNode($1, "POST_INC"); }
+    | expr DEC %prec UNARY  { log_rule("expr → expr DEC", 31, 18); $$ = createUnaryExpNode($1, "POST_DEC"); }
+    | ID                    { log_rule("expr → ID", 31, 19); $$ = createTermExpNode(createIdRefNode($1)); } 
+    | INT_LITERAL           { log_rule("expr → INT_LITERAL", 31, 20); $$ = createTermExpNode(createIntLiteralNode($1)); }
+    | CHAR_LITERAL          { log_rule("expr → CHAR_LITERAL", 31, 21); $$ = createTermExpNode(createCharLiteralNode($1)); }
+    | STR_LITERAL           { log_rule("expr → STR_LITERAL", 31, 22); $$ = createTermExpNode(createStrLiteralNode($1)); }
+    | func_call             { log_rule("expr → func_call", 31, 23); $$ = $1; }
+    | '(' expr ')'          { log_rule("expr → ( expr )", 31, 24); $$ = $2; }
     ;
 
 
@@ -549,6 +573,7 @@ int main(int argc, char *argv[]){
     int printAST_flag = 0;
     int printSymTable_flag = 0;
     int debug_flag = 0;
+    int debug_sym_table = 0;
     int debug_ast_flag = 0;
     int debug_semantic_flag = 0;
     int debug_icg_flag = 0;
@@ -566,9 +591,13 @@ int main(int argc, char *argv[]){
         }
         if (strcmp(argv[i], "--debug") == 0) {
             debug_flag = 1;
+            isParserDebuggerOn = true;
         }
         if (strcmp(argv[i], "--debug-ast") == 0) {
             debug_ast_flag = 1;
+        }
+        if (strcmp(argv[i], "--debug-sym-table") == 0) {
+            debug_sym_table = 1;
         }
         if (strcmp(argv[i], "--debug-semantic") == 0) {
             debug_semantic_flag = 1;
@@ -581,10 +610,12 @@ int main(int argc, char *argv[]){
     // Turn on debuggers
     if(debug_flag){
         setASTDebugger();
+        setSymTableDebugger();
         setSemanticDebugger();
         setICGDebugger();
     }
 
+    if(debug_sym_table)     setSymTableDebugger();
     if(debug_ast_flag)      setASTDebugger();
     if(debug_semantic_flag) setSemanticDebugger();
     if(debug_icg_flag)      setICGDebugger();
@@ -598,7 +629,9 @@ int main(int argc, char *argv[]){
     yyparse();
     end_phase(); // END Phase 1
 
+    if (debug_flag || debug_semantic_flag) printf("\n------SEMANTIC ANALYSIS START------\n\n");
     SemanticStatus sem_stat = performSemanticAnalysis(root, symTable, brkCntListHEAD);
+    if (debug_flag || debug_semantic_flag) printf("\n\n------SEMANTIC ANALYSIS END------\n\n");
 
     if(printAST_flag){
         printAST(root, 0, false);
@@ -849,7 +882,9 @@ void setVarListType(ASTNode* typeNode, ASTNode* var_list) {
         if (var_list->var_data.id != NULL && var_list->var_data.id->id_data.sym != NULL) {
             symbol* sym = var_list->var_data.id->id_data.sym;
             if (sym->type == NULL) {
+                if (isParserDebuggerOn) printLog("Assigning type: %s to sym: %s in Var List", type, sym->name);
                 sym->type = strdup(type); // Assign the type to the variable's symbol
+                log_assgn_sym_type(sym->name, sym->scope->table_id, type);
             }
         }
 

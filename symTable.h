@@ -39,5 +39,6 @@ void freeSymbolTable(SymbolTable* table);
 void printSymbolTable(SymbolTable* table);
 SymbolTable* enterScope(char* name, SymbolTable* currentScope);
 SymbolTable* exitScope(SymbolTable* currentScope);
+void setSymTableDebugger();
 
 #endif
