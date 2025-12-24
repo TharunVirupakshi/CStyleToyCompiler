@@ -17,7 +17,8 @@ typedef enum {
     PARSE_CREATE_SCOPE,
     PARSE_EXIT_SCOPE,
     PARSE_ADD_SYM,
-    PARSE_ASSGN_SYM_TYPE
+    PARSE_ASSGN_SYM_TYPE,
+    PARSE_CREATE_AST_NODE
 } StepType;
 
 typedef struct ReadToken {
@@ -59,6 +60,10 @@ typedef struct AddSymbol {
     int is_duplicate;
 } AddSymbol;
 
+typedef struct CreateASTNode {
+    int node_id;
+} CreateASTNode;
+
 typedef struct AssignSymType {
     const char* name;
     char* type;
@@ -75,6 +80,7 @@ typedef struct Step {
         ExitScope ExitScope;
         AddSymbol AddSymbol;
         AssignSymType AssignSymType;
+        CreateASTNode CreateASTNode;
     };
 } Step;
 

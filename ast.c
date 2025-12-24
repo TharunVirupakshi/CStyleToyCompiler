@@ -4,12 +4,20 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include "logger.h"
 
 extern int cur_line, cur_char;
 
 bool isASTDebugOn = false;
 void setASTDebugger(){
     isASTDebugOn = true;
+}
+
+void logASTCreation(int node_id) {
+    Step s;
+    s.type = PARSE_CREATE_AST_NODE;
+    s.CreateASTNode.node_id = node_id;
+    log_step(s);
 }
 
 const char* getNodeName(NodeType type) {
@@ -78,7 +86,7 @@ ASTNode* createASTNode(NodeType type, int line_no, int char_no) {
     node->type = type;
     node->line_no = line_no;
     node->char_no = char_no;
-  
+    logASTCreation(node_id);
     return node;
 }
 

@@ -123,7 +123,13 @@ void log_step(Step step) {
                 step.AssignSymType.scope_id
             );
             break;
-
+        case PARSE_CREATE_AST_NODE:
+            fprintf(
+                log_file,
+                "    { \"type\": \"PARSE_CREATE_AST_NODE\", \"data\": {\"node_id\": \"%d\"}},\n",
+                step.CreateASTNode.node_id
+            ); 
+            break;
         default:
             fprintf(log_file, "    { \"type\": \"UNKNOWN\" },\n");
             break;
