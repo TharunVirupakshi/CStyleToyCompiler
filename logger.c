@@ -69,6 +69,17 @@ void log_step(Step step) {
                 step.reduceRule.rule
             );
             break;
+        
+        case PARSE_SEMANTIC_STEP:
+            fprintf(
+                log_file,
+                "    { \"type\": \"PARSE_SEMANTIC_STEP\", \"data\": {\"ruleId\": \"%d\", \"subRuleId\": \"%d\", \"stepNo\": \"%d\", \"instr\": \"%s\" }},\n",
+                step.SemanticStep.ruleId,
+                step.SemanticStep.subRuleId,
+                step.SemanticStep.stepNo,
+                step.SemanticStep.instr
+            );
+            break;
 
         case PARSE_CREATE_SCOPE:
             fprintf(

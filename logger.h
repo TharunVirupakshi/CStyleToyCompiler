@@ -13,6 +13,7 @@ typedef enum {
 typedef enum {
     LEX_READ_TOKEN,
     PARSE_REDUCE_RULE,
+    PARSE_SEMANTIC_STEP,
     PARSE_ENTER_SCOPE,
     PARSE_CREATE_SCOPE,
     PARSE_EXIT_SCOPE,
@@ -33,6 +34,13 @@ typedef struct ReduceRule {
     int subRuleId;
     const char* rule;
 } ReduceRule;
+
+typedef struct SemanticStep {
+    int ruleId;
+    int subRuleId;
+    int stepNo;
+    const char* instr;
+} SemanticStep;
 
 typedef struct CreateScope {
     int table_id;
@@ -75,6 +83,7 @@ typedef struct Step {
     union {
         ReadToken readToken;
         ReduceRule reduceRule;
+        SemanticStep SemanticStep;
         EnterScope EnterScope;
         CreateScope CreateScope;
         ExitScope ExitScope;
