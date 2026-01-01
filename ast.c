@@ -86,7 +86,7 @@ ASTNode* createASTNode(NodeType type, int line_no, int char_no) {
     node->type = type;
     node->line_no = line_no;
     node->char_no = char_no;
-    logASTCreation(node_id);
+    logASTCreation(node->node_id);
     return node;
 }
 
