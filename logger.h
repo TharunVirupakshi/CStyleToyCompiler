@@ -12,7 +12,13 @@ typedef enum {
 
 typedef enum {
     LEX_READ_TOKEN,
+
+    /* --- PARSER (LR) --- */
+    PARSE_SHIFT,
     PARSE_REDUCE_RULE,
+    PARSE_STACK_SNAPSHOT,
+
+    /* --- SEMANTIC / SYMBOL --- */
     PARSE_SEMANTIC_STEP,
     PARSE_ENTER_SCOPE,
     PARSE_CREATE_SCOPE,
@@ -22,6 +28,7 @@ typedef enum {
     PARSE_CREATE_AST_NODE
 } StepType;
 
+
 typedef struct ReadToken {
     const char* tokenName;
     const char* value;
@@ -29,7 +36,19 @@ typedef struct ReadToken {
     int char_no;
 } ReadToken;
 
+typedef struct ParseShift {
+    const char* token;
+    int from_state;
+    int to_state;
+} ParseShift;
+
+typedef struct ParseStackSnapshot {
+    int* states;
+    int size;
+} ParseStackSnapshot;
+
 typedef struct ReduceRule {
+    int ruleNo;
     int ruleId;
     int subRuleId;
     const char* rule;
@@ -84,6 +103,12 @@ typedef struct Step {
         ReadToken readToken;
         ReduceRule reduceRule;
         SemanticStep SemanticStep;
+
+        /* Parser (LR) */
+        ParseShift ParseShift;
+        ParseStackSnapshot ParseStackSnapshot;
+
+        /* Scope / symbols */
         EnterScope EnterScope;
         CreateScope CreateScope;
         ExitScope ExitScope;
@@ -92,6 +117,7 @@ typedef struct Step {
         CreateASTNode CreateASTNode;
     };
 } Step;
+
 
 // Functions
 void init_logger();

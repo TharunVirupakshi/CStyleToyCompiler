@@ -1,7 +1,7 @@
 %{
     #include "symTable.h"
     #include "ast.h"
-    #include "y.tab.h"
+    #include "parser.tab.h"
     #include "logger.h"
 
     #define COUNT() (cur_char+=yyleng)

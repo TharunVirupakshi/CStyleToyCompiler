@@ -63,7 +63,8 @@ void log_step(Step step) {
         case PARSE_REDUCE_RULE:
             fprintf(
                 log_file,
-                "    { \"type\": \"PARSE_REDUCE_RULE\", \"data\": {\"ruleId\": \"%d\", \"subRuleId\": \"%d\", \"rule\": \"%s\" }},\n",
+                "    { \"type\": \"PARSE_REDUCE_RULE\", \"data\": {\"ruleNo\": \"%d\", \"ruleId\": \"%d\", \"subRuleId\": \"%d\", \"rule\": \"%s\" }},\n",
+                step.reduceRule.ruleNo,
                 step.reduceRule.ruleId,
                 step.reduceRule.subRuleId,
                 step.reduceRule.rule
@@ -141,6 +142,30 @@ void log_step(Step step) {
                 step.CreateASTNode.node_id
             ); 
             break;
+        case PARSE_STACK_SNAPSHOT: {
+            fprintf(
+                log_file,
+                "    { \"type\": \"PARSE_STACK_SNAPSHOT\", \"data\": { \"states\": ["
+            );
+
+            for (int i = 0; i < step.ParseStackSnapshot.size; i++) {
+                fprintf(
+                    log_file,
+                    "%d%s",
+                    step.ParseStackSnapshot.states[i],
+                    (i + 1 < step.ParseStackSnapshot.size) ? ", " : ""
+                );
+            }
+
+            fprintf(
+                log_file,
+                "], \"size\": \"%d\" }},\n",
+                step.ParseStackSnapshot.size
+            );
+            
+            break;
+        }
+
         default:
             fprintf(log_file, "    { \"type\": \"UNKNOWN\" },\n");
             break;

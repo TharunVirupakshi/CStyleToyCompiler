@@ -1,8 +1,13 @@
 y.tab.c
 y.tab.h
+parser.tab.c
+parser.tab.h
+parser.output
+y.output
 lex.yy.c
 a.out
 .vscode
 AST_Vis
+States
 Inputs
 Logs
