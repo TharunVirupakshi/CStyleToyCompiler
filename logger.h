@@ -49,14 +49,11 @@ typedef struct ParseStackSnapshot {
 
 typedef struct ReduceRule {
     int ruleNo;
-    int ruleId;
-    int subRuleId;
     const char* rule;
 } ReduceRule;
 
 typedef struct SemanticStep {
-    int ruleId;
-    int subRuleId;
+    int ruleNo;
     int stepNo;
     const char* instr;
 } SemanticStep;

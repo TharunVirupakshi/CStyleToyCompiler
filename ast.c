@@ -1021,7 +1021,7 @@ void exportASTNodeAsJSON(FILE *file, ASTNode *node, int parentID, int *edgeBuffe
 }
 
 // Function to create directory if it doesn't exist
-int createDirectory(const char *folderPath){
+static int createDirectory(const char *folderPath){
     #ifdef _WIN32
     if (_mkdir(folderPath) == -1) {
     #else

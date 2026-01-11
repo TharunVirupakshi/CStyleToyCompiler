@@ -63,10 +63,8 @@ void log_step(Step step) {
         case PARSE_REDUCE_RULE:
             fprintf(
                 log_file,
-                "    { \"type\": \"PARSE_REDUCE_RULE\", \"data\": {\"ruleNo\": \"%d\", \"ruleId\": \"%d\", \"subRuleId\": \"%d\", \"rule\": \"%s\" }},\n",
+                "    { \"type\": \"PARSE_REDUCE_RULE\", \"data\": {\"ruleNo\": \"%d\", \"rule\": \"%s\" }},\n",
                 step.reduceRule.ruleNo,
-                step.reduceRule.ruleId,
-                step.reduceRule.subRuleId,
                 step.reduceRule.rule
             );
             break;
@@ -74,9 +72,8 @@ void log_step(Step step) {
         case PARSE_SEMANTIC_STEP:
             fprintf(
                 log_file,
-                "    { \"type\": \"PARSE_SEMANTIC_STEP\", \"data\": {\"ruleId\": \"%d\", \"subRuleId\": \"%d\", \"stepNo\": \"%d\", \"instr\": \"%s\" }},\n",
-                step.SemanticStep.ruleId,
-                step.SemanticStep.subRuleId,
+                "    { \"type\": \"PARSE_SEMANTIC_STEP\", \"data\": {\"ruleNo\": \"%d\", \"stepNo\": \"%d\", \"instr\": \"%s\" }},\n",
+                step.SemanticStep.ruleNo,
                 step.SemanticStep.stepNo,
                 step.SemanticStep.instr
             );
