@@ -68,7 +68,17 @@ void log_step(Step step) {
                 step.reduceRule.rule
             );
             break;
-        
+
+        case PARSE_REDUCE_RULE_COMPLETE:
+            fprintf(
+                log_file,
+                "    { \"type\": \"PARSE_REDUCE_RULE_COMPLETE\", \"data\": {\"ruleNo\": \"%d\", \"lhs\": \"%s\", \"rhsLength\": \"%d\" }},\n",
+                step.ReduceRuleComplete.ruleNo,
+                step.ReduceRuleComplete.lhs,
+                step.ReduceRuleComplete.rhsLength
+            );
+            break; 
+
         case PARSE_SEMANTIC_STEP:
             fprintf(
                 log_file,
@@ -138,6 +148,13 @@ void log_step(Step step) {
                 "    { \"type\": \"PARSE_CREATE_AST_NODE\", \"data\": {\"node_id\": \"%d\"}},\n",
                 step.CreateASTNode.node_id
             ); 
+            break;
+        case PARSE_ENTERING_STATE: 
+            fprintf(
+                log_file,
+                "    { \"type\": \"PARSE_ENTERING_STATE\", \"data\": {\"state\": \"%d\"}},\n",
+                step.ParseEnteringState.state
+            );
             break;
         case PARSE_STACK_SNAPSHOT: {
             fprintf(

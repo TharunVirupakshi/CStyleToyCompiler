@@ -16,7 +16,10 @@ typedef enum {
     /* --- PARSER (LR) --- */
     PARSE_SHIFT,
     PARSE_REDUCE_RULE,
+    PARSE_REDUCE_RULE_COMPLETE,
+    PARSE_ENTERING_STATE,
     PARSE_STACK_SNAPSHOT,
+    PARSE_LOOKAHEAD_TOKEN,
 
     /* --- SEMANTIC / SYMBOL --- */
     PARSE_SEMANTIC_STEP,
@@ -47,10 +50,20 @@ typedef struct ParseStackSnapshot {
     int size;
 } ParseStackSnapshot;
 
+typedef struct ParseEnteringState {
+    int state;
+} ParseEnteringState;
+
 typedef struct ReduceRule {
     int ruleNo;
     const char* rule;
 } ReduceRule;
+
+typedef struct ReduceRuleComplete {
+    int ruleNo;
+    const char* lhs;
+    int rhsLength;
+} ReduceRuleComplete;
 
 typedef struct SemanticStep {
     int ruleNo;
@@ -99,10 +112,12 @@ typedef struct Step {
     union {
         ReadToken readToken;
         ReduceRule reduceRule;
+        ReduceRuleComplete ReduceRuleComplete;
         SemanticStep SemanticStep;
 
         /* Parser (LR) */
         ParseShift ParseShift;
+        ParseEnteringState ParseEnteringState;
         ParseStackSnapshot ParseStackSnapshot;
 
         /* Scope / symbols */
