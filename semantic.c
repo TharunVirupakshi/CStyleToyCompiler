@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <assert.h>
+#include "logger.h"
 
 #define TYPE_VOID "void"
 #define TYPE_INT "int"
@@ -12,6 +13,8 @@
 #define TYPE_UNKNOWN "unknown"
 
 bool isDebugOn = false;
+static const char* currentSemanticPass = NULL;
+static int semanticTotalErrors = 0;
 void setSemanticDebugger(){
     isDebugOn = true;
 } 
@@ -42,6 +45,96 @@ OpType getOpType(const char* op) {
 }
 
 void printErrors();
+extern int errorCount;
+
+static void logSemanticPassStatus(const char* pass, const char* status, const char* message) {
+    Step step;
+    step.type = SEMANTIC_PASS_STATUS;
+    step.SemanticPassStatus.pass = pass;
+    step.SemanticPassStatus.status = status;
+    step.SemanticPassStatus.message = message;
+    log_step(step);
+}
+
+static void logSemanticSymbolHighlight(
+    int scope_id,
+    const char* symbol_name,
+    const char* reason,
+    const char* old_type,
+    const char* new_type,
+    int line_no,
+    int char_no,
+    int has_location
+) {
+    Step step;
+    step.type = SEMANTIC_SYMBOL_HIGHLIGHT;
+    step.SemanticSymbolHighlight.scope_id = scope_id;
+    step.SemanticSymbolHighlight.symbol_name = symbol_name;
+    step.SemanticSymbolHighlight.reason = reason;
+    step.SemanticSymbolHighlight.old_type = old_type;
+    step.SemanticSymbolHighlight.new_type = new_type;
+    step.SemanticSymbolHighlight.line_no = line_no;
+    step.SemanticSymbolHighlight.char_no = char_no;
+    step.SemanticSymbolHighlight.has_location = has_location;
+    log_step(step);
+}
+
+static void logSemanticNodeHighlight(ASTNode* node, const char* action, const char* message) {
+    if (!node || !currentSemanticPass) return;
+
+    Step step;
+    step.type = SEMANTIC_NODE_HIGHLIGHT;
+    step.SemanticNodeHighlight.pass = currentSemanticPass;
+    step.SemanticNodeHighlight.node_id = node->node_id;
+    step.SemanticNodeHighlight.node_type = getNodeName(node->type);
+    step.SemanticNodeHighlight.line_no = node->line_no;
+    step.SemanticNodeHighlight.char_no = node->char_no;
+    step.SemanticNodeHighlight.action = action;
+    step.SemanticNodeHighlight.message = message;
+    log_step(step);
+}
+
+typedef struct {
+    const char* pass;
+} SemanticTraversalLogContext;
+
+static void semanticTraversalLogger(ASTNode* node, void* ctx) {
+    SemanticTraversalLogContext* traversalCtx = (SemanticTraversalLogContext*)ctx;
+    if (!node || !traversalCtx || !traversalCtx->pass) return;
+
+    Step step;
+    step.type = SEMANTIC_NODE_HIGHLIGHT;
+    step.SemanticNodeHighlight.pass = traversalCtx->pass;
+    step.SemanticNodeHighlight.node_id = node->node_id;
+    step.SemanticNodeHighlight.node_type = getNodeName(node->type);
+    step.SemanticNodeHighlight.line_no = node->line_no;
+    step.SemanticNodeHighlight.char_no = node->char_no;
+    step.SemanticNodeHighlight.action = "VISIT";
+    step.SemanticNodeHighlight.message = NULL;
+    log_step(step);
+}
+
+static void logSemanticError(const char* message, int line_no, int char_no, ASTNode* node, const char* scope_id, const char* symbol_name) {
+    Step step;
+    char nodeIdBuf[32];
+    step.type = SEMANTIC_ERROR_LOG;
+    step.SemanticErrorLog.pass = currentSemanticPass ? currentSemanticPass : "";
+    step.SemanticErrorLog.message = message;
+    step.SemanticErrorLog.line_no = line_no;
+    step.SemanticErrorLog.char_no = char_no;
+    if (node) {
+        snprintf(nodeIdBuf, sizeof(nodeIdBuf), "%d", node->node_id);
+        step.SemanticErrorLog.node_id = strdup(nodeIdBuf);
+    } else {
+        step.SemanticErrorLog.node_id = NULL;
+    }
+    step.SemanticErrorLog.scope_id = scope_id;
+    step.SemanticErrorLog.symbol_name = symbol_name;
+    log_step(step);
+    if (step.SemanticErrorLog.node_id) {
+        free((char*)step.SemanticErrorLog.node_id);
+    }
+}
 
 // Error structure
 typedef struct Error {
@@ -56,56 +149,7 @@ extern bool isSemanticError;
 Error* errorList = NULL;
 int errorCount = 0;
 
-
-const char* inferAndValidateType(ASTNode* node); 
-// const char* getNodeTypeName(ASTNode* node);
-
-// Main function
-SemanticStatus performSemanticAnalysis(ASTNode* root, SymbolTable* globalTable, BrkCntStmtsList* list) {
-    if (!root) return SEMANTIC_ERROR;
-
-    if (isDebugOn) printf("------Checking for duplicates....\n");
-    checkDuplicates(globalTable);
-    if (isDebugOn) printf("------Checking for duplicates COMPLETED!\n\n");
-    if (isDebugOn) printf("------Validating Symbol Usage....\n");
-    validateSymbolUsage(root);
-    if (isDebugOn) printf("------Validating Symbol Usage COMPLETED!\n\n");
-    if (isDebugOn) printf("------Validating Loops....\n");
-    validateLoops(root, list);
-    if (isDebugOn) printf("------Validating Loops COMPLETED!....\n\n");
-
-    if(errorCount > 0){
-        printErrors();
-        errorCount = 0;
-        return SEMANTIC_ERROR;
-    }
-
-    if (isDebugOn) printf("------Validating Types....\n");
-    validateTypes(root);
-    if (isDebugOn) printf("------Validating Types COMPLETED!....\n\n");
-
-    if(errorCount > 0){
-        printErrors();
-        errorCount = 0;
-        return SEMANTIC_ERROR;
-    }
-    if (isDebugOn) printf("------Validating Function Return Types....\n");
-    validateFunctionReturnTypes(root);
-    if (isDebugOn) printf("------Validating Function Return Types COMPLETED!!\n\n");
-    if(errorCount > 0){
-        printErrors();
-        errorCount = 0;
-        return SEMANTIC_ERROR;
-    }
-
-    return SEMANTIC_SUCCESS;
-}
-
-
-
-
-// Add an error to the list
-void addError(const char* message, int line, int char_no) {
+static void appendErrorRecord(const char* message, int line, int char_no) {
     errorList = realloc(errorList, (errorCount + 1) * sizeof(Error));
     if (!errorList) {
         fprintf(stderr, "Memory allocation failed for error list\n");
@@ -115,6 +159,102 @@ void addError(const char* message, int line, int char_no) {
     errorList[errorCount].line = line;
     errorList[errorCount].char_no = char_no;
     errorCount++;
+    semanticTotalErrors++;
+}
+
+static void addErrorWithContext(
+    const char* message,
+    int line,
+    int char_no,
+    ASTNode* node,
+    const char* scope_id,
+    const char* symbol_name
+) {
+    if (node) {
+        logSemanticNodeHighlight(node, "ERROR", message);
+    }
+    logSemanticError(message, line, char_no, node, scope_id, symbol_name);
+    appendErrorRecord(message, line, char_no);
+}
+
+
+const char* inferAndValidateType(ASTNode* node); 
+// const char* getNodeTypeName(ASTNode* node);
+
+// Main function
+SemanticStatus performSemanticAnalysis(ASTNode* root, SymbolTable* globalTable, BrkCntStmtsList* list) {
+    if (!root) return SEMANTIC_ERROR;
+    semanticTotalErrors = 0;
+    errorCount = 0;
+
+    currentSemanticPass = "checkDuplicates";
+    logSemanticPassStatus(currentSemanticPass, "START", "VALIDATING DUPLICATE SYMBOLS");
+    if (isDebugOn) printf("------Checking for duplicates....\n");
+    checkDuplicates(globalTable);
+    if (isDebugOn) printf("------Checking for duplicates COMPLETED!\n\n");
+    logSemanticPassStatus(currentSemanticPass, "COMPLETE", "DUPLICATE SYMBOL VALIDATION COMPLETE");
+
+    currentSemanticPass = "validateSymbolUsage";
+    logSemanticPassStatus(currentSemanticPass, "START", "VALIDATING SYMBOL USAGE");
+    if (isDebugOn) printf("------Validating Symbol Usage....\n");
+    validateSymbolUsage(root);
+    if (isDebugOn) printf("------Validating Symbol Usage COMPLETED!\n\n");
+    logSemanticPassStatus(currentSemanticPass, "COMPLETE", "SYMBOL USAGE VALIDATION COMPLETE");
+
+    currentSemanticPass = "validateLoops";
+    logSemanticPassStatus(currentSemanticPass, "START", "VALIDATING LOOPS");
+    if (isDebugOn) printf("------Validating Loops....\n");
+    validateLoops(root, list);
+    if (isDebugOn) printf("------Validating Loops COMPLETED!....\n\n");
+    logSemanticPassStatus(currentSemanticPass, "COMPLETE", "LOOP VALIDATION COMPLETE");
+
+    if(errorCount > 0){
+        printErrors();
+        errorCount = 0;
+        currentSemanticPass = NULL;
+        return SEMANTIC_ERROR;
+    }
+
+    currentSemanticPass = "validateTypes";
+    logSemanticPassStatus(currentSemanticPass, "START", "VALIDATING TYPES");
+    if (isDebugOn) printf("------Validating Types....\n");
+    validateTypes(root);
+    if (isDebugOn) printf("------Validating Types COMPLETED!....\n\n");
+    logSemanticPassStatus(currentSemanticPass, "COMPLETE", "TYPE VALIDATION COMPLETE");
+
+    if(errorCount > 0){
+        printErrors();
+        errorCount = 0;
+        currentSemanticPass = NULL;
+        return SEMANTIC_ERROR;
+    }
+    currentSemanticPass = "validateFunctionReturnTypes";
+    logSemanticPassStatus(currentSemanticPass, "START", "VALIDATING FUNCTION RETURN TYPES");
+    if (isDebugOn) printf("------Validating Function Return Types....\n");
+    validateFunctionReturnTypes(root);
+    if (isDebugOn) printf("------Validating Function Return Types COMPLETED!!\n\n");
+    logSemanticPassStatus(currentSemanticPass, "COMPLETE", "FUNCTION RETURN TYPE VALIDATION COMPLETE");
+    if(errorCount > 0){
+        printErrors();
+        errorCount = 0;
+        currentSemanticPass = NULL;
+        return SEMANTIC_ERROR;
+    }
+
+    currentSemanticPass = NULL;
+    return SEMANTIC_SUCCESS;
+}
+
+int getSemanticTotalErrors() {
+    return semanticTotalErrors;
+}
+
+
+
+
+// Add an error to the list
+void addError(const char* message, int line, int char_no) {
+    addErrorWithContext(message, line, char_no, NULL, NULL, NULL);
 }
 
 // Function to print all stored errors
@@ -142,11 +282,30 @@ void checkDuplicates(SymbolTable* table) {
             if (strcmp(table->symbols[i]->name, table->symbols[j]->name) == 0) {
                 table->symbols[j]->is_duplicate = 1;
                 char errorMsg[256];
+                char scopeIdBuf[32];
                 snprintf(errorMsg, sizeof(errorMsg), "Duplicate declaration of '%s' (previously declared at line %d, char %d)",
                     table->symbols[j]->name,
                     table->symbols[i]->line_no,
                     table->symbols[i]->char_no);
-                addError(errorMsg, table->symbols[j]->line_no, table->symbols[j]->char_no);
+                snprintf(scopeIdBuf, sizeof(scopeIdBuf), "%d", table->table_id);
+                logSemanticSymbolHighlight(
+                    table->table_id,
+                    table->symbols[j]->name,
+                    "DUPLICATE",
+                    NULL,
+                    NULL,
+                    table->symbols[j]->line_no,
+                    table->symbols[j]->char_no,
+                    1
+                );
+                addErrorWithContext(
+                    errorMsg,
+                    table->symbols[j]->line_no,
+                    table->symbols[j]->char_no,
+                    NULL,
+                    scopeIdBuf,
+                    table->symbols[j]->name
+                );
             }
         }
     }
@@ -173,7 +332,7 @@ int validateSymbolUsageCallback(ASTNode* root, void* cxt){
         if (!foundSymbol) {
             char errorMsg[256];
             snprintf(errorMsg, sizeof(errorMsg), "Undeclared variable '%s'", varName);
-            addError(errorMsg, root->line_no, root->char_no);  // Adding error with line and char info
+            addErrorWithContext(errorMsg, root->line_no, root->char_no, root, NULL, varName);  // Adding error with line and char info
             root->id_ref_data.ref = NULL; 
             assert(root->id_ref_data.ref == NULL);
             return 0;
@@ -188,8 +347,8 @@ int validateSymbolUsageCallback(ASTNode* root, void* cxt){
 }
 
 void validateSymbolUsage(ASTNode* root){
-
-    traverseAST(root, validateSymbolUsageCallback, NULL);
+    SemanticTraversalLogContext traversalCtx = { .pass = currentSemanticPass };
+    traverseAST(root, validateSymbolUsageCallback, NULL, semanticTraversalLogger, &traversalCtx);
     // Traverse the children
     // Traverse each type of node according to the specific structure
     // switch (root->type) {
@@ -372,7 +531,7 @@ void validateFunctionCallArgs(ASTNode* func_call_node) {
          if(!func_symbol) printf("Func sym not found!\n");
     }
     if (!func_symbol || !func_symbol->is_function) {
-        addError("Called identifier is not a function", func_call_node->line_no, func_call_node->char_no);
+        addErrorWithContext("Called identifier is not a function", func_call_node->line_no, func_call_node->char_no, func_call_node, NULL, NULL);
         return;
     }
 
@@ -386,7 +545,7 @@ void validateFunctionCallArgs(ASTNode* func_call_node) {
         snprintf(errorMsg, sizeof(errorMsg),
                  "Argument count mismatch for function '%s': expected %d, got %d",
                  func_symbol->name, expected_count, func_call_node->func_call_data.arg_count);
-        addError(errorMsg, func_call_node->line_no, func_call_node->char_no);
+        addErrorWithContext(errorMsg, func_call_node->line_no, func_call_node->char_no, func_call_node, NULL, func_symbol->name);
         return;
     }
 
@@ -399,7 +558,7 @@ void validateFunctionCallArgs(ASTNode* func_call_node) {
     while (arg_node && param_node) {
 
         if (arg_node->arg_list_data.arg == NULL || arg_node->arg_list_data.arg->arg_data.arg == NULL) {
-            addError("Invalid argument node structure", arg_node->line_no, arg_node->char_no);
+            addErrorWithContext("Invalid argument node structure", arg_node->line_no, arg_node->char_no, arg_node, NULL, NULL);
             return;
         }
 
@@ -421,7 +580,7 @@ void validateFunctionCallArgs(ASTNode* func_call_node) {
                 snprintf(errorMsg, sizeof(errorMsg),
                         "Type mismatch in argument %d for function '%s': expected (%s), got (%s)",
                         arg_index + 1, func_symbol->name, expected_type, arg_type);
-                addError(errorMsg, arg_node->arg_list_data.arg->line_no, arg_node->arg_list_data.arg->char_no);
+                addErrorWithContext(errorMsg, arg_node->arg_list_data.arg->line_no, arg_node->arg_list_data.arg->char_no, arg_node->arg_list_data.arg, NULL, func_symbol->name);
             }
         }
 
@@ -451,7 +610,7 @@ const char* inferAndValidateType(ASTNode* node) {
             if(!type){
                 char errorMsg[256]; 
                 snprintf(errorMsg, sizeof(errorMsg),"Type of '%s' is NULL", node->id_data.sym->name);
-                addError(errorMsg, node->line_no, node->char_no);
+                addErrorWithContext(errorMsg, node->line_no, node->char_no, node, NULL, node->id_data.sym->name);
             } 
             node->inferedType = type;
             break;
@@ -470,7 +629,7 @@ const char* inferAndValidateType(ASTNode* node) {
             if(!type){
                 char errorMsg[256]; 
                 snprintf(errorMsg, sizeof(errorMsg),"Type of '%s' is NULL", node->id_ref_data.name);
-                addError(errorMsg, node->line_no, node->char_no);
+                addErrorWithContext(errorMsg, node->line_no, node->char_no, node, NULL, node->id_ref_data.name);
                 return NULL;
             } 
             node->inferedType = type;            
@@ -532,7 +691,7 @@ const char* inferAndValidateType(ASTNode* node) {
                 if (!type) {
                     char errorMsg[256]; 
                     snprintf(errorMsg, sizeof(errorMsg), "Type mismatch in assignment: cannot assign (%s) to (%s)", rightType, leftType);
-                    addError(errorMsg, node->line_no, node->char_no);
+                    addErrorWithContext(errorMsg, node->line_no, node->char_no, node, NULL, NULL);
                 }
 
                 node->inferedType = leftType; // required type
@@ -553,7 +712,7 @@ const char* inferAndValidateType(ASTNode* node) {
                 if(!type){
                     char errorMsg[256]; 
                     snprintf(errorMsg, sizeof(errorMsg), "Type mismatch in assignment: cannot assign (%s) to (%s)", rightType, leftType);
-                    addError(errorMsg, node->line_no, node->char_no);
+                    addErrorWithContext(errorMsg, node->line_no, node->char_no, node, NULL, NULL);
                     break;
                 }
 
@@ -581,7 +740,7 @@ const char* inferAndValidateType(ASTNode* node) {
                             snprintf(errorMsg, sizeof(errorMsg), 
                                     "Type mismatch: cannot apply operator (%s) to (%s) and (%s)", node->expr_data.op,
                                     leftType, rightType);
-                            addError(errorMsg, node->line_no, node->char_no);
+                            addErrorWithContext(errorMsg, node->line_no, node->char_no, node, NULL, NULL);
                         }else{
                             type = TYPE_INT;
                             node->inferedType = type;
@@ -594,7 +753,7 @@ const char* inferAndValidateType(ASTNode* node) {
                         snprintf(errorMsg, sizeof(errorMsg), 
                                 "Type mismatch: cannot apply operator (%s) to (%s) and (%s)", node->expr_data.op,
                                 leftType, rightType);
-                        addError(errorMsg, node->line_no, node->char_no); 
+                        addErrorWithContext(errorMsg, node->line_no, node->char_no, node, NULL, NULL); 
                         type = NULL;
                     }
                     else{
@@ -609,7 +768,7 @@ const char* inferAndValidateType(ASTNode* node) {
                         snprintf(errorMsg, sizeof(errorMsg), 
                                 "Type mismatch: cannot apply operator (%s) to (%s) and (%s)", node->expr_data.op,
                                 leftType, rightType);
-                        addError(errorMsg, node->line_no, node->char_no);
+                        addErrorWithContext(errorMsg, node->line_no, node->char_no, node, NULL, NULL);
                     }
                     node->inferedType = type; 
                     break;
@@ -642,7 +801,7 @@ const char* inferAndValidateType(ASTNode* node) {
                     if( nType != NODE_ID_REF || strcmp(type, TYPE_STRING) == 0){
                         char errorMsg[256];
                         snprintf(errorMsg, sizeof(errorMsg), "Type mismatch: cannot apply operator (%s) to (%s)", node->expr_data.op, type);
-                        addError(errorMsg, node->line_no, node->char_no);
+                        addErrorWithContext(errorMsg, node->line_no, node->char_no, node, NULL, NULL);
                     }else{
                         type = TYPE_INT;
                         node->inferedType = TYPE_INT;
@@ -655,7 +814,7 @@ const char* inferAndValidateType(ASTNode* node) {
                     if(strcmp(op, "-") == 0 && strcmp(type, TYPE_STRING) == 0){
                         char errorMsg[256];
                         snprintf(errorMsg, sizeof(errorMsg), "Type mismatch: cannot apply operator (%s) to (%s)", node->expr_data.op, type);
-                        addError(errorMsg, node->line_no, node->char_no); 
+                        addErrorWithContext(errorMsg, node->line_no, node->char_no, node, NULL, NULL); 
                     }else{
                         type = TYPE_INT;
                         node->inferedType = TYPE_INT;
@@ -702,6 +861,19 @@ int validateTypesCallback(ASTNode* node, void* context) {
             if(!node->var_data.value) return 0;
 
             const char* type = inferAndValidateType(node);
+            if (node->var_data.id && node->var_data.id->type == NODE_ID && node->var_data.id->id_data.sym) {
+                symbol* sym = node->var_data.id->id_data.sym;
+                logSemanticSymbolHighlight(
+                    sym->scope ? sym->scope->table_id : 0,
+                    sym->name,
+                    "TYPE_UPDATE",
+                    sym->type,
+                    type ? type : sym->type,
+                    sym->line_no,
+                    sym->char_no,
+                    1
+                );
+            }
             return 0; // STOP TRAVERSAL
         }
 
@@ -749,7 +921,8 @@ int validateTypesCallback(ASTNode* node, void* context) {
 
 // The main validateTypes function that calls traverseAST with the callback
 void validateTypes(ASTNode* root) {
-    traverseAST(root, validateTypesCallback, NULL);
+    SemanticTraversalLogContext traversalCtx = { .pass = currentSemanticPass };
+    traverseAST(root, validateTypesCallback, NULL, semanticTraversalLogger, &traversalCtx);
 }
 
 
@@ -773,16 +946,19 @@ int validateBreakContinueStmtsCallback(ASTNode* node, void* ctx){
 
 int validateLoopsCallback(ASTNode* node, void* context){
     if(node->type == NODE_WHILE){
-        traverseAST(node->while_data.while_body->while_body_data.body, validateBreakContinueStmtsCallback, node);
+        SemanticTraversalLogContext* traversalCtx = (SemanticTraversalLogContext*)context;
+        traverseAST(node->while_data.while_body->while_body_data.body, validateBreakContinueStmtsCallback, node, semanticTraversalLogger, traversalCtx);
     }else if(node->type == NODE_FOR){
-        traverseAST(node->for_data.body->for_body_data.body, validateBreakContinueStmtsCallback, node);
+        SemanticTraversalLogContext* traversalCtx = (SemanticTraversalLogContext*)context;
+        traverseAST(node->for_data.body->for_body_data.body, validateBreakContinueStmtsCallback, node, semanticTraversalLogger, traversalCtx);
     }
 
     return 1;
 }
 
 void validateLoops(ASTNode* node, BrkCntStmtsList* list){
-    traverseAST(node, validateLoopsCallback, NULL);
+    SemanticTraversalLogContext traversalCtx = { .pass = currentSemanticPass };
+    traverseAST(node, validateLoopsCallback, &traversalCtx, semanticTraversalLogger, &traversalCtx);
 
     // Check for invalid/unassigned break/continue stmts
     BrkCntStmtsList* temp = list;
@@ -792,7 +968,7 @@ void validateLoops(ASTNode* node, BrkCntStmtsList* list){
                 char errorMsg[256];
                 char* type = temp->node->type == NODE_BREAK_STMT ? "break" : temp->node->type == NODE_CONTINUE_STMT ? "continue" : " ";
                 snprintf(errorMsg, sizeof(errorMsg), "\"%s\" must be within loop body", type);
-                addError(errorMsg, node->line_no, node->char_no); 
+                addErrorWithContext(errorMsg, temp->node->line_no, temp->node->char_no, temp->node, NULL, NULL); 
             }
         }
         temp = temp->next;
@@ -823,7 +999,7 @@ int validateReturnStmtsCallback(ASTNode* node, void* ctx){
             snprintf(errorMsg, sizeof(errorMsg),
                      "Return type mismatch: expected (%s), got (%s) for '%s()'",
                      expected_type, ret_type, val_ctx->func_decl_node->func_decl_data.id->id_data.sym->name);
-            addError(errorMsg, node->line_no, node->char_no);
+            addErrorWithContext(errorMsg, node->line_no, node->char_no, node, NULL, NULL);
             
         }
 
@@ -852,13 +1028,14 @@ int validateFuncRetTypesCallback(ASTNode* node, void* context){
         snprintf(errorMsg, sizeof(errorMsg),
                 "Type of '%s' is NULL",
                 node->func_decl_data.id->id_data.sym->name);
-        addError(errorMsg, node->line_no, node->char_no); 
+        addErrorWithContext(errorMsg, node->line_no, node->char_no, node, NULL, node->func_decl_data.id->id_data.sym->name); 
 
         return 1;
     }
 
     // Traverse only the function body to find return statements
-    traverseAST(node->func_decl_data.body, validateReturnStmtsCallback, &ret_ctx);
+    SemanticTraversalLogContext traversalCtx = { .pass = currentSemanticPass };
+    traverseAST(node->func_decl_data.body, validateReturnStmtsCallback, &ret_ctx, semanticTraversalLogger, &traversalCtx);
 
     // Non-void functions must have return stmts
     // if(!(ret_ctx.ret_found) && strcmp(ret_ctx.expected_type, TYPE_VOID) != 0 ){
@@ -872,6 +1049,6 @@ int validateFuncRetTypesCallback(ASTNode* node, void* context){
     return 1; // Look for other func declarations
 }
 void validateFunctionReturnTypes(ASTNode* root){
-    traverseAST(root, validateFuncRetTypesCallback, NULL);
+    SemanticTraversalLogContext traversalCtx = { .pass = currentSemanticPass };
+    traverseAST(root, validateFuncRetTypesCallback, NULL, semanticTraversalLogger, &traversalCtx);
 }
-

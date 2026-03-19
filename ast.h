@@ -290,7 +290,8 @@ void freeAST(ASTNode* node);
 void exportASTAsJSON(const char *folderPath, ASTNode *root);
 
 typedef int (*ASTTraversalCallback)(ASTNode* node, void* context);
-void traverseAST(ASTNode* node, ASTTraversalCallback callback, void* context);
+typedef void (*ASTTraversalVisitHook)(ASTNode* node, void* context);
+void traverseAST(ASTNode* node, ASTTraversalCallback callback, void* context, ASTTraversalVisitHook visit_hook, void* visit_context);
 const char* getDataTypeFromAST(ASTNode* node);
 
 #endif // AST_H

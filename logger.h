@@ -28,7 +28,14 @@ typedef enum {
     PARSE_EXIT_SCOPE,
     PARSE_ADD_SYM,
     PARSE_ASSGN_SYM_TYPE,
-    PARSE_CREATE_AST_NODE
+    PARSE_CREATE_AST_NODE,
+
+    /* --- SEMANTIC LOGGING --- */
+    SEMANTIC_PASS_STATUS,
+    SEMANTIC_SYMBOL_HIGHLIGHT,
+    SEMANTIC_NODE_HIGHLIGHT,
+    SEMANTIC_ERROR_LOG,
+    SEMANTIC_ANALYSIS_COMPLETE
 } StepType;
 
 
@@ -107,6 +114,48 @@ typedef struct AssignSymType {
     int scope_id;
 } AssignSymType;
 
+typedef struct SemanticPassStatus {
+    const char* pass;
+    const char* status;
+    const char* message;
+} SemanticPassStatus;
+
+typedef struct SemanticSymbolHighlight {
+    int scope_id;
+    const char* symbol_name;
+    const char* reason;
+    const char* old_type;
+    const char* new_type;
+    int line_no;
+    int char_no;
+    int has_location;
+} SemanticSymbolHighlight;
+
+typedef struct SemanticNodeHighlight {
+    const char* pass;
+    int node_id;
+    const char* node_type;
+    int line_no;
+    int char_no;
+    const char* action;
+    const char* message;
+} SemanticNodeHighlight;
+
+typedef struct SemanticErrorLog {
+    const char* pass;
+    const char* message;
+    int line_no;
+    int char_no;
+    const char* node_id;
+    const char* scope_id;
+    const char* symbol_name;
+} SemanticErrorLog;
+
+typedef struct SemanticAnalysisComplete {
+    const char* status;
+    int total_errors;
+} SemanticAnalysisComplete;
+
 typedef struct Step {
     StepType type;
     union {
@@ -127,6 +176,11 @@ typedef struct Step {
         AddSymbol AddSymbol;
         AssignSymType AssignSymType;
         CreateASTNode CreateASTNode;
+        SemanticPassStatus SemanticPassStatus;
+        SemanticSymbolHighlight SemanticSymbolHighlight;
+        SemanticNodeHighlight SemanticNodeHighlight;
+        SemanticErrorLog SemanticErrorLog;
+        SemanticAnalysisComplete SemanticAnalysisComplete;
     };
 } Step;
 

@@ -76,6 +76,14 @@ void log_assgn_sym_type(const char* sym_name, int scope_id, const char* type) {
     log_step(s);
 }
 
+void log_semantic_analysis_complete(const char* status, int total_errors) {
+    Step s;
+    s.type = SEMANTIC_ANALYSIS_COMPLETE;
+    s.SemanticAnalysisComplete.status = status;
+    s.SemanticAnalysisComplete.total_errors = total_errors;
+    log_step(s);
+}
+
 
 /*
  * IMPORTANT:
@@ -1067,7 +1075,13 @@ int main(int argc, char *argv[]){
     end_phase(); // END Phase 1
 
     if (debug_flag || debug_semantic_flag) printf("\n------SEMANTIC ANALYSIS START------\n\n");
+    start_phase(PHASE_SEMANTIC);
     SemanticStatus sem_stat = performSemanticAnalysis(root, symTable, brkCntListHEAD);
+    log_semantic_analysis_complete(
+        sem_stat == SEMANTIC_SUCCESS ? "SUCCESS" : "ERROR",
+        getSemanticTotalErrors()
+    );
+    end_phase();
     if (debug_flag || debug_semantic_flag) printf("\n\n------SEMANTIC ANALYSIS END------\n\n");
 
     if(printAST_flag){

@@ -68,6 +68,8 @@ const char* getNodeName(NodeType type) {
         case NODE_PARAM:         return "PARAM";
         case NODE_EXPR_LIST:     return "EXPR_LIST";
         case NODE_RETURN:        return "RETURN";
+        case NODE_BREAK_STMT:    return "BREAK_STMT";
+        case NODE_CONTINUE_STMT: return "CONTINUE_STMT";
         case NODE_COMMA:         return "COMMA";
         case NODE_EMPTY:         return "EMPTY";
         default:                 return "UNKNOWN_TYPE";
@@ -91,8 +93,12 @@ ASTNode* createASTNode(NodeType type, int line_no, int char_no) {
 }
 
 
-void traverseAST(ASTNode* node, ASTTraversalCallback callback, void* context) {
+void traverseAST(ASTNode* node, ASTTraversalCallback callback, void* context, ASTTraversalVisitHook visit_hook, void* visit_context) {
     if (!node) return;
+
+    if (visit_hook) {
+        visit_hook(node, visit_context);
+    }
 
     // Call the callback function for the current node
     if(callback(node, context) == 0){
@@ -103,11 +109,11 @@ void traverseAST(ASTNode* node, ASTTraversalCallback callback, void* context) {
     // Traverse based on node type
     switch (node->type) {
         case NODE_PROGRAM:
-            traverseAST(node->program_data.stmt_list, callback, context);
+            traverseAST(node->program_data.stmt_list, callback, context, visit_hook, visit_context);
             break;
 
         case NODE_RETURN:
-            traverseAST(node->return_data.return_value, callback, context);
+            traverseAST(node->return_data.return_value, callback, context, visit_hook, visit_context);
             break;
 
         case NODE_INT_LITERAL:
@@ -122,141 +128,141 @@ void traverseAST(ASTNode* node, ASTTraversalCallback callback, void* context) {
             break;
 
         case NODE_STMT_LIST:
-            traverseAST(node->stmt_list_data.stmt_list, callback, context);
-            traverseAST(node->stmt_list_data.stmt, callback, context);
+            traverseAST(node->stmt_list_data.stmt_list, callback, context, visit_hook, visit_context);
+            traverseAST(node->stmt_list_data.stmt, callback, context, visit_hook, visit_context);
             break;
         
         case NODE_STMT:
-            traverseAST(node->stmt_data.stmt, callback, context);
+            traverseAST(node->stmt_data.stmt, callback, context, visit_hook, visit_context);
             break;
 
         case NODE_BLOCK_STMT:
-            traverseAST(node->block_stmt_data.stmt_list, callback, context);
+            traverseAST(node->block_stmt_data.stmt_list, callback, context, visit_hook, visit_context);
             break;
 
         case NODE_DECL:
-            traverseAST(node->decl_data.type_spec, callback, context);
-            traverseAST(node->decl_data.var_list, callback, context);
+            traverseAST(node->decl_data.type_spec, callback, context, visit_hook, visit_context);
+            traverseAST(node->decl_data.var_list, callback, context, visit_hook, visit_context);
             break;
 
         case NODE_VAR_LIST:
-            traverseAST(node->var_list_data.var_list, callback, context);
-            traverseAST(node->var_list_data.var, callback, context);
+            traverseAST(node->var_list_data.var_list, callback, context, visit_hook, visit_context);
+            traverseAST(node->var_list_data.var, callback, context, visit_hook, visit_context);
             break;
 
         case NODE_VAR:
-            traverseAST(node->var_data.id, callback, context);
-            traverseAST(node->var_data.value, callback, context);
+            traverseAST(node->var_data.id, callback, context, visit_hook, visit_context);
+            traverseAST(node->var_data.value, callback, context, visit_hook, visit_context);
             break;
 
         case NODE_ASSGN:
-            traverseAST(node->assgn_data.left, callback, context);
-            traverseAST(node->assgn_data.right, callback, context);
+            traverseAST(node->assgn_data.left, callback, context, visit_hook, visit_context);
+            traverseAST(node->assgn_data.right, callback, context, visit_hook, visit_context);
             break;
 
         case NODE_EXPR_BINARY:
-            traverseAST(node->expr_data.left, callback, context);
-            traverseAST(node->expr_data.right, callback, context);
+            traverseAST(node->expr_data.left, callback, context, visit_hook, visit_context);
+            traverseAST(node->expr_data.right, callback, context, visit_hook, visit_context);
             break;
 
         case NODE_EXPR_UNARY:
-            traverseAST(node->expr_data.left, callback, context);
+            traverseAST(node->expr_data.left, callback, context, visit_hook, visit_context);
             break;
 
         case NODE_EXPR_TERM:
-            traverseAST(node->expr_data.left, callback, context);
+            traverseAST(node->expr_data.left, callback, context, visit_hook, visit_context);
             break;
 
         case NODE_IF:
-            traverseAST(node->if_else_data.condition, callback, context);
-            traverseAST(node->if_else_data.if_branch, callback, context);
+            traverseAST(node->if_else_data.condition, callback, context, visit_hook, visit_context);
+            traverseAST(node->if_else_data.if_branch, callback, context, visit_hook, visit_context);
             break;
 
         case NODE_IF_ELSE:
-            traverseAST(node->if_else_data.condition, callback, context);
-            traverseAST(node->if_else_data.if_branch, callback, context);
-            traverseAST(node->if_else_data.else_branch, callback, context);
+            traverseAST(node->if_else_data.condition, callback, context, visit_hook, visit_context);
+            traverseAST(node->if_else_data.if_branch, callback, context, visit_hook, visit_context);
+            traverseAST(node->if_else_data.else_branch, callback, context, visit_hook, visit_context);
             break;
 
         case NODE_IF_COND:
-            traverseAST(node->if_cond_data.cond, callback, context); 
+            traverseAST(node->if_cond_data.cond, callback, context, visit_hook, visit_context); 
             break;
 
         case NODE_IF_BRANCH:
         case NODE_ELSE_BRANCH:
-            traverseAST(node->if_else_branch.branch, callback, context);;
+            traverseAST(node->if_else_branch.branch, callback, context, visit_hook, visit_context);;
             break;
 
         case NODE_WHILE:
-            traverseAST(node->while_data.condition, callback, context);
-            traverseAST(node->while_data.while_body, callback, context);
+            traverseAST(node->while_data.condition, callback, context, visit_hook, visit_context);
+            traverseAST(node->while_data.while_body, callback, context, visit_hook, visit_context);
             break;
         case NODE_WHILE_COND:   
-            traverseAST(node->while_cond_data.cond, callback, context);
+            traverseAST(node->while_cond_data.cond, callback, context, visit_hook, visit_context);
             break;
 
         case NODE_WHILE_BODY:   
-            traverseAST(node->while_body_data.body, callback, context);
+            traverseAST(node->while_body_data.body, callback, context, visit_hook, visit_context);
             break;            
 
         case NODE_FOR:
-            traverseAST(node->for_data.init, callback, context);
-            traverseAST(node->for_data.condition, callback, context);
-            traverseAST(node->for_data.updation, callback, context);
-            traverseAST(node->for_data.body, callback, context);
+            traverseAST(node->for_data.init, callback, context, visit_hook, visit_context);
+            traverseAST(node->for_data.condition, callback, context, visit_hook, visit_context);
+            traverseAST(node->for_data.updation, callback, context, visit_hook, visit_context);
+            traverseAST(node->for_data.body, callback, context, visit_hook, visit_context);
             break;
 
         case NODE_FOR_INIT:
-            traverseAST(node->for_init_data.init, callback, context);            
+            traverseAST(node->for_init_data.init, callback, context, visit_hook, visit_context);            
             break;
 
         case NODE_FOR_COND:
-            traverseAST(node->for_cond_data.cond, callback, context); 
+            traverseAST(node->for_cond_data.cond, callback, context, visit_hook, visit_context); 
             break;
 
         case NODE_FOR_UPDATION:
-            traverseAST(node->for_updation_data.updation, callback, context); 
+            traverseAST(node->for_updation_data.updation, callback, context, visit_hook, visit_context); 
             break;
 
         case NODE_FOR_BODY:
-            traverseAST(node->for_body_data.body, callback, context); 
-            break;
+            traverseAST(node->for_body_data.body, callback, context, visit_hook, visit_context); 
+            break; 
 
         case NODE_EXPR_COMMA_LIST:
-            traverseAST(node->expr_comma_list_data.expr_comma_list, callback, context);
-            traverseAST(node->expr_comma_list_data.expr_comma_list_item, callback, context);
+            traverseAST(node->expr_comma_list_data.expr_comma_list, callback, context, visit_hook, visit_context);
+            traverseAST(node->expr_comma_list_data.expr_comma_list_item, callback, context, visit_hook, visit_context);
             break;
         case NODE_FUNC_DECL:
-            traverseAST(node->func_decl_data.id, callback, context);
-            traverseAST(node->func_decl_data.params, callback, context);
-            traverseAST(node->func_decl_data.body, callback, context);
+            traverseAST(node->func_decl_data.id, callback, context, visit_hook, visit_context);
+            traverseAST(node->func_decl_data.params, callback, context, visit_hook, visit_context);
+            traverseAST(node->func_decl_data.body, callback, context, visit_hook, visit_context);
             break;
 
         case NODE_FUNC_BODY:
-            traverseAST(node->func_body_data.body, callback, context);
+            traverseAST(node->func_body_data.body, callback, context, visit_hook, visit_context);
             break;
 
         case NODE_FUNC_CALL:
-            traverseAST(node->func_call_data.id, callback, context);
-            traverseAST(node->func_call_data.arg_list, callback, context);
+            traverseAST(node->func_call_data.id, callback, context, visit_hook, visit_context);
+            traverseAST(node->func_call_data.arg_list, callback, context, visit_hook, visit_context);
             break;
 
         case NODE_PARAM_LIST:
-            traverseAST(node->param_list_data.param_list, callback, context);
-            traverseAST(node->param_list_data.param, callback, context);
+            traverseAST(node->param_list_data.param_list, callback, context, visit_hook, visit_context);
+            traverseAST(node->param_list_data.param, callback, context, visit_hook, visit_context);
             break;
 
         case NODE_PARAM:
-            traverseAST(node->param_data.id, callback, context);
+            traverseAST(node->param_data.id, callback, context, visit_hook, visit_context);
             break;
 
         case NODE_ARG_LIST:
-            traverseAST(node->arg_list_data.arg, callback, context);
-            traverseAST(node->arg_list_data.arg_list, callback, context);
+            traverseAST(node->arg_list_data.arg, callback, context, visit_hook, visit_context);
+            traverseAST(node->arg_list_data.arg_list, callback, context, visit_hook, visit_context);
             break;
 
         case NODE_ARG:
-            traverseAST(node->arg_data.arg, callback, context);
+            traverseAST(node->arg_data.arg, callback, context, visit_hook, visit_context);
             break;
 
         default:
@@ -1129,4 +1135,3 @@ void exportASTAsJSON(const char *folderPath, ASTNode *root) {
     fclose(file);
     printf("Exported AST with %d nodes to %s/ast.json\n", nodeCounter, folderPath);
 }
-

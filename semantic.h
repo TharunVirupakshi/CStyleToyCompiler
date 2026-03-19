@@ -34,5 +34,6 @@ void validateTypes(ASTNode* root);
 void validateFunctionReturnTypes(ASTNode* root);
 void setSemanticDebugger();
 OpType getOpType(const char* op);
+int getSemanticTotalErrors();
 
 #endif
