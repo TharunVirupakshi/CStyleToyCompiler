@@ -154,4 +154,3 @@ This project is licensed under the MIT License. See the LICENSE file for details
 ## Acknowledgments
 
 This project is inspired by concepts taught in compiler design courses and the book *Compilers: Principles, Techniques, and Tools* by Alfred V. Aho, Monica S. Lam, Ravi Sethi, and Jeffrey D. Ullman (Dragon Book). It serves as a foundation for understanding the structure and functionality of modern compilers.
-
