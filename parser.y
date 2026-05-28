@@ -1098,6 +1098,22 @@ int main(int argc, char *argv[]){
             parseErrorChar
         );
         end_phase(); // END Phase 1
+
+        if(printAST_flag){
+            printAST(root, 0, false);
+            printf("\n\n");
+        } 
+
+        if(printSymTable_flag){
+            printf("\n\n");
+            printSymbolTable(symTable);
+        }  
+
+        // If --export-ast option is provided, export the AST as JSON
+        if (exportAST_flag) {
+            exportASTAsJSON(folderPathForAST_Vis, root);
+        }
+
         close_logger();
         freeAST(root);
         freeSymbolTable(symTable);
