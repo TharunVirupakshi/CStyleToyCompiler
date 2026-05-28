@@ -19,6 +19,10 @@
 
 bool isSemanticError = false;
 bool isParserDebuggerOn = false;
+bool hasParseError = false;
+char parseErrorMessage[256] = {0};
+int parseErrorLine = 0;
+int parseErrorChar = 0;
 
 // Declare extern to access the variables defined in lexer
 extern int cur_line;
@@ -81,6 +85,15 @@ void log_semantic_analysis_complete(const char* status, int total_errors) {
     s.type = SEMANTIC_ANALYSIS_COMPLETE;
     s.SemanticAnalysisComplete.status = status;
     s.SemanticAnalysisComplete.total_errors = total_errors;
+    log_step(s);
+}
+
+void log_parse_error(const char* message, int line_no, int char_no) {
+    Step s;
+    s.type = PARSE_ERROR;
+    s.ParseError.message = message;
+    s.ParseError.line_no = line_no;
+    s.ParseError.char_no = char_no;
     log_step(s);
 }
 
@@ -1006,7 +1019,12 @@ expr:
 
 void yyerror(const char* s) {
     fprintf(stderr, "Error: %s at line %d, character %d\n", s, cur_line, cur_char);
-    exit(0);
+    if (!hasParseError) {
+        hasParseError = true;
+        snprintf(parseErrorMessage, sizeof(parseErrorMessage), "%s", s ? s : "syntax error");
+        parseErrorLine = cur_line;
+        parseErrorChar = cur_char;
+    }
 }
 
 extern int yydebug;
@@ -1071,7 +1089,21 @@ int main(int argc, char *argv[]){
     symTable = createSymbolTable("global", NULL, 100);
     currentScope = symTable; // Initial current scope
     
-    yyparse();
+    int parse_status = yyparse();
+
+    if (parse_status != 0 || hasParseError) {
+        log_parse_error(
+            parseErrorMessage[0] ? parseErrorMessage : "syntax error",
+            parseErrorLine,
+            parseErrorChar
+        );
+        end_phase(); // END Phase 1
+        close_logger();
+        freeAST(root);
+        freeSymbolTable(symTable);
+        return 1;
+    }
+
     end_phase(); // END Phase 1
 
     if (debug_flag || debug_semantic_flag) printf("\n------SEMANTIC ANALYSIS START------\n\n");

@@ -12,6 +12,8 @@
 
 static FILE* log_file = NULL;
 static PhaseType current_phase;
+static int current_phase_step_count = 0;
+static int written_phase_count = 0;
 const char* folderPath = "Logs";
 const char* filename = "./Logs/compiler_logs.json";
 
@@ -51,6 +53,8 @@ static void write_json_string(FILE* file, const char* value) {
 }
 
 void init_logger() {
+    current_phase_step_count = 0;
+    written_phase_count = 0;
     #ifdef _WIN32
     if (_mkdir(folderPath) == -1) {
     #else
@@ -72,6 +76,7 @@ void init_logger() {
 
 void start_phase(PhaseType phase) {
     current_phase = phase;
+    current_phase_step_count = 0;
     const char* phase_name =
         (phase == PHASE_LEX_PARSE) ? "PHASE_LEX_PARSE" :
         (phase == PHASE_SEMANTIC) ? "PHASE_SEMANTIC" :
@@ -185,6 +190,14 @@ void log_step(Step step) {
             break;
         }
 
+        case PARSE_ERROR:
+            fprintf(log_file, "    { \"type\": \"PARSE_ERROR\", \"data\": {\"message\": ");
+            write_json_string(log_file, step.ParseError.message);
+            fprintf(log_file, ", \"line_no\": \"%d\", \"char_no\": \"%d\" }},\n",
+                step.ParseError.line_no,
+                step.ParseError.char_no);
+            break;
+
         case SEMANTIC_PASS_STATUS:
             fprintf(log_file, "    { \"type\": \"SEMANTIC_PASS_STATUS\", \"data\": {\"pass\": ");
             write_json_string(log_file, step.SemanticPassStatus.pass);
@@ -259,16 +272,23 @@ void log_step(Step step) {
             fprintf(log_file, "    { \"type\": \"UNKNOWN\" },\n");
             break;
     }
+
+    current_phase_step_count++;
 }
 
 
 void end_phase() {
-    fseek(log_file, -2, SEEK_CUR); // remove last comma
+    if (current_phase_step_count > 0) {
+        fseek(log_file, -2, SEEK_CUR); // remove last comma
+    }
     fprintf(log_file, "\n  ]},\n");
+    written_phase_count++;
 }
 
 void close_logger() {
-    fseek(log_file, -2, SEEK_CUR); // remove last comma
+    if (written_phase_count > 0) {
+        fseek(log_file, -2, SEEK_CUR); // remove last comma
+    }
     fprintf(log_file, "\n]}\n");   // JSON end
     fclose(log_file);
 }
