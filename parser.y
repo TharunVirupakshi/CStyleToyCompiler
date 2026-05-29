@@ -1041,6 +1041,7 @@ int main(int argc, char *argv[]){
     int debug_semantic_flag = 0;
     int debug_icg_flag = 0;
     init_logger();
+    initASTRegistry();
 
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--export-ast") == 0) {
@@ -1116,6 +1117,7 @@ int main(int argc, char *argv[]){
 
         close_logger();
         freeAST(root);
+        freeASTRegistry();
         freeSymbolTable(symTable);
         return 1;
     }

@@ -75,7 +75,9 @@ typedef struct ASTNode {
     NodeType type;  // Type of the node (enum to identify node type)
     int node_id;
     int line_no, char_no;
+    int export_id;
     SymbolTable* scope;
+    bool visited; // For traversal purposes
 
     const char* inferedType;
     union {
@@ -282,6 +284,17 @@ typedef struct ASTNode {
 
 } ASTNode;
 
+typedef struct ASTRegistry {
+    ASTNode** nodes;
+    int count;
+    int capacity;
+} ASTRegistry;
+
+extern ASTRegistry astRegistry;
+
+void initASTRegistry(void);
+void registerASTNode(ASTNode* node);
+void freeASTRegistry(void);
 
 // Function prototypes for AST operations
 ASTNode* createASTNode(NodeType, int line_no, int char_no);

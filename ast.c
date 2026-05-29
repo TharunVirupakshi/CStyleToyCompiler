@@ -6,11 +6,40 @@
 #include <stdbool.h>
 #include "logger.h"
 
+ASTRegistry astRegistry;
 extern int cur_line, cur_char;
 
 bool isASTDebugOn = false;
 void setASTDebugger(){
     isASTDebugOn = true;
+}
+
+void initASTRegistry(void) {
+    astRegistry.capacity = 1024;
+    astRegistry.count = 0;
+    astRegistry.nodes = malloc(
+        sizeof(ASTNode*) * astRegistry.capacity
+    );
+}
+
+void registerASTNode(ASTNode* node) {
+    if (astRegistry.count >= astRegistry.capacity) {
+        astRegistry.capacity *= 2;
+
+        astRegistry.nodes = realloc(
+            astRegistry.nodes,
+            sizeof(ASTNode*) * astRegistry.capacity
+        );
+    }
+
+    astRegistry.nodes[astRegistry.count++] = node;
+}
+
+void freeASTRegistry(void) {
+    free(astRegistry.nodes);
+    astRegistry.nodes = NULL;
+    astRegistry.count = 0;
+    astRegistry.capacity = 0;
 }
 
 void logASTCreation(int node_id) {
@@ -85,9 +114,12 @@ ASTNode* createASTNode(NodeType type, int line_no, int char_no) {
         exit(1);
     }
     node->node_id = node_id++;
+    node->export_id = -1;
     node->type = type;
     node->line_no = line_no;
     node->char_no = char_no;
+    node->visited = false;
+    registerASTNode(node);
     logASTCreation(node->node_id);
     return node;
 }
@@ -729,148 +761,153 @@ int generateNodeID() {
 // Helper function to export AST node as JSON
 void exportASTNodeAsJSON(FILE *file, ASTNode *node, int parentID, int *edgeBufferSize, char **edgeBuffer, int isFirstNode) {
     if (!node) return;
-
-    int currentID = generateNodeID();
-
-    // Add current node, ensuring proper formatting (comma-separated) based on whether it's the first node or not
-    if (!isFirstNode) {
-        fprintf(file, ", ");
-    }
-    fprintf(file, "{ \"id\": %d, \"node_id\": %d, \"label\": \"", currentID, node->node_id);
-
-    // Handle different node types
-    switch (node->type) {
-        case NODE_PROGRAM:
-            fprintf(file, "PROGRAM\" }");
-            break;
-        case NODE_BREAK_STMT:{
-            char* status = node->break_continue_stmt_data.associated_loop_node != NULL ? "Assigned" : "Unassigned";
-            fprintf(file, "BREAK\\n(%s)\" }", status);
-            break;
+    int currentID;
+    if (!node->visited) {
+        currentID = generateNodeID();
+        node->export_id = currentID;
+        node->visited = true;
+        // Add current node, ensuring proper formatting (comma-separated) based on whether it's the first node or not
+        if (!isFirstNode) {
+            fprintf(file, ", ");
         }
-        case NODE_CONTINUE_STMT:{
-            char* status = node->break_continue_stmt_data.associated_loop_node != NULL ? "Assigned" : "Unassigned";
-            fprintf(file, "CONTINUE\\n(%s)\" }", status);
-            break;
+        fprintf(file, "{ \"id\": %d, \"node_id\": %d, \"label\": \"", currentID, node->node_id);
+
+        // Handle different node types
+        switch (node->type) {
+            case NODE_PROGRAM:
+                fprintf(file, "PROGRAM\" }");
+                break;
+            case NODE_BREAK_STMT:{
+                char* status = node->break_continue_stmt_data.associated_loop_node != NULL ? "Assigned" : "Unassigned";
+                fprintf(file, "BREAK\\n(%s)\" }", status);
+                break;
+            }
+            case NODE_CONTINUE_STMT:{
+                char* status = node->break_continue_stmt_data.associated_loop_node != NULL ? "Assigned" : "Unassigned";
+                fprintf(file, "CONTINUE\\n(%s)\" }", status);
+                break;
+            }
+                
+            case NODE_RETURN:
+                fprintf(file, "RETURN\\n(type: %s)\" }", node->inferedType);
+                break;
+            case NODE_INT_LITERAL:
+                fprintf(file, "LITERAL\\n(int: %d)\" }", node->literal_data.value.int_value);
+                break;
+            case NODE_CHAR_LITERAL:
+                fprintf(file, "LITERAL\\n(char: '%c')\" }", node->literal_data.value.char_value);
+                break;
+            case NODE_STR_LITERAL:
+                fprintf(file, "LITERAL (string)\" }");
+                break;
+            case NODE_STMT_LIST:
+                fprintf(file, "STMT LIST\" }");
+                break;
+            case NODE_STMT:
+                fprintf(file, "STMT\" }");
+                break;
+            case NODE_BLOCK_STMT:
+                fprintf(file, "BLOCK STMT\" }");
+                break;
+            case NODE_DECL:
+                fprintf(file, "DECL\" }");
+                break;
+            case NODE_TYPE_SPEC:
+                fprintf(file, "TYPE_SPEC (%s)\" }", node->type_data.type);
+                break;
+            case NODE_VAR_LIST:
+                fprintf(file, "VAR_LIST\" }");
+                break;
+            case NODE_VAR:
+                fprintf(file, "VAR\\n(name: %s, valueType: %s)\" }", node->var_data.id->id_data.sym->name, node->inferedType);
+                break;
+            case NODE_ID:
+                fprintf(file, "ID\\n(name: %s)\" }", node->id_data.sym->name);
+                break;
+            case NODE_ID_REF:
+                fprintf(file, "ID_REF\\n(name: %s)\" }", node->id_ref_data.name);
+                break;
+            case NODE_ASSGN:
+                fprintf(file, "ASSGN (type: %s)\" }", node->inferedType);
+                break;
+            case NODE_EXPR_BINARY:
+                fprintf(file, "EXPR\\n(binary: %s, type: %s)\" }", node->expr_data.op, node->inferedType);
+                break;
+            case NODE_EXPR_UNARY:
+                fprintf(file, "EXPR\\n(unary: %s, type: %s)\" }", node->expr_data.op, node->inferedType);
+                break;
+            case NODE_EXPR_TERM:
+                fprintf(file, "EXPR\\n(term, type: %s)\" }", node->inferedType);
+                break;
+            case NODE_IF:
+                fprintf(file, "IF\" }");
+                break;
+            case NODE_IF_ELSE:
+                fprintf(file, "IF ELSE\" }");
+                break;
+            case NODE_IF_COND:
+                fprintf(file, "IF_COND\" }");
+                break; 
+            case NODE_IF_BRANCH:
+                fprintf(file, "IF_BRANCH\" }");
+                break; 
+            case NODE_ELSE_BRANCH:
+                fprintf(file, "ELSE_BRANCH\" }");
+                break; 
+            case NODE_WHILE:
+                fprintf(file, "WHILE\" }");
+                break;
+            case NODE_WHILE_COND:
+                fprintf(file, "WHILE_COND\" }");
+                break;
+            case NODE_WHILE_BODY:
+                fprintf(file, "WHILE_BODY\" }");
+                break;
+            case NODE_FOR:
+                fprintf(file, "FOR\" }");
+                break;
+            case NODE_FOR_INIT:
+                fprintf(file, "FOR_INIT\" }");
+                break;
+            case NODE_FOR_COND:
+                fprintf(file, "FOR_COND\" }");
+                break;
+            case NODE_FOR_UPDATION:
+                fprintf(file, "FOR_UPDATION\" }");
+                break;
+            case NODE_EXPR_COMMA_LIST:
+                fprintf(file, "EXPR_COMMA_LIST\" }");
+                break; 
+            case NODE_FOR_BODY:
+                fprintf(file, "FOR_BODY\" }");
+                break;
+            case NODE_FUNC_DECL:
+                fprintf(file, "FUNC_DECL\\n(name: %s, param_cnt: %d)\" }", node->func_decl_data.id->id_data.sym->name, node->func_decl_data.param_count);
+                break;
+            case NODE_FUNC_BODY:
+                fprintf(file, "FUNC_BODY\" }");
+                break;
+            case NODE_PARAM_LIST:
+                fprintf(file, "PARAM_LIST\" }");
+                break;
+            case NODE_PARAM:
+                fprintf(file, "PARAM\\n(type: %s)\" }", node->param_data.type_spec->type_data.type);
+                break;
+            case NODE_FUNC_CALL:
+                fprintf(file, "FUNC_CALL\\n(name: %s, arg_cnt: %d)\" }", node->func_call_data.id->id_ref_data.name, node->func_call_data.arg_count);
+                break;
+            case NODE_ARG_LIST:
+                fprintf(file, "ARG_LIST\" }");
+                break;
+            case NODE_ARG:
+                fprintf(file, "ARG\" }");
+                break;
+            default:
+                fprintf(file, "UNKNOWN\" }");
+                break;
         }
-            
-        case NODE_RETURN:
-            fprintf(file, "RETURN\\n(type: %s)\" }", node->inferedType);
-            break;
-        case NODE_INT_LITERAL:
-            fprintf(file, "LITERAL\\n(int: %d)\" }", node->literal_data.value.int_value);
-            break;
-        case NODE_CHAR_LITERAL:
-            fprintf(file, "LITERAL\\n(char: '%c')\" }", node->literal_data.value.char_value);
-            break;
-        case NODE_STR_LITERAL:
-            fprintf(file, "LITERAL (string)\" }");
-            break;
-        case NODE_STMT_LIST:
-            fprintf(file, "STMT LIST\" }");
-            break;
-        case NODE_STMT:
-            fprintf(file, "STMT\" }");
-            break;
-        case NODE_BLOCK_STMT:
-            fprintf(file, "BLOCK STMT\" }");
-            break;
-        case NODE_DECL:
-            fprintf(file, "DECL\" }");
-            break;
-        case NODE_TYPE_SPEC:
-            fprintf(file, "TYPE_SPEC (%s)\" }", node->type_data.type);
-            break;
-        case NODE_VAR_LIST:
-            fprintf(file, "VAR_LIST\" }");
-            break;
-        case NODE_VAR:
-            fprintf(file, "VAR\\n(name: %s, valueType: %s)\" }", node->var_data.id->id_data.sym->name, node->inferedType);
-            break;
-        case NODE_ID:
-            fprintf(file, "ID\\n(name: %s)\" }", node->id_data.sym->name);
-            break;
-        case NODE_ID_REF:
-            fprintf(file, "ID_REF\\n(name: %s)\" }", node->id_ref_data.name);
-            break;
-        case NODE_ASSGN:
-            fprintf(file, "ASSGN (type: %s)\" }", node->inferedType);
-            break;
-        case NODE_EXPR_BINARY:
-            fprintf(file, "EXPR\\n(binary: %s, type: %s)\" }", node->expr_data.op, node->inferedType);
-            break;
-        case NODE_EXPR_UNARY:
-            fprintf(file, "EXPR\\n(unary: %s, type: %s)\" }", node->expr_data.op, node->inferedType);
-            break;
-        case NODE_EXPR_TERM:
-            fprintf(file, "EXPR\\n(term, type: %s)\" }", node->inferedType);
-            break;
-        case NODE_IF:
-            fprintf(file, "IF\" }");
-            break;
-        case NODE_IF_ELSE:
-            fprintf(file, "IF ELSE\" }");
-            break;
-        case NODE_IF_COND:
-            fprintf(file, "IF_COND\" }");
-            break; 
-        case NODE_IF_BRANCH:
-            fprintf(file, "IF_BRANCH\" }");
-            break; 
-        case NODE_ELSE_BRANCH:
-            fprintf(file, "ELSE_BRANCH\" }");
-            break; 
-        case NODE_WHILE:
-            fprintf(file, "WHILE\" }");
-            break;
-        case NODE_WHILE_COND:
-            fprintf(file, "WHILE_COND\" }");
-            break;
-        case NODE_WHILE_BODY:
-            fprintf(file, "WHILE_BODY\" }");
-            break;
-        case NODE_FOR:
-            fprintf(file, "FOR\" }");
-            break;
-        case NODE_FOR_INIT:
-            fprintf(file, "FOR_INIT\" }");
-            break;
-        case NODE_FOR_COND:
-            fprintf(file, "FOR_COND\" }");
-            break;
-        case NODE_FOR_UPDATION:
-            fprintf(file, "FOR_UPDATION\" }");
-            break;
-        case NODE_EXPR_COMMA_LIST:
-            fprintf(file, "EXPR_COMMA_LIST\" }");
-            break; 
-        case NODE_FOR_BODY:
-            fprintf(file, "FOR_BODY\" }");
-            break;
-        case NODE_FUNC_DECL:
-            fprintf(file, "FUNC_DECL\\n(name: %s, param_cnt: %d)\" }", node->func_decl_data.id->id_data.sym->name, node->func_decl_data.param_count);
-            break;
-        case NODE_FUNC_BODY:
-            fprintf(file, "FUNC_BODY\" }");
-            break;
-        case NODE_PARAM_LIST:
-            fprintf(file, "PARAM_LIST\" }");
-            break;
-        case NODE_PARAM:
-            fprintf(file, "PARAM\\n(type: %s)\" }", node->param_data.type_spec->type_data.type);
-            break;
-        case NODE_FUNC_CALL:
-            fprintf(file, "FUNC_CALL\\n(name: %s, arg_cnt: %d)\" }", node->func_call_data.id->id_ref_data.name, node->func_call_data.arg_count);
-            break;
-        case NODE_ARG_LIST:
-            fprintf(file, "ARG_LIST\" }");
-            break;
-        case NODE_ARG:
-            fprintf(file, "ARG\" }");
-            break;
-        default:
-            fprintf(file, "UNKNOWN\" }");
-            break;
+    } else {
+        currentID = node->export_id;
     }
 
     // Store edge in the buffer if there's a parent
@@ -1062,7 +1099,16 @@ void exportASTAsJSON(const char *folderPath, ASTNode *root) {
     int edgeBufferSize = 0;
     char *edgeBuffer = NULL;
     
-    exportASTNodeAsJSON(file, root, -1, &edgeBufferSize, &edgeBuffer, 1); // isFirstNode flag set to 1 for the root node
+    if (root) {
+        exportASTNodeAsJSON(file, root, -1, &edgeBufferSize, &edgeBuffer, 1); // isFirstNode flag set to 1 for the root node
+    } else {
+        int firstNodeFlag = 1; // Flag to track the first node for proper comma placement
+        for (int i = 0; i < astRegistry.count; i++) {
+            exportASTNodeAsJSON(file, astRegistry.nodes[i], -1, &edgeBufferSize, &edgeBuffer, firstNodeFlag); // isFirstNode flag set to 1 for the first node
+            firstNodeFlag = 0;
+        }
+    }
+    
 
     // Clean up the edge buffer by removing the last comma and space
     if (edgeBuffer && strlen(edgeBuffer) > 0) {
