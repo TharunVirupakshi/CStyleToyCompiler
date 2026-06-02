@@ -770,7 +770,7 @@ void exportASTNodeAsJSON(FILE *file, ASTNode *node, int parentID, int *edgeBuffe
         if (!isFirstNode) {
             fprintf(file, ", ");
         }
-        fprintf(file, "{ \"id\": %d, \"node_id\": %d, \"label\": \"", currentID, node->node_id);
+        fprintf(file, "{ \"id\": %d, \"node_id\": %d, \"line_no\": %d, \"char_no\": %d, \"label\": \"", currentID, node->node_id, node->line_no, node->char_no);
 
         // Handle different node types
         switch (node->type) {
