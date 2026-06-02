@@ -189,6 +189,7 @@ ASTNode* createContinueNode();
 %}
 
 %debug
+%define parse.error detailed
 %union {
     int ival;
     const char* strval;     
