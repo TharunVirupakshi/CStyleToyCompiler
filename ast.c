@@ -118,10 +118,29 @@ ASTNode* createASTNode(NodeType type, int line_no, int char_no) {
     node->type = type;
     node->line_no = line_no;
     node->char_no = char_no;
+    node->start_line_no = line_no;
+    node->start_char_no = char_no;
+    node->end_line_no = line_no;
+    node->end_char_no = char_no;
     node->visited = false;
     registerASTNode(node);
     logASTCreation(node->node_id);
     return node;
+}
+
+void deriveRangeFromChildren(ASTNode* node, ASTNode* first_child, ASTNode* last_child) {
+    if (!node) return;
+
+    if (first_child) {
+        node->start_line_no = first_child->line_no;
+        node->start_char_no = first_child->char_no;
+        node->end_line_no = first_child->line_no; // For single-child nodes, end position is same as start position
+        node->end_char_no = first_child->char_no;
+    } 
+    if (last_child) {
+        node->end_line_no = last_child->line_no;
+        node->end_char_no = last_child->char_no;
+    }
 }
 
 
@@ -770,7 +789,7 @@ void exportASTNodeAsJSON(FILE *file, ASTNode *node, int parentID, int *edgeBuffe
         if (!isFirstNode) {
             fprintf(file, ", ");
         }
-        fprintf(file, "{ \"id\": %d, \"node_id\": %d, \"line_no\": %d, \"char_no\": %d, \"label\": \"", currentID, node->node_id, node->line_no, node->char_no);
+        fprintf(file, "{ \"id\": %d, \"node_id\": %d, \"line_no\": %d, \"char_no\": %d, \"start_line_no\": %d, \"start_char_no\": %d, \"end_line_no\": %d, \"end_char_no\": %d,  \"label\": \"", currentID, node->node_id, node->line_no, node->char_no, node->start_line_no, node->start_char_no, node->end_line_no, node->end_char_no);
 
         // Handle different node types
         switch (node->type) {

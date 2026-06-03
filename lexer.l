@@ -4,7 +4,18 @@
     #include "parser.tab.h"
     #include "logger.h"
 
-    #define COUNT() (cur_char+=yyleng)
+    extern YYLTYPE yylloc;
+
+    #define UPDATE_LOC()                               \
+    do {                                               \
+        yylloc.first_line = cur_line;                  \
+        yylloc.first_column = cur_char;                \
+                                                       \
+        cur_char += yyleng;                            \
+                                                       \
+        yylloc.last_line = cur_line;                   \
+        yylloc.last_column = cur_char - 1;             \
+    } while(0)
 
     int cur_line = 1;
     int cur_char = 1;
@@ -27,73 +38,78 @@ digit [0-9]
 
 %%
 
-"if"        { COUNT(); log_token("KEYWORD", "IF");       return IF; }
-"else"      { COUNT(); log_token("KEYWORD", "ELSE");     return ELSE; }
-"for"       { COUNT(); log_token("KEYWORD", "FOR");      return FOR; }
-"while"     { COUNT(); log_token("KEYWORD", "WHILE");    return WHILE; }
-"return"    { COUNT(); log_token("KEYWORD", "RETURN");   return RETURN; }
-"break"     { COUNT(); log_token("KEYWORD", "BREAK");    return BREAK; }
-"continue"  { COUNT(); log_token("KEYWORD", "CONTINUE"); return CONTINUE; }
-"int"       { COUNT(); log_token("KEYWORD", "INT");      return INT; }
-"float"     { COUNT(); log_token("KEYWORD", "FLOAT");    return FLOAT; }
-"char"      { COUNT(); log_token("KEYWORD", "CHAR");     return CHAR; }
-"string"    { COUNT(); log_token("KEYWORD", "STRING");   return STRING; }
-"void"      { COUNT(); log_token("KEYWORD", "VOID");     return VOID; }
+"if"        { UPDATE_LOC(); log_token("KEYWORD", "IF");       return IF; }
+"else"      { UPDATE_LOC(); log_token("KEYWORD", "ELSE");     return ELSE; }
+"for"       { UPDATE_LOC(); log_token("KEYWORD", "FOR");      return FOR; }
+"while"     { UPDATE_LOC(); log_token("KEYWORD", "WHILE");    return WHILE; }
+"return"    { UPDATE_LOC(); log_token("KEYWORD", "RETURN");   return RETURN; }
+"break"     { UPDATE_LOC(); log_token("KEYWORD", "BREAK");    return BREAK; }
+"continue"  { UPDATE_LOC(); log_token("KEYWORD", "CONTINUE"); return CONTINUE; }
+"int"       { UPDATE_LOC(); log_token("KEYWORD", "INT");      return INT; }
+"float"     { UPDATE_LOC(); log_token("KEYWORD", "FLOAT");    return FLOAT; }
+"char"      { UPDATE_LOC(); log_token("KEYWORD", "CHAR");     return CHAR; }
+"string"    { UPDATE_LOC(); log_token("KEYWORD", "STRING");   return STRING; }
+"void"      { UPDATE_LOC(); log_token("KEYWORD", "VOID");     return VOID; }
 
 ({alpha}|_)({alpha}|_|{digit})* {
-    COUNT();
+    UPDATE_LOC();
     yylval.strval = strdup(yytext);
     log_token("ID", yytext);
     return ID;
 }
 
 [-]?{digit}+ {
-    COUNT();
+    UPDATE_LOC();
     yylval.ival = atoi(yytext);
     log_token("INT_LITERAL", yytext);
     return INT_LITERAL;
 }
 
 \"[^\"]*\" {
-    COUNT();
+    UPDATE_LOC();
     yylval.strval = strdup(yytext);
     log_token("STR_LITERAL", yytext);
     return STR_LITERAL;
 }
 
 \'[^\']\' {
-    COUNT();
+    UPDATE_LOC();
     yylval.ival = yytext[1];
     log_token("CHAR_LITERAL", yytext);
     return CHAR_LITERAL;
 }
 
-"+"     { COUNT(); log_token("OPERATOR", "PLUS");     return PLUS; }
-"-"     { COUNT(); log_token("OPERATOR", "MINUS");    return MINUS; }
-"*"     { COUNT(); log_token("OPERATOR", "MULT");     return MULT; }
-"/"     { COUNT(); log_token("OPERATOR", "DIV");      return DIV; }
-"++"    { COUNT(); log_token("OPERATOR", "INC");      return INC; }
-"--"    { COUNT(); log_token("OPERATOR", "DEC");      return DEC; }
+"+"     { UPDATE_LOC(); log_token("OPERATOR", "PLUS");     return PLUS; }
+"-"     { UPDATE_LOC(); log_token("OPERATOR", "MINUS");    return MINUS; }
+"*"     { UPDATE_LOC(); log_token("OPERATOR", "MULT");     return MULT; }
+"/"     { UPDATE_LOC(); log_token("OPERATOR", "DIV");      return DIV; }
+"++"    { UPDATE_LOC(); log_token("OPERATOR", "INC");      return INC; }
+"--"    { UPDATE_LOC(); log_token("OPERATOR", "DEC");      return DEC; }
 
-"=="    { COUNT(); log_token("OPERATOR", "EQ");       return EQ; }
-"!="    { COUNT(); log_token("OPERATOR", "NEQ");      return NEQ; }
-"<="    { COUNT(); log_token("OPERATOR", "LEQ");      return LEQ; }
-">="    { COUNT(); log_token("OPERATOR", "GEQ");      return GEQ; }
-"<"     { COUNT(); log_token("OPERATOR", "LT");       return LT; }
-">"     { COUNT(); log_token("OPERATOR", "GT");       return GT; }
+"=="    { UPDATE_LOC(); log_token("OPERATOR", "EQ");       return EQ; }
+"!="    { UPDATE_LOC(); log_token("OPERATOR", "NEQ");      return NEQ; }
+"<="    { UPDATE_LOC(); log_token("OPERATOR", "LEQ");      return LEQ; }
+">="    { UPDATE_LOC(); log_token("OPERATOR", "GEQ");      return GEQ; }
+"<"     { UPDATE_LOC(); log_token("OPERATOR", "LT");       return LT; }
+">"     { UPDATE_LOC(); log_token("OPERATOR", "GT");       return GT; }
 
-"&&"    { COUNT(); log_token("OPERATOR", "AND");      return AND; }
-"||"    { COUNT(); log_token("OPERATOR", "OR");       return OR; }
-"!"     { COUNT(); log_token("OPERATOR", "NOT");      return NOT; }
+"&&"    { UPDATE_LOC(); log_token("OPERATOR", "AND");      return AND; }
+"||"    { UPDATE_LOC(); log_token("OPERATOR", "OR");       return OR; }
+"!"     { UPDATE_LOC(); log_token("OPERATOR", "NOT");      return NOT; }
 
-"="     { COUNT(); log_token("OPERATOR", "ASSIGN");   return ASSIGN; }
+"="     { UPDATE_LOC(); log_token("OPERATOR", "ASSIGN");   return ASSIGN; }
 
-\/\/.*                      { COUNT(); log_token("SINGLE_LINE_COMMENT", yytext); }
-\/\*([^*]|\*+[^\/])*\*\/    { COUNT(); log_token("MULTI_LINE_COMMENT", yytext); }
-\n                          { cur_line++; cur_char=1; log_token("NEW_LINE", ""); }
-[ \t\r]+                    { COUNT(); log_token("WHITE_SPACE", ""); /* skip whitespace */ }
+\/\/.*                      { UPDATE_LOC(); log_token("SINGLE_LINE_COMMENT", yytext); }
+\/\*([^*]|\*+[^\/])*\*\/    { UPDATE_LOC(); log_token("MULTI_LINE_COMMENT", yytext); }
+\n                          { 
+                                yylloc.first_line = cur_line; yylloc.first_column = cur_char;
+                                cur_line++; cur_char = 1; 
+                                yylloc.last_line = cur_line - 1; yylloc.last_column = 1; 
+                                log_token("NEW_LINE", "");
+                            }
+[ \t\r]+                    { UPDATE_LOC(); log_token("WHITE_SPACE", ""); /* skip whitespace */ }
 
-.                           { COUNT(); log_token("READ_CHARACTER", yytext); return yytext[0]; }
+.                           { UPDATE_LOC(); log_token("READ_CHARACTER", yytext); return yytext[0]; }
 %%
 
 int yywrap() {

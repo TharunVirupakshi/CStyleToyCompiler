@@ -75,6 +75,8 @@ typedef struct ASTNode {
     NodeType type;  // Type of the node (enum to identify node type)
     int node_id;
     int line_no, char_no;
+    int start_line_no, start_char_no;
+    int end_line_no, end_char_no;
     int export_id;
     SymbolTable* scope;
     bool visited; // For traversal purposes
@@ -298,6 +300,7 @@ void freeASTRegistry(void);
 
 // Function prototypes for AST operations
 ASTNode* createASTNode(NodeType, int line_no, int char_no);
+void deriveRangeFromChildren(ASTNode* node, ASTNode* first_child, ASTNode* last_child);
 void printAST(ASTNode* node, int indent, bool isLast);
 void freeAST(ASTNode* node);
 void exportASTAsJSON(const char *folderPath, ASTNode *root);
