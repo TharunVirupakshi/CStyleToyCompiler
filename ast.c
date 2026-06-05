@@ -7,7 +7,6 @@
 #include "logger.h"
 
 ASTRegistry astRegistry;
-extern int cur_line, cur_char;
 
 bool isASTDebugOn = false;
 void setASTDebugger(){
@@ -106,7 +105,40 @@ const char* getNodeName(NodeType type) {
 }
 
 // Function to create an empty AST node
-ASTNode* createASTNode(NodeType type, int line_no, int char_no) {
+SourceSpan makeSourceSpan(int start_line, int start_col, int end_line, int end_col) {
+    SourceSpan span;
+    span.start_line = start_line;
+    span.start_col = start_col;
+    span.end_line = end_line;
+    span.end_col = end_col;
+    return span;
+}
+
+SourceSpan spanFromNode(ASTNode* node) {
+    if (!node) {
+        return makeSourceSpan(0, 0, 0, 0);
+    }
+
+    return makeSourceSpan(
+        node->start_line_no,
+        node->start_char_no,
+        node->end_line_no,
+        node->end_char_no
+    );
+}
+
+void applySourceSpan(ASTNode* node, SourceSpan span) {
+    if (!node) return;
+
+    node->line_no = span.start_line;
+    node->char_no = span.start_col;
+    node->start_line_no = span.start_line;
+    node->start_char_no = span.start_col;
+    node->end_line_no = span.end_line;
+    node->end_char_no = span.end_col;
+}
+
+ASTNode* createASTNode(NodeType type, SourceSpan span) {
     static int node_id = 0;
     ASTNode* node = (ASTNode*)malloc(sizeof(ASTNode));
     if (!node) {
@@ -116,13 +148,8 @@ ASTNode* createASTNode(NodeType type, int line_no, int char_no) {
     node->node_id = node_id++;
     node->export_id = -1;
     node->type = type;
-    node->line_no = line_no;
-    node->char_no = char_no;
-    node->start_line_no = line_no;
-    node->start_char_no = char_no;
-    node->end_line_no = line_no;
-    node->end_char_no = char_no;
     node->visited = false;
+    applySourceSpan(node, span);
     registerASTNode(node);
     logASTCreation(node->node_id);
     return node;
@@ -132,14 +159,16 @@ void deriveRangeFromChildren(ASTNode* node, ASTNode* first_child, ASTNode* last_
     if (!node) return;
 
     if (first_child) {
-        node->start_line_no = first_child->line_no;
-        node->start_char_no = first_child->char_no;
-        node->end_line_no = first_child->line_no; // For single-child nodes, end position is same as start position
-        node->end_char_no = first_child->char_no;
+        node->line_no = first_child->start_line_no;
+        node->char_no = first_child->start_char_no;
+        node->start_line_no = first_child->start_line_no;
+        node->start_char_no = first_child->start_char_no;
+        node->end_line_no = first_child->end_line_no;
+        node->end_char_no = first_child->end_char_no;
     } 
     if (last_child) {
-        node->end_line_no = last_child->line_no;
-        node->end_char_no = last_child->char_no;
+        node->end_line_no = last_child->end_line_no;
+        node->end_char_no = last_child->end_char_no;
     }
 }
 

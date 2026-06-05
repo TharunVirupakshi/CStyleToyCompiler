@@ -151,49 +151,47 @@ void printLog(const char *fmt, ...) {
     printf("\n");
 }
 
-void setNodeLocation(ASTNode* node, int start_line, int start_char, int end_line, int end_char) {
-    if (!node) return;
-
-    node->start_line_no = start_line;
-    node->start_char_no = start_char;
-    node->end_line_no = end_line;
-    node->end_char_no = end_char;
-}
-
 ASTNode* root;
-ASTNode* createProgramNode(ASTNode* stmt_list);
-ASTNode* createStmtListNode(ASTNode* stmtList, ASTNode* stmt);
-ASTNode* createBlockStmtNode(ASTNode* stmt_list);
-ASTNode* createReturnNode(ASTNode* return_value);
-ASTNode* createBinaryExpNode(ASTNode* left, ASTNode* right, const char* op);
-ASTNode* createUnaryExpNode(ASTNode* left, const char* op);
-ASTNode* createTermExpNode(ASTNode* term);
-ASTNode* createIdentifierNode(const char* id, char* type);
-ASTNode* createIdRefNode(const char* id);
-ASTNode* createIntLiteralNode(int i);
-ASTNode* createCharLiteralNode(char c);
-ASTNode* createStrLiteralNode(const char* s);
-ASTNode* createTypeNode(char* type);
-ASTNode* createDeclNode(ASTNode* type_spec, ASTNode* var_list);
+ASTNode* createProgramNode(ASTNode* stmt_list, SourceSpan span);
+ASTNode* createStmtListNode(ASTNode* stmtList, ASTNode* stmt, SourceSpan span);
+ASTNode* createBlockStmtNode(ASTNode* stmt_list, SourceSpan span);
+ASTNode* createReturnNode(ASTNode* return_value, SourceSpan span);
+ASTNode* createBinaryExpNode(ASTNode* left, ASTNode* right, const char* op, SourceSpan span);
+ASTNode* createUnaryExpNode(ASTNode* left, const char* op, SourceSpan span);
+ASTNode* createTermExpNode(ASTNode* term, SourceSpan span);
+ASTNode* createIdentifierNode(const char* id, char* type, SourceSpan span);
+ASTNode* createIdRefNode(const char* id, SourceSpan span);
+ASTNode* createIntLiteralNode(int i, SourceSpan span);
+ASTNode* createCharLiteralNode(char c, SourceSpan span);
+ASTNode* createStrLiteralNode(const char* s, SourceSpan span);
+ASTNode* createTypeNode(char* type, SourceSpan span);
+ASTNode* createDeclNode(ASTNode* type_spec, ASTNode* var_list, SourceSpan span);
 void setVarListType(ASTNode* typeNode, ASTNode* var_list);
-ASTNode* createVarNode(const char* id);
-ASTNode* createVarAssgnNode(const char* id, ASTNode* value);
-ASTNode* createVarListNode(ASTNode* var_list, ASTNode* var);
-ASTNode* createAssgnNode(const char* id, ASTNode* value);
-ASTNode* createIfElseNode(ASTNode* cond, ASTNode* if_branch, ASTNode* else_branch);
-ASTNode* createIfNode(ASTNode* cond, ASTNode* if_branch);
-ASTNode* createWhileNode(ASTNode* cond, ASTNode* body);
-ASTNode* createForNode(ASTNode* init, ASTNode* cond, ASTNode* updation, ASTNode* body);
-ASTNode* createCommaExprList(ASTNode* expr_list, ASTNode* expr_list_item);
-ASTNode* createFucnIdNode(const char* id, ASTNode* type_spec);
-ASTNode* createFuncDeclNode(ASTNode* type_spec, ASTNode* id, ASTNode* params, ASTNode* body);
-ASTNode* createParamsListNode(ASTNode* parmas_list, ASTNode* param);
-ASTNode* createParamNode(ASTNode* type_spec, const char* id);
-ASTNode* createFuncCallNode(const char* id, ASTNode* arg_list);
-ASTNode* createArgListNode(ASTNode* arg_list, ASTNode* arg);
-ASTNode* createArgNode(ASTNode* arg);
-ASTNode* createBreakNode();
-ASTNode* createContinueNode();
+ASTNode* createVarNode(const char* id, SourceSpan span, SourceSpan id_span);
+ASTNode* createVarAssgnNode(const char* id, ASTNode* value, SourceSpan span, SourceSpan id_span);
+ASTNode* createVarListNode(ASTNode* var_list, ASTNode* var, SourceSpan span);
+ASTNode* createAssgnNode(const char* id, ASTNode* value, SourceSpan span, SourceSpan id_span);
+ASTNode* createIfElseNode(ASTNode* cond, ASTNode* if_branch, ASTNode* else_branch, SourceSpan span);
+ASTNode* createIfNode(ASTNode* cond, ASTNode* if_branch, SourceSpan span);
+ASTNode* createWhileNode(ASTNode* cond, ASTNode* body, SourceSpan span);
+ASTNode* createForNode(ASTNode* init, ASTNode* cond, ASTNode* updation, ASTNode* body, SourceSpan span);
+ASTNode* createCommaExprList(ASTNode* expr_list, ASTNode* expr_list_item, SourceSpan span);
+ASTNode* createFuncIdNode(const char* id, ASTNode* type_spec, SourceSpan span);
+ASTNode* createFuncDeclNode(ASTNode* type_spec, ASTNode* id, ASTNode* params, ASTNode* body, SourceSpan span);
+ASTNode* createParamsListNode(ASTNode* parmas_list, ASTNode* param, SourceSpan span);
+ASTNode* createParamNode(ASTNode* type_spec, const char* id, SourceSpan span, SourceSpan id_span);
+ASTNode* createFuncCallNode(const char* id, ASTNode* arg_list, SourceSpan span, SourceSpan id_span);
+ASTNode* createArgListNode(ASTNode* arg_list, ASTNode* arg, SourceSpan span);
+ASTNode* createArgNode(ASTNode* arg, SourceSpan span);
+ASTNode* createBreakNode(SourceSpan span);
+ASTNode* createContinueNode(SourceSpan span);
+#define YYLOC_TO_SPAN(loc) \
+    makeSourceSpan(        \
+        (loc).first_line,  \
+        (loc).first_column,\
+        (loc).last_line,   \
+        (loc).last_column  \
+    )
 %}
 
 %debug
@@ -245,9 +243,8 @@ program:
     stmt_list {
         log_rule("program → stmt_list", 1);
         log_semantic_step("root = createProgramNode($1)", 1, 1);
-        $$ = createProgramNode($1);
+        $$ = createProgramNode($1, YYLOC_TO_SPAN(@$));
         root = $$;
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
         log_rule_complete("program", 1, 1);
     }
     ;
@@ -258,15 +255,13 @@ stmt_list:
       stmt_list stmt { 
           log_rule("stmt_list → stmt_list stmt", 2);
           log_semantic_step("$$ = createStmtListNode($1, $2)", 2, 1);
-          $$ = createStmtListNode($1, $2); 
-          setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+          $$ = createStmtListNode($1, $2, YYLOC_TO_SPAN(@$));
           log_rule_complete("stmt_list", 2, 2);
       } 
     | { 
           log_rule("stmt_list → ε", 3);
           log_semantic_step("$$ = NULL", 3, 2);
           $$ = NULL;
-          setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
           log_rule_complete("stmt_list", 0, 3);
       }  
 ;
@@ -278,84 +273,72 @@ stmt:
           log_rule("stmt → decl_stmt", 4); 
           log_semantic_step("$$ = $1", 4, 1);
           $$ = $1; 
-          setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
           log_rule_complete("stmt", 1, 4);
       }
     | assgn_stmt { 
           log_rule("stmt → assgn_stmt", 5); 
           log_semantic_step("$$ = $1", 5, 1);
           $$ = $1;
-          setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column); 
           log_rule_complete("stmt", 1, 5);
       }
     | expr_stmt { 
           log_rule("stmt → expr_stmt", 6); 
           log_semantic_step("$$ = $1", 6, 1);
           $$ = $1; 
-          setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
           log_rule_complete("stmt", 1, 6);
       }
     | cond_stmt { 
           log_rule("stmt → cond_stmt", 7); 
           log_semantic_step("$$ = $1", 7, 1);
           $$ = $1; 
-          setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
           log_rule_complete("stmt", 1, 7);
       }         
     | block_stmt { 
           log_rule("stmt → block_stmt", 8); 
           log_semantic_step("$$ = $1", 8, 1);
           $$ = $1; 
-          setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
           log_rule_complete("stmt", 1, 8);
       }    
     | loop_stmt { 
           log_rule("stmt → loop_stmt", 9); 
           log_semantic_step("$$ = $1", 9, 1);
           $$ = $1; 
-          setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
           log_rule_complete("stmt", 1, 9);
       }
     | ret_stmt { 
           log_rule("stmt → ret_stmt", 10); 
           log_semantic_step("$$ = $1", 10, 1);
           $$ = $1;
-          setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column); 
           log_rule_complete("stmt", 1, 10);
       }
     | func_decl { 
-          log_rule("stmt → func_decl", 11); 
+          log_rule("stmt → func_decl", 11);     
           log_semantic_step("$$ = $1", 11, 1);
           $$ = $1; 
-          setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
           log_rule_complete("stmt", 1, 11);
       }
     | func_call_stmt { 
           log_rule("stmt → func_call_stmt", 12); 
           log_semantic_step("$$ = $1", 12, 1);
           $$ = $1; 
-          setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
           log_rule_complete("stmt", 1, 12);
       }
     | break_stmt { 
           log_rule("stmt → break_stmt", 13); 
           log_semantic_step("$$ = $1", 13, 1);
           $$ = $1; 
-          setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
           log_rule_complete("stmt", 1, 13);
       }
     | continue_stmt { 
           log_rule("stmt → continue_stmt", 14); 
           log_semantic_step("$$ = $1", 14, 1);
           $$ = $1; 
-          setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
           log_rule_complete("stmt", 1, 14);
       }
     | ';' { 
           log_rule("stmt → ';'", 15);
           log_semantic_step("$$ = NULL", 15, 1);
           $$ = NULL; 
-          setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
           log_rule_complete("stmt", 1, 15);
       }
 ;
@@ -367,15 +350,13 @@ ret_stmt:
       RETURN expr ';' { 
           log_rule("ret_stmt → RETURN expr ;", 16); 
           log_semantic_step("$$ = createReturnNode($2)", 16, 1);
-          $$ = createReturnNode($2); 
-          setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+          $$ = createReturnNode($2, YYLOC_TO_SPAN(@$)); 
           log_rule_complete("ret_stmt", 3, 16);
       }   
     | RETURN ';' { 
           log_rule("ret_stmt → RETURN ;", 17); 
           log_semantic_step("$$ = createReturnNode(NULL)", 17, 1);
-          $$ = createReturnNode(NULL);
-          setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+          $$ = createReturnNode(NULL, YYLOC_TO_SPAN(@$));
           log_rule_complete("ret_stmt", 2, 17);
       }
 ;
@@ -387,7 +368,6 @@ func_call_stmt:
         log_rule("func_call_stmt → func_call ;", 18);
         log_semantic_step("$$ = $1", 18, 1);
         $$ = $1; 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
         log_rule_complete("func_call_stmt", 2, 18);
     }
     ;
@@ -399,7 +379,6 @@ assgn_stmt:
         log_rule("assgn_stmt → assgn_expr ;", 19);
         log_semantic_step("$$ = $1", 19, 1);
         $$ = $1; 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
         log_rule_complete("assgn_stmt", 2, 19);
     }
     ;
@@ -409,8 +388,7 @@ assgn_expr:
     ID ASSIGN expr {
         log_rule("assgn_expr → ID ASSIGN expr", 20);
         log_semantic_step("$$ = createAssgnNode($1, $3)", 20, 1);
-        $$ = createAssgnNode($1, $3); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createAssgnNode($1, $3, YYLOC_TO_SPAN(@$), YYLOC_TO_SPAN(@1)); 
         log_rule_complete("assgn_expr", 3, 20);
     } 
     ;
@@ -431,8 +409,7 @@ block_stmt:
     '}' { 
         log_rule("block_stmt → { stmt_list }", 22); 
         log_semantic_step("$$ = createBlockStmtNode($3)", 22, 1);
-        $$ = createBlockStmtNode($3); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createBlockStmtNode($3, YYLOC_TO_SPAN(@$)); 
         log_semantic_step("exitScope()", 22, 2);
         currentScope = exitScope(currentScope); 
         log_rule_complete("block_stmt", 3, 22);
@@ -445,8 +422,7 @@ block_stmt_without_scope:
     '{' stmt_list '}' { 
         log_rule("block_stmt_without_scope → { stmt_list }", 23);
         log_semantic_step("$$ = createBlockStmtNode($2)", 23, 1);
-        $$ = createBlockStmtNode($2); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createBlockStmtNode($2, YYLOC_TO_SPAN(@$));
         log_rule_complete("block_stmt_without_scope", 3, 23);
     }
     ;
@@ -457,84 +433,72 @@ body:
         log_rule("body → block_stmt_without_scope", 24);
         log_semantic_step("$$ = $1", 24, 1);
         $$ = $1; 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
         log_rule_complete("body", 1, 24);
     }
     | decl_stmt { 
         log_rule("body → decl_stmt", 25);
-        log_semantic_step("$$ = $1", 25, 1);
+        log_semantic_step("$$ = $1", 25, 1); 
         $$ = $1; 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
         log_rule_complete("body", 1, 25);
     }
     | assgn_stmt { 
         log_rule("body → assgn_stmt", 26);
         log_semantic_step("$$ = $1", 26, 1);
         $$ = $1; 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
         log_rule_complete("body", 1, 26);
     }
     | expr_stmt { 
         log_rule("body → expr_stmt", 27);
         log_semantic_step("$$ = $1", 27, 1);
         $$ = $1; 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
         log_rule_complete("body", 1, 27);
     }
     | cond_stmt { 
         log_rule("body → cond_stmt", 28);
         log_semantic_step("$$ = $1", 28, 1);
         $$ = $1; 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
         log_rule_complete("body", 1, 28);
     }         
     | loop_stmt { 
         log_rule("body → loop_stmt", 29);
         log_semantic_step("$$ = $1", 29, 1);
         $$ = $1;
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
         log_rule_complete("body", 1, 29);
     }
     | ret_stmt { 
         log_rule("body → ret_stmt", 30);
         log_semantic_step("$$ = $1", 30, 1);
         $$ = $1; 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
         log_rule_complete("body", 1, 30);
     }
     | func_decl { 
         log_rule("body → func_decl", 31);
         log_semantic_step("$$ = $1", 31, 1);
         $$ = $1; 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
         log_rule_complete("body", 1, 31);
     }
     | func_call_stmt { 
         log_rule("body → func_call_stmt", 32);
         log_semantic_step("$$ = $1", 32, 1);
         $$ = $1; 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
         log_rule_complete("body", 1, 32);
     }
     | break_stmt { 
         log_rule("body → break_stmt", 33);
         log_semantic_step("$$ = $1", 33, 1);
         $$ = $1; 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
         log_rule_complete("body", 1, 33);
     }
     | continue_stmt { 
         log_rule("body → continue_stmt", 34);
         log_semantic_step("$$ = $1", 34, 1);
         $$ = $1; 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
         log_rule_complete("body", 1, 34);
     }
     | ';' { 
         log_rule("body → ;", 35);
         log_semantic_step("$$ = NULL", 35, 1);
         $$ = NULL; 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
         log_rule_complete("body", 1, 35);
     }
     ;
@@ -543,8 +507,7 @@ break_stmt:
     BREAK ';' { 
         log_rule("break_stmt → BREAK ;", 36);
         log_semantic_step("$$ = createBreakNode()", 36, 1);
-        $$ = createBreakNode(); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createBreakNode(YYLOC_TO_SPAN(@$)); 
         log_rule_complete("break_stmt", 2, 36);
     }
     ;
@@ -553,8 +516,7 @@ continue_stmt:
     CONTINUE ';' { 
         log_rule("continue_stmt → CONTINUE ;", 37);
         log_semantic_step("$$ = createContinueNode()", 37, 1);
-        $$ = createContinueNode(); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createContinueNode(YYLOC_TO_SPAN(@$)); 
         log_rule_complete("continue_stmt", 2, 37);
     }
     ;
@@ -582,8 +544,7 @@ cond_stmt:
     IF '(' expr ')' if_enter body if_exit else_part {
         log_rule("cond_stmt → IF '(' expr ')' if_enter body if_exit else_part", 40);
         log_semantic_step("$$ = createIfElseNode($3, $6, $8.else_body)", 40, 1);
-        $$ = createIfElseNode($3, $6, $8.else_body); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createIfElseNode($3, $6, $8.else_body, YYLOC_TO_SPAN(@$)); 
         log_rule_complete("cond_stmt", 8, 40);
     } 
 
@@ -602,7 +563,6 @@ else_part:
         log_rule("else_part → ELSE else_enter body", 42);  
         log_semantic_step("$$.else_body = $3", 42, 1);
         $$.else_body = $3; 
-        setNodeLocation($$.else_body, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
         log_semantic_step("exitScope()", 42, 2);
         currentScope = exitScope(currentScope); 
         log_rule_complete("else_part", 3, 42);
@@ -611,7 +571,6 @@ else_part:
         log_rule("else_part → ε", 43);
         log_semantic_step("$$.else_body = NULL", 43, 1);
         $$.else_body = NULL; 
-        setNodeLocation($$.else_body, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
         log_rule_complete("else_part", 0, 43);
       }
     ;
@@ -640,8 +599,7 @@ loop_stmt:
     WHILE '(' expr ')' while_enter body {
         log_rule("loop_stmt → WHILE '(' expr ')' while_enter body", 46); 
         log_semantic_step("$$ = createWhileNode($3, $6)", 46, 1);
-        $$ = createWhileNode($3, $6); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createWhileNode($3, $6, YYLOC_TO_SPAN(@$)); 
         log_semantic_step("exitScope()", 46, 2);
         currentScope = exitScope(currentScope); 
         log_rule_complete("loop_stmt", 6, 46);
@@ -649,8 +607,7 @@ loop_stmt:
     | FOR '(' for_enter for_init ';' for_expr ';' for_expr ')' body {
         log_rule("loop_stmt → FOR '(' for_enter for_init ';' for_expr ';' for_expr ')' body", 47);
         log_semantic_step("$$ = createForNode($4, $6, $8, $10)", 47, 1);
-        $$ = createForNode($4, $6, $8, $10);
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createForNode($4, $6, $8, $10, YYLOC_TO_SPAN(@$));
         log_semantic_step("exitScope()", 47, 2);
         currentScope = exitScope(currentScope); 
         log_rule_complete("loop_stmt", 10, 47);
@@ -662,21 +619,18 @@ for_init:
         log_rule("for_init → decl", 48); 
         log_semantic_step("$$ = $1", 48, 1);
         $$ = $1; 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
         log_rule_complete("for_init", 1, 48);
     }
     | expr_list { 
         log_rule("for_init → expr_list", 49); 
         log_semantic_step("$$ = $1", 49, 1);
         $$ = $1; 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
         log_rule_complete("for_init", 1, 49);
     }
     | { 
         log_rule("for_init → ε", 50); 
         log_semantic_step("$$ = NULL", 50, 1);
         $$ = NULL; 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
         log_rule_complete("for_init", 0, 50);
     }
     ;
@@ -686,15 +640,13 @@ expr_list:
     expr_list ',' expr_list_item { 
         log_rule("expr_list → expr_list ',' expr_list_item", 51); 
         log_semantic_step("$$ = createCommaExprList($1, $3)", 51, 1);
-        $$ = createCommaExprList($1, $3); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createCommaExprList($1, $3, YYLOC_TO_SPAN(@$)); 
         log_rule_complete("expr_list", 3, 51);
     }
     | expr_list_item { 
         log_rule("expr_list → expr_list_item", 52); 
         log_semantic_step("$$ = createCommaExprList(NULL, $1)", 52, 1);
-        $$ = createCommaExprList(NULL, $1); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createCommaExprList(NULL, $1, YYLOC_TO_SPAN(@$)); 
         log_rule_complete("expr_list", 1, 52);
     }
     ;
@@ -704,14 +656,12 @@ expr_list_item:
         log_rule("expr_list_item → assgn_expr", 53); 
         log_semantic_step("$$ = $1", 53, 1);
         $$ = $1; 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
         log_rule_complete("expr_list_item", 1, 53);
     }                   
     | expr { 
         log_rule("expr_list_item → expr", 54); 
         log_semantic_step("$$ = $1", 54, 1);
         $$ = $1; 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
         log_rule_complete("expr_list_item", 1, 54);
     }
     ;
@@ -721,14 +671,12 @@ for_expr:
         log_rule("for_expr → expr_list", 55); 
         log_semantic_step("$$ = $1", 55, 1);
         $$ = $1; 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
         log_rule_complete("for_expr", 1, 55);
     }
     | { 
         log_rule("for_expr → ε", 56); 
         log_semantic_step("$$ = NULL", 56, 1);
         $$ = NULL; 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
         log_rule_complete("for_expr", 0, 56);
     }             
     ;
@@ -739,7 +687,6 @@ decl_stmt:
         log_rule("decl_stmt → decl ';'", 57);
         log_semantic_step("$$ = $1", 57, 1);
         $$ = $1; 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
         log_rule_complete("decl_stmt", 2, 57);
     } 
     ;
@@ -751,8 +698,7 @@ decl:
         log_semantic_step("setVarListType($1, $2)", 58, 1);
         setVarListType($1, $2); 
         log_semantic_step("$$ = createDeclNode($1, $2)", 58, 2);
-        $$ = createDeclNode($1, $2); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createDeclNode($1, $2, YYLOC_TO_SPAN(@$)); 
         log_rule_complete("decl", 2, 58);
     }
     ;
@@ -762,29 +708,25 @@ type_spec:
     INT { 
         log_rule("type_spec → INT", 59); 
         log_semantic_step("$$ = createTypeNode(INT)", 59, 1);
-        $$ = createTypeNode("int"); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createTypeNode("int", YYLOC_TO_SPAN(@$)); 
         log_rule_complete("type_spec", 1, 59);
     }               
     | CHAR { 
         log_rule("type_spec → CHAR", 60); 
         log_semantic_step("$$ = createTypeNode(CHAR)", 60, 1);
-        $$ = createTypeNode("char"); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createTypeNode("char", YYLOC_TO_SPAN(@$)); 
         log_rule_complete("type_spec", 1, 60);
     }     
     | FLOAT { 
         log_rule("type_spec → FLOAT", 61); 
         log_semantic_step("$$ = createTypeNode(FLOAT)", 61, 1);
-        $$ = createTypeNode("float"); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createTypeNode("float", YYLOC_TO_SPAN(@$)); 
         log_rule_complete("type_spec", 1, 61);
     }          
     | STRING { 
         log_rule("type_spec → STRING", 62); 
         log_semantic_step("$$ = createTypeNode(STRING)", 62, 1);
-        $$ = createTypeNode("string"); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createTypeNode("string", YYLOC_TO_SPAN(@$)); 
         log_rule_complete("type_spec", 1, 62);
     }           
     ;
@@ -794,15 +736,13 @@ var_list:
     var_list ',' var { 
         log_rule("var_list → var_list ',' var", 63); 
         log_semantic_step("$$ = createVarListNode($1, $3)", 63, 1);
-        $$ = createVarListNode($1, $3);
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column); 
+        $$ = createVarListNode($1, $3, YYLOC_TO_SPAN(@$)); 
         log_rule_complete("var_list", 3, 63);
     }
     | var { 
         log_rule("var_list → var", 64); 
         log_semantic_step("$$ = createVarListNode(NULL, $1)", 64, 1);
-        $$ = createVarListNode(NULL, $1); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createVarListNode(NULL, $1, YYLOC_TO_SPAN(@$)); 
         log_rule_complete("var_list", 1, 64);
     }
     ;             
@@ -812,15 +752,13 @@ var:
     ID { 
         log_rule("var → ID", 65); 
         log_semantic_step("$$ = createVarNode($1)", 65, 1);
-        $$ = createVarNode($1); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createVarNode($1, YYLOC_TO_SPAN(@$), YYLOC_TO_SPAN(@1)); 
         log_rule_complete("var", 1, 65);
     } 
     | ID ASSIGN expr { 
         log_rule("var → ID ASSIGN expr", 66);
         log_semantic_step("$$ = createVarAssgnNode($1, $3)", 66, 1);
-        $$ = createVarAssgnNode($1, $3); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createVarAssgnNode($1, $3, YYLOC_TO_SPAN(@$), YYLOC_TO_SPAN(@1)); 
         log_rule_complete("var", 3, 66);
     }
     ;
@@ -831,8 +769,7 @@ func_decl:
     func_header params ')' body { 
         log_rule("func_decl → func_header params ')' body", 67);
         log_semantic_step("$$ = createFuncDeclNode($1.type, $1.id, $2, $4)", 67, 1);
-        $$ = createFuncDeclNode($1.type, $1.id, $2, $4);
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createFuncDeclNode($1.type, $1.id, $2, $4, YYLOC_TO_SPAN(@$));
         log_semantic_step("exitScope()", 67, 2);
         currentScope = exitScope(currentScope);
         log_rule_complete("func_decl", 4, 67);
@@ -844,10 +781,8 @@ func_header:
         log_rule("func_header → type_spec ID '('", 68);
         log_semantic_step("$$.type = $1", 68, 1);
         $$.type = $1;
-        setNodeLocation($$.type, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
-        log_semantic_step("$$.id = createFucnIdNode($2, $1)", 68, 2);
-        $$.id = createFucnIdNode($2, $1);
-        setNodeLocation($$.id, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        log_semantic_step("$$.id = createFuncIdNode($2, $1)", 68, 2);
+        $$.id = createFuncIdNode($2, $1, YYLOC_TO_SPAN(@2));
         log_semantic_step("enterFunctionScope()", 68, 3);
         currentScope = enterScope((char*)$2, currentScope);
         log_rule_complete("func_header", 3, 68);
@@ -855,11 +790,9 @@ func_header:
     | VOID ID '(' {
         log_rule("func_header → VOID ID '('", 69);
         log_semantic_step("$$.type = createTypeNode(VOID)", 69, 1);
-        $$.type = createTypeNode("void");
-        setNodeLocation($$.type, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
-        log_semantic_step("$$.id = createFucnIdNode($2, $$.type)", 69, 2);
-        $$.id = createFucnIdNode($2, $$.type);
-        setNodeLocation($$.id, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$.type = createTypeNode("void", YYLOC_TO_SPAN(@$));
+        log_semantic_step("$$.id = createFuncIdNode($2, $$.type)", 69, 2);
+        $$.id = createFuncIdNode($2, $$.type, YYLOC_TO_SPAN(@2));
         log_semantic_step("enterFunctionScope()", 69, 3);
         currentScope = enterScope((char*)$2, currentScope); 
         log_rule_complete("func_header", 3, 69);
@@ -871,8 +804,7 @@ func_call:
     ID '(' arg_list ')' { 
         log_rule("func_call → ID '(' arg_list ')'", 70); 
         log_semantic_step("$$ = createFuncCallNode($1, $3)", 70, 1);
-        $$ = createFuncCallNode($1, $3); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createFuncCallNode($1, $3, YYLOC_TO_SPAN(@$), YYLOC_TO_SPAN(@1)); 
         log_rule_complete("func_call", 4, 70);
     }
     ;
@@ -882,22 +814,19 @@ arg_list:
     arg_list ',' expr { 
         log_rule("arg_list → arg_list ',' expr", 71); 
         log_semantic_step("$$ = createArgListNode($1, $3)", 71, 1);
-        $$ = createArgListNode($1, $3); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createArgListNode($1, $3, YYLOC_TO_SPAN(@$)); 
         log_rule_complete("arg_list", 3, 71);
     } 
     | expr { 
         log_rule("arg_list → expr", 72); 
         log_semantic_step("$$ = createArgListNode(NULL, $1)", 72, 1);
-        $$ = createArgListNode(NULL, $1); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createArgListNode(NULL, $1, YYLOC_TO_SPAN(@$)); 
         log_rule_complete("arg_list", 1, 72);
     }
     | { 
         log_rule("arg_list → ε", 73); 
         log_semantic_step("$$ = NULL", 73, 1);
         $$ = NULL; 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
         log_rule_complete("arg_list", 0, 73);
     }
     ;
@@ -907,22 +836,19 @@ params:
     params ',' param { 
         log_rule("params → params ',' param", 74); 
         log_semantic_step("$$ = createParamsListNode($1, $3)", 74, 1);
-        $$ = createParamsListNode($1, $3); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createParamsListNode($1, $3, YYLOC_TO_SPAN(@$)); 
         log_rule_complete("params", 3, 74);
     }
     | param { 
         log_rule("params → param", 75); 
         log_semantic_step("$$ = createParamsListNode(NULL, $1)", 75, 1);
-        $$ = createParamsListNode(NULL, $1); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createParamsListNode(NULL, $1, YYLOC_TO_SPAN(@$)); 
         log_rule_complete("params", 1, 75);
     }
     | { 
         log_rule("params → ε", 76); 
         log_semantic_step("$$ = NULL", 76, 1);
         $$ = NULL; 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
         log_rule_complete("params", 0, 76);
     }
     ;
@@ -932,8 +858,7 @@ param:
     type_spec ID { 
         log_rule("param → type_spec ID", 77); 
         log_semantic_step("$$ = createParamNode($1, $2)", 77, 1);
-        $$ = createParamNode($1, $2); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createParamNode($1, $2, YYLOC_TO_SPAN(@$), YYLOC_TO_SPAN(@2)); 
         log_rule_complete("param", 2, 77);
     } 
     ;
@@ -944,7 +869,6 @@ expr_stmt:
         log_rule("expr_stmt → expr ;", 78); 
         log_semantic_step("$$ = $1", 78, 1);
         $$ = $1; 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
         log_rule_complete("expr_stmt", 2, 78);
     }
     ;
@@ -954,169 +878,149 @@ expr:
     expr PLUS expr          { 
         log_rule("expr → expr PLUS expr", 79); 
         log_semantic_step("$$ = createBinaryExpNode($1, $3, +)", 79, 1);
-        $$ = createBinaryExpNode($1, $3, "+"); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createBinaryExpNode($1, $3, "+", YYLOC_TO_SPAN(@$)); 
         log_rule_complete("expr", 3, 79);
     }              
     | expr MINUS expr       { 
         log_rule("expr → expr MINUS expr", 80); 
         log_semantic_step("$$ = createBinaryExpNode($1, $3, -)", 80, 1);
-        $$ = createBinaryExpNode($1, $3, "-"); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createBinaryExpNode($1, $3, "-", YYLOC_TO_SPAN(@$)); 
         log_rule_complete("expr", 3, 80);
     }
     | expr MULT expr        { 
         log_rule("expr → expr MULT expr", 81); 
         log_semantic_step("$$ = createBinaryExpNode($1, $3, *)", 81, 1);
-        $$ = createBinaryExpNode($1, $3, "*"); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createBinaryExpNode($1, $3, "*", YYLOC_TO_SPAN(@$)); 
         log_rule_complete("expr", 3, 81);
     }
     | expr DIV expr         { 
         log_rule("expr → expr DIV expr", 82); 
         log_semantic_step("$$ = createBinaryExpNode($1, $3, /)", 82, 1);
-        $$ = createBinaryExpNode($1, $3, "/"); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createBinaryExpNode($1, $3, "/", YYLOC_TO_SPAN(@$)); 
         log_rule_complete("expr", 3, 82);
     }
     | expr EQ expr          { 
         log_rule("expr → expr EQ expr", 83); 
         log_semantic_step("$$ = createBinaryExpNode($1, $3, ==)", 83, 1);
-        $$ = createBinaryExpNode($1, $3, "=="); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createBinaryExpNode($1, $3, "==", YYLOC_TO_SPAN(@$)); 
         log_rule_complete("expr", 3, 83);
     }
     | expr NEQ expr         { 
         log_rule("expr → expr NEQ expr", 84); 
         log_semantic_step("$$ = createBinaryExpNode($1, $3, !=)", 84, 1);
-        $$ = createBinaryExpNode($1, $3, "!="); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createBinaryExpNode($1, $3, "!=", YYLOC_TO_SPAN(@$)); 
         log_rule_complete("expr", 3, 84);
     }
     | expr LT expr          { 
         log_rule("expr → expr LT expr", 85); 
         log_semantic_step("$$ = createBinaryExpNode($1, $3, <)", 85, 1);
-        $$ = createBinaryExpNode($1, $3, "<"); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createBinaryExpNode($1, $3, "<", YYLOC_TO_SPAN(@$)); 
         log_rule_complete("expr", 3, 85);
     }
     | expr GT expr          { 
         log_rule("expr → expr GT expr", 86); 
         log_semantic_step("$$ = createBinaryExpNode($1, $3, >)", 86, 1);
-        $$ = createBinaryExpNode($1, $3, ">"); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createBinaryExpNode($1, $3, ">", YYLOC_TO_SPAN(@$)); 
         log_rule_complete("expr", 3, 86);
     }
     | expr LEQ expr         { 
         log_rule("expr → expr LEQ expr", 87); 
         log_semantic_step("$$ = createBinaryExpNode($1, $3, <=)", 87, 1);
-        $$ = createBinaryExpNode($1, $3, "<="); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createBinaryExpNode($1, $3, "<=", YYLOC_TO_SPAN(@$)); 
         log_rule_complete("expr", 3, 87);
     }
     | expr GEQ expr         { 
         log_rule("expr → expr GEQ expr", 88); 
         log_semantic_step("$$ = createBinaryExpNode($1, $3, >=)", 88, 1);
-        $$ = createBinaryExpNode($1, $3, ">="); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createBinaryExpNode($1, $3, ">=", YYLOC_TO_SPAN(@$)); 
         log_rule_complete("expr", 3, 88);
     }
     | expr AND expr         { 
         log_rule("expr → expr AND expr", 89); 
         log_semantic_step("$$ = createBinaryExpNode($1, $3, &&)", 89, 1);
-        $$ = createBinaryExpNode($1, $3, "&&"); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createBinaryExpNode($1, $3, "&&", YYLOC_TO_SPAN(@$)); 
         log_rule_complete("expr", 3, 89);
     }
     | expr OR expr          { 
         log_rule("expr → expr OR expr", 90); 
         log_semantic_step("$$ = createBinaryExpNode($1, $3, ||)", 90, 1);
-        $$ = createBinaryExpNode($1, $3, "||"); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createBinaryExpNode($1, $3, "||", YYLOC_TO_SPAN(@$)); 
         log_rule_complete("expr", 3, 90);
     }
     | NOT expr %prec UNARY  { 
         log_rule("expr → NOT expr", 91); 
         log_semantic_step("$$ = createUnaryExpNode($2, !)", 91, 1);
-        $$ = createUnaryExpNode($2, "!"); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createUnaryExpNode($2, "!", YYLOC_TO_SPAN(@$)); 
         log_rule_complete("expr", 2, 91);
     }
     | MINUS expr %prec UNARY{ 
         log_rule("expr → MINUS expr", 92); 
         log_semantic_step("$$ = createUnaryExpNode($2, -)", 92, 1);
-        $$ = createUnaryExpNode($2, "-"); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createUnaryExpNode($2, "-", YYLOC_TO_SPAN(@$)); 
         log_rule_complete("expr", 2, 92);
     }
     | INC expr %prec UNARY  { 
         log_rule("expr → INC expr", 93); 
         log_semantic_step("$$ = createUnaryExpNode($2, PRE_INC)", 93, 1);
-        $$ = createUnaryExpNode($2, "PRE_INC"); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createUnaryExpNode($2, "PRE_INC", YYLOC_TO_SPAN(@$)); 
         log_rule_complete("expr", 2, 93);
     }
     | DEC expr %prec UNARY  { 
         log_rule("expr → DEC expr", 94); 
         log_semantic_step("$$ = createUnaryExpNode($2, PRE_DEC)", 94, 1);
-        $$ = createUnaryExpNode($2, "PRE_DEC"); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createUnaryExpNode($2, "PRE_DEC", YYLOC_TO_SPAN(@$)); 
         log_rule_complete("expr", 2, 94);
     }
     | expr INC %prec UNARY  { 
         log_rule("expr → expr INC", 95); 
         log_semantic_step("$$ = createUnaryExpNode($1, POST_INC)", 95, 1);
-        $$ = createUnaryExpNode($1, "POST_INC"); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createUnaryExpNode($1, "POST_INC", YYLOC_TO_SPAN(@$)); 
         log_rule_complete("expr", 2, 95);
     }
     | expr DEC %prec UNARY  { 
         log_rule("expr → expr DEC", 96); 
         log_semantic_step("$$ = createUnaryExpNode($1, POST_DEC)", 96, 1);
-        $$ = createUnaryExpNode($1, "POST_DEC"); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        $$ = createUnaryExpNode($1, "POST_DEC", YYLOC_TO_SPAN(@$)); 
         log_rule_complete("expr", 2, 96);
     }
     | ID                    { 
         log_rule("expr → ID", 97); 
         log_semantic_step("$$ = createTermExpNode(createIdRefNode($1))", 97, 1);
-        $$ = createTermExpNode(createIdRefNode($1)); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        ASTNode* idRefNode = createIdRefNode($1, YYLOC_TO_SPAN(@$));
+        $$ = createTermExpNode(idRefNode, YYLOC_TO_SPAN(@$)); 
         log_rule_complete("expr", 1, 97);
     } 
     | INT_LITERAL           { 
         log_rule("expr → INT_LITERAL", 98); 
         log_semantic_step("$$ = createTermExpNode(createIntLiteralNode($1))", 98, 1);
-        $$ = createTermExpNode(createIntLiteralNode($1)); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        ASTNode* intLiteralNode = createIntLiteralNode($1, YYLOC_TO_SPAN(@$));
+        $$ = createTermExpNode(intLiteralNode, YYLOC_TO_SPAN(@$));
         log_rule_complete("expr", 1, 98);
     }
     | CHAR_LITERAL          { 
         log_rule("expr → CHAR_LITERAL", 99); 
         log_semantic_step("$$ = createTermExpNode(createCharLiteralNode($1))", 99, 1);
-        $$ = createTermExpNode(createCharLiteralNode($1)); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        ASTNode* charLiteralNode = createCharLiteralNode($1, YYLOC_TO_SPAN(@$));
+        $$ = createTermExpNode(charLiteralNode, YYLOC_TO_SPAN(@$));
         log_rule_complete("expr", 1, 99);
     }
     | STR_LITERAL           { 
         log_rule("expr → STR_LITERAL", 100); 
         log_semantic_step("$$ = createTermExpNode(createStrLiteralNode($1))", 100, 1);
-        $$ = createTermExpNode(createStrLiteralNode($1)); 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
+        ASTNode* strLiteralNode = createStrLiteralNode($1, YYLOC_TO_SPAN(@$));
+        $$ = createTermExpNode(strLiteralNode, YYLOC_TO_SPAN(@$));
         log_rule_complete("expr", 1, 100);
     }
     | func_call             { 
         log_rule("expr → func_call", 101); 
         log_semantic_step("$$ = $1", 101, 1);
         $$ = $1; 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
         log_rule_complete("expr", 1, 101);
     }
     | '(' expr ')'          { 
         log_rule("expr → ( expr )", 102); 
         log_semantic_step("$$ = $2", 102, 1);
         $$ = $2; 
-        setNodeLocation($$, @$.first_line, @$.first_column, @$.last_line, @$.last_column);
         log_rule_complete("expr", 3, 102);
     }
     ;
@@ -1269,7 +1173,7 @@ int main(int argc, char *argv[]){
     
     printf("\n\n");
 
-    
+
 
     close_logger();
     freeAST(root);
@@ -1277,11 +1181,10 @@ int main(int argc, char *argv[]){
 }
 
 
-
 // Wrapper function to create a program node with a list of statements
-ASTNode* createProgramNode(ASTNode* stmt_list) {
+ASTNode* createProgramNode(ASTNode* stmt_list, SourceSpan span) {
     // Create a node for the root of the program
-    ASTNode* programNode = createASTNode(NODE_PROGRAM, cur_line, cur_char);
+    ASTNode* programNode = createASTNode(NODE_PROGRAM, span);
 
     programNode->program_data.stmt_list = stmt_list;
     programNode->program_data.scope = symTable;
@@ -1289,15 +1192,15 @@ ASTNode* createProgramNode(ASTNode* stmt_list) {
     return programNode;
 }
 
-ASTNode* createStmtListNode(ASTNode* stmt_list, ASTNode* stmt) {
-    ASTNode* node = createASTNode(NODE_STMT_LIST, cur_line, cur_char);
+ASTNode* createStmtListNode(ASTNode* stmt_list, ASTNode* stmt, SourceSpan span) {
+    ASTNode* node = createASTNode(NODE_STMT_LIST, span);
     node->stmt_list_data.stmt_list = stmt_list; // Pointer to the next statement or NULL
     node->stmt_list_data.stmt = stmt;
     return node;
 }
 
-ASTNode* createBlockStmtNode(ASTNode* stmt_list){
-    ASTNode* node = createASTNode(NODE_BLOCK_STMT, cur_line, cur_char);
+ASTNode* createBlockStmtNode(ASTNode* stmt_list, SourceSpan span){
+    ASTNode* node = createASTNode(NODE_BLOCK_STMT, span);
     node->block_stmt_data.stmt_list = stmt_list;
 
     return node;
@@ -1305,15 +1208,15 @@ ASTNode* createBlockStmtNode(ASTNode* stmt_list){
 
 
 
-ASTNode* createReturnNode(ASTNode* return_value){
-    ASTNode* node = createASTNode(NODE_RETURN, cur_line, cur_char);
+ASTNode* createReturnNode(ASTNode* return_value, SourceSpan span){
+    ASTNode* node = createASTNode(NODE_RETURN, span);
     node->return_data.return_value = return_value;
     node->return_data.associated_node = NULL;
     return node;
 }
 
-ASTNode* createBreakNode(){
-    ASTNode* node = createASTNode(NODE_BREAK_STMT, cur_line, cur_char);
+ASTNode* createBreakNode(SourceSpan span){
+    ASTNode* node = createASTNode(NODE_BREAK_STMT, span);
     node->break_continue_stmt_data.associated_loop_node = NULL;
 
     // Add to the list
@@ -1329,8 +1232,8 @@ ASTNode* createBreakNode(){
     }            
     return node;
 }
-ASTNode* createContinueNode(){
-    ASTNode* node = createASTNode(NODE_CONTINUE_STMT, cur_line, cur_char);
+ASTNode* createContinueNode(SourceSpan span){
+    ASTNode* node = createASTNode(NODE_CONTINUE_STMT, span);
     node->break_continue_stmt_data.associated_loop_node = NULL;
 
     // Add to the list
@@ -1351,24 +1254,24 @@ ASTNode* createContinueNode(){
 
 // EXPRESSIONS
 
-ASTNode* createBinaryExpNode(ASTNode* left, ASTNode* right, const char* op) {
-    ASTNode* node = createASTNode(NODE_EXPR_BINARY, cur_line, cur_char);
+ASTNode* createBinaryExpNode(ASTNode* left, ASTNode* right, const char* op, SourceSpan span) {
+    ASTNode* node = createASTNode(NODE_EXPR_BINARY, span);
     node->expr_data.left = left;
     node->expr_data.right = right;
     node->expr_data.op = strdup(op);  // Store the operation
     return node;
 }
 
-ASTNode* createUnaryExpNode(ASTNode* left, const char* op){
-    ASTNode* node = createASTNode(NODE_EXPR_UNARY, cur_line, cur_char);
+ASTNode* createUnaryExpNode(ASTNode* left, const char* op, SourceSpan span){
+    ASTNode* node = createASTNode(NODE_EXPR_UNARY, span);
     node->expr_data.left = left;
     node->expr_data.right = NULL;
     node->expr_data.op = strdup(op);  // Store the operation
     return node;
 }
 
-ASTNode* createTermExpNode(ASTNode* term){
-    ASTNode* node = createASTNode(NODE_EXPR_TERM, cur_line, cur_char);
+ASTNode* createTermExpNode(ASTNode* term, SourceSpan span){
+    ASTNode* node = createASTNode(NODE_EXPR_TERM, span);
     node->expr_data.left = term;
     node->expr_data.right = NULL;
     node->expr_data.op = NULL;
@@ -1380,32 +1283,32 @@ ASTNode* createTermExpNode(ASTNode* term){
 
 // IDENTIFIERS
 
-ASTNode* createIdentifierNode(const char* id, char* type) {
-    ASTNode* node = createASTNode(NODE_ID, cur_line, cur_char);
+ASTNode* createIdentifierNode(const char* id, char* type, SourceSpan span) {
+    ASTNode* node = createASTNode(NODE_ID, span);
 
-    symbol* sym = createSymbol(id, type, currentScope, -1, 0, cur_line, cur_char);
+    symbol* sym = createSymbol(id, type, currentScope, -1, 0, span.start_line, span.start_col);
     node->id_data.sym = sym;
     addSymbol(currentScope, sym);
     return node;
 }
 
-ASTNode* createFucnIdNode(const char* id, ASTNode* type_spec){
-    ASTNode* node = createASTNode(NODE_ID, cur_line, cur_char);
+ASTNode* createFuncIdNode(const char* id, ASTNode* type_spec, SourceSpan span){
+    ASTNode* node = createASTNode(NODE_ID, span);
     char* type = (char*)type_spec->type_data.type;
 
-    symbol* sym = createSymbol(id, type, currentScope, -1, 1, cur_line, cur_char);
+    symbol* sym = createSymbol(id, type, currentScope, -1, 1, span.start_line, span.start_col);
     node->id_data.sym = sym;
     addSymbol(currentScope, sym);
     return node;  
 }
 
-ASTNode* createIdRefNode(const char* id){
-    ASTNode* node = createASTNode(NODE_ID_REF, cur_line, cur_char);
+ASTNode* createIdRefNode(const char* id, SourceSpan span){
+    ASTNode* node = createASTNode(NODE_ID_REF, span);
     node->id_ref_data.name = id;
     node->id_ref_data.ref = NULL;
     node->id_ref_data.scope = currentScope;
-    node->id_ref_data.line_no = cur_line;
-    node->id_ref_data.char_no = cur_char;
+    node->id_ref_data.line_no = span.start_line;
+    node->id_ref_data.char_no = span.start_col;
     return node;
 }
 
@@ -1413,18 +1316,18 @@ ASTNode* createIdRefNode(const char* id){
 
 // LITERALS
 
-ASTNode* createIntLiteralNode(int i){
-    ASTNode* node = createASTNode(NODE_INT_LITERAL, cur_line, cur_char);
+ASTNode* createIntLiteralNode(int i, SourceSpan span){
+    ASTNode* node = createASTNode(NODE_INT_LITERAL, span);
     node->literal_data.value.int_value = i;
     return node;
 }
-ASTNode* createCharLiteralNode(char c){
-    ASTNode* node = createASTNode(NODE_CHAR_LITERAL, cur_line, cur_char);
+ASTNode* createCharLiteralNode(char c, SourceSpan span){
+    ASTNode* node = createASTNode(NODE_CHAR_LITERAL, span);
     node->literal_data.value.char_value = c;
     return node;
 }
-ASTNode* createStrLiteralNode(const char* s){
-    ASTNode* node = createASTNode(NODE_STR_LITERAL, cur_line, cur_char);
+ASTNode* createStrLiteralNode(const char* s, SourceSpan span){
+    ASTNode* node = createASTNode(NODE_STR_LITERAL, span);
     node->literal_data.value.str_value = s;
     return node;
 }
@@ -1433,47 +1336,46 @@ ASTNode* createStrLiteralNode(const char* s){
 
 // DECLARATIONS, VARIABLES and ASSIGNMENTS
 
-ASTNode* createDeclNode(ASTNode* type_spec, ASTNode* var_list){
-    ASTNode* node = createASTNode(NODE_DECL, cur_line, cur_char);
+ASTNode* createDeclNode(ASTNode* type_spec, ASTNode* var_list, SourceSpan span){
+    ASTNode* node = createASTNode(NODE_DECL, span);
     node->decl_data.type_spec = type_spec;
     node->decl_data.var_list = var_list;
 
     return node;
 }
 
-ASTNode* createTypeNode(char* type){
-    ASTNode* node = createASTNode(NODE_TYPE_SPEC, cur_line, cur_char);
+ASTNode* createTypeNode(char* type, SourceSpan span){
+    ASTNode* node = createASTNode(NODE_TYPE_SPEC, span);
     node->type_data.type = type;
     return node;
 }
 
-ASTNode* createVarListNode(ASTNode* var_list, ASTNode* var){
-    ASTNode* node = createASTNode(NODE_VAR_LIST, cur_line, cur_char);
+ASTNode* createVarListNode(ASTNode* var_list, ASTNode* var, SourceSpan span){
+    ASTNode* node = createASTNode(NODE_VAR_LIST, span);
     node->var_list_data.var_list = var_list;
     node->var_list_data.var = var;
 
     return node;
 }
 
-ASTNode* createVarNode(const char* id) {
-    ASTNode* node = createASTNode(NODE_VAR, cur_line, cur_char);
-    node->var_data.id = createIdentifierNode(id, NULL);  // Simple variable
+ASTNode* createVarNode(const char* id, SourceSpan span, SourceSpan id_span) {
+    ASTNode* node = createASTNode(NODE_VAR, span);
+    node->var_data.id = createIdentifierNode(id, NULL, id_span);  // Simple variable
     node->var_data.value = NULL;
 
     return node;
 }
 
-ASTNode* createVarAssgnNode(const char* id, ASTNode* value){
-   ASTNode* node = createASTNode(NODE_VAR, cur_line, cur_char);
-   node->var_data.id = createIdentifierNode(id, NULL);
+ASTNode* createVarAssgnNode(const char* id, ASTNode* value, SourceSpan span, SourceSpan id_span){
+   ASTNode* node = createASTNode(NODE_VAR, span);
+   node->var_data.id = createIdentifierNode(id, NULL, id_span);
    node->var_data.value = value;
-
    return node;
 }
 
-ASTNode* createAssgnNode(const char* id, ASTNode* value){
-    ASTNode* node = createASTNode(NODE_ASSGN, cur_line, cur_char);
-    node->assgn_data.left = createIdRefNode(id);
+ASTNode* createAssgnNode(const char* id, ASTNode* value, SourceSpan span, SourceSpan id_span){
+    ASTNode* node = createASTNode(NODE_ASSGN, span);
+    node->assgn_data.left = createIdRefNode(id, id_span);
     node->assgn_data.right = value;
 
     return node;
@@ -1506,16 +1408,16 @@ void setVarListType(ASTNode* typeNode, ASTNode* var_list) {
 
 // IF ELSE 
 
-ASTNode* createIfNode(ASTNode* cond, ASTNode* if_branch) {
-    ASTNode* node = createASTNode(NODE_IF, cur_line, cur_char);
+ASTNode* createIfNode(ASTNode* cond, ASTNode* if_branch, SourceSpan span) {
+    ASTNode* node = createASTNode(NODE_IF, span);
 
     // Implicit creation of cond & branch nodes
 
-    ASTNode* node_cond = createASTNode(NODE_IF_COND, cur_line, cur_char);
+    ASTNode* node_cond = createASTNode(NODE_IF_COND, span);
     node_cond->if_cond_data.cond = cond;
     node->if_else_data.condition = node_cond;
 
-    ASTNode* node_if_branch = createASTNode(NODE_IF_BRANCH, cur_line, cur_char);
+    ASTNode* node_if_branch = createASTNode(NODE_IF_BRANCH, span);
     node_if_branch->if_else_branch.branch = if_branch;
     node->if_else_data.if_branch = node_if_branch;
 
@@ -1524,34 +1426,34 @@ ASTNode* createIfNode(ASTNode* cond, ASTNode* if_branch) {
     return node;
 }
 
-ASTNode* createIfElseNode(ASTNode* cond, ASTNode* if_branch, ASTNode* else_branch){
-    ASTNode* node = createASTNode(NODE_IF_ELSE, cur_line, cur_char);
+ASTNode* createIfElseNode(ASTNode* cond, ASTNode* if_branch, ASTNode* else_branch, SourceSpan span){
+    ASTNode* node = createASTNode(NODE_IF_ELSE, span);
 
     // Implicit creation of cond & branch nodes
 
-    ASTNode* node_cond = createASTNode(NODE_IF_COND, cur_line, cur_char);
+    ASTNode* node_cond = createASTNode(NODE_IF_COND, span);
     node_cond->if_cond_data.cond = cond;
     node->if_else_data.condition = node_cond;
 
-    ASTNode* node_if_branch = createASTNode(NODE_IF_BRANCH, cur_line, cur_char);
+    ASTNode* node_if_branch = createASTNode(NODE_IF_BRANCH, span);
     node_if_branch->if_else_branch.branch = if_branch;
     node->if_else_data.if_branch = node_if_branch;
    
-    ASTNode* node_else_branch = createASTNode(NODE_ELSE_BRANCH, cur_line, cur_char);
+    ASTNode* node_else_branch = createASTNode(NODE_ELSE_BRANCH, span);
     node_else_branch->if_else_branch.branch = else_branch;
     node->if_else_data.else_branch = node_else_branch;
 
     return node;
 }
 
-ASTNode* createWhileNode(ASTNode* cond, ASTNode* body){
-    ASTNode* node = createASTNode(NODE_WHILE, cur_line, cur_char);
+ASTNode* createWhileNode(ASTNode* cond, ASTNode* body, SourceSpan span){
+    ASTNode* node = createASTNode(NODE_WHILE, span);
 
     // Implict creation of cond and branch nodes
-    ASTNode* node_while_cond = createASTNode(NODE_WHILE_COND, cur_line, cur_char);
+    ASTNode* node_while_cond = createASTNode(NODE_WHILE_COND, span);
     node_while_cond->while_cond_data.cond = cond;
 
-    ASTNode* node_while_body = createASTNode(NODE_WHILE_BODY, cur_line, cur_char);
+    ASTNode* node_while_body = createASTNode(NODE_WHILE_BODY, span);
     node_while_body->while_body_data.body = body;
 
     node->while_data.condition = node_while_cond;
@@ -1561,21 +1463,21 @@ ASTNode* createWhileNode(ASTNode* cond, ASTNode* body){
 
 }
 
-ASTNode* createForNode(ASTNode* init, ASTNode* cond, ASTNode* updation, ASTNode* body){
-    ASTNode* node = createASTNode(NODE_FOR, cur_line, cur_char);
+ASTNode* createForNode(ASTNode* init, ASTNode* cond, ASTNode* updation, ASTNode* body, SourceSpan span){
+    ASTNode* node = createASTNode(NODE_FOR, span);
     
 
     // Implicit creation of init, cond and updation nodes;
-    ASTNode* node_for_init = createASTNode(NODE_FOR_INIT, cur_line, cur_char);
+    ASTNode* node_for_init = createASTNode(NODE_FOR_INIT, span);
     node_for_init->for_init_data.init = init;
 
-    ASTNode* node_for_cond = createASTNode(NODE_FOR_COND, cur_line, cur_char); 
+    ASTNode* node_for_cond = createASTNode(NODE_FOR_COND, span); 
     node_for_cond->for_cond_data.cond = cond;
 
-    ASTNode* node_for_upd = createASTNode(NODE_FOR_UPDATION, cur_line, cur_char);
+    ASTNode* node_for_upd = createASTNode(NODE_FOR_UPDATION, span);
     node_for_upd->for_updation_data.updation = updation;
 
-    ASTNode* node_for_body = createASTNode(NODE_FOR_BODY, cur_line, cur_char);
+    ASTNode* node_for_body = createASTNode(NODE_FOR_BODY, span);
     node_for_body->for_body_data.body = body;
 
     node->for_data.init = node_for_init;
@@ -1587,8 +1489,8 @@ ASTNode* createForNode(ASTNode* init, ASTNode* cond, ASTNode* updation, ASTNode*
 }
 
 
-ASTNode* createCommaExprList(ASTNode* expr_list, ASTNode* expr_list_item){
-    ASTNode* node = createASTNode(NODE_EXPR_COMMA_LIST, cur_line, cur_char);
+ASTNode* createCommaExprList(ASTNode* expr_list, ASTNode* expr_list_item, SourceSpan span){
+    ASTNode* node = createASTNode(NODE_EXPR_COMMA_LIST, span);
 
     node->expr_comma_list_data.expr_comma_list = expr_list;
     node->expr_comma_list_data.expr_comma_list_item = expr_list_item;
@@ -1608,8 +1510,8 @@ int countParams(ASTNode* params) {
 }
 
 
-ASTNode* createFuncDeclNode(ASTNode* type_spec, ASTNode* id, ASTNode* params, ASTNode* body){
-    ASTNode* node = createASTNode(NODE_FUNC_DECL, cur_line, cur_char);
+ASTNode* createFuncDeclNode(ASTNode* type_spec, ASTNode* id, ASTNode* params, ASTNode* body, SourceSpan span){
+    ASTNode* node = createASTNode(NODE_FUNC_DECL, span);
 
     if (func_id >= 100) {
         fprintf(stderr, "Max functions limit exceded\n");
@@ -1625,7 +1527,7 @@ ASTNode* createFuncDeclNode(ASTNode* type_spec, ASTNode* id, ASTNode* params, AS
     /* printf("Params count: %d\n", node->func_decl_data.param_count); */
 
     // Implicit creation of Function body node
-    ASTNode* body_node = createASTNode(NODE_FUNC_BODY, cur_line, cur_char);
+    ASTNode* body_node = createASTNode(NODE_FUNC_BODY, span);
     body_node->func_body_data.body = body;
 
     node->func_decl_data.body = body_node;
@@ -1634,8 +1536,8 @@ ASTNode* createFuncDeclNode(ASTNode* type_spec, ASTNode* id, ASTNode* params, AS
     return node;
 }
 
-ASTNode* createParamsListNode(ASTNode* params_list, ASTNode* param){
-    ASTNode* node = createASTNode(NODE_PARAM_LIST, cur_line, cur_char);
+ASTNode* createParamsListNode(ASTNode* params_list, ASTNode* param, SourceSpan span){
+    ASTNode* node = createASTNode(NODE_PARAM_LIST, span);
 
     node->param_list_data.param_list = params_list;
     node->param_list_data.param = param;
@@ -1643,11 +1545,11 @@ ASTNode* createParamsListNode(ASTNode* params_list, ASTNode* param){
     return node;
 }
 
-ASTNode* createParamNode(ASTNode* type_spec, const char* id){
-    ASTNode* node = createASTNode(NODE_PARAM, cur_line, cur_char);
+ASTNode* createParamNode(ASTNode* type_spec, const char* id, SourceSpan span, SourceSpan id_span){
+    ASTNode* node = createASTNode(NODE_PARAM, span);
     char* type = (char*)type_spec->type_data.type;
     node->param_data.type_spec = type_spec;
-    node->param_data.id = createIdentifierNode(id, type);
+    node->param_data.id = createIdentifierNode(id, type, id_span);
 
     return node;
 }
@@ -1663,10 +1565,10 @@ int countArgs(ASTNode* arg_list) {
     return 1;
 }
 
-ASTNode* createFuncCallNode(const char* id, ASTNode* arg_list){
-    ASTNode* node = createASTNode(NODE_FUNC_CALL, cur_line, cur_char);
+ASTNode* createFuncCallNode(const char* id, ASTNode* arg_list, SourceSpan span, SourceSpan id_span){
+    ASTNode* node = createASTNode(NODE_FUNC_CALL, span);
 
-    node->func_call_data.id = createIdRefNode(id);
+    node->func_call_data.id = createIdRefNode(id, id_span);
     node->func_call_data.arg_list = arg_list;
     node->func_call_data.arg_count = countArgs(arg_list);
 
@@ -1674,18 +1576,17 @@ ASTNode* createFuncCallNode(const char* id, ASTNode* arg_list){
 
 }
 
-ASTNode* createArgListNode(ASTNode* arg_list, ASTNode* arg){
-    ASTNode* node = createASTNode(NODE_ARG_LIST, cur_line, cur_char);
+ASTNode* createArgListNode(ASTNode* arg_list, ASTNode* arg, SourceSpan span){
+    ASTNode* node = createASTNode(NODE_ARG_LIST, span);
 
     node->arg_list_data.arg_list = arg_list;
-    node->arg_list_data.arg = createArgNode(arg);
+    node->arg_list_data.arg = createArgNode(arg, span);
 
     return node;
 }
 
-ASTNode* createArgNode(ASTNode* arg){
-    ASTNode* node = createASTNode(NODE_ARG, cur_line, cur_char);
-
+ASTNode* createArgNode(ASTNode* arg, SourceSpan span){
+    ASTNode* node = createASTNode(NODE_ARG, span);
     node->arg_data.arg = arg;
 
     return node;

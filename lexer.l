@@ -14,7 +14,7 @@
         cur_char += yyleng;                            \
                                                        \
         yylloc.last_line = cur_line;                   \
-        yylloc.last_column = cur_char - 1;             \
+        yylloc.last_column = cur_char;             \
     } while(0)
 
     int cur_line = 1;

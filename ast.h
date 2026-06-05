@@ -71,6 +71,13 @@ typedef enum NodeType {
 const char* getNodeName(NodeType type); 
 void setASTDebugger();
 
+typedef struct SourceSpan {
+    int start_line;
+    int start_col;
+    int end_line;
+    int end_col;
+} SourceSpan;
+
 typedef struct ASTNode {
     NodeType type;  // Type of the node (enum to identify node type)
     int node_id;
@@ -299,7 +306,10 @@ void registerASTNode(ASTNode* node);
 void freeASTRegistry(void);
 
 // Function prototypes for AST operations
-ASTNode* createASTNode(NodeType, int line_no, int char_no);
+SourceSpan makeSourceSpan(int start_line, int start_col, int end_line, int end_col);
+SourceSpan spanFromNode(ASTNode* node);
+void applySourceSpan(ASTNode* node, SourceSpan span);
+ASTNode* createASTNode(NodeType, SourceSpan span);
 void deriveRangeFromChildren(ASTNode* node, ASTNode* first_child, ASTNode* last_child);
 void printAST(ASTNode* node, int indent, bool isLast);
 void freeAST(ASTNode* node);

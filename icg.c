@@ -1545,56 +1545,124 @@ TAC* generateCodeForDecl(ASTNode* node){
 
 TAC* genCodeForFuncDecl(ASTNode* node, BoolExprInfo* bool_info){
     if(isDebug) printf("[DEBUG] GenCode for FUNC_DECL\n");
-    if(node->type != NODE_FUNC_DECL) return NULL;
 
-    // generate TAC for function headers
+    if(node->type != NODE_FUNC_DECL)
+        return NULL;
+
+    // Remember where the TAC list was before this function
+    TAC* tail_before = codeList->tail;
+
+    // Generate parameter TACs
     ASTNode* paramList = node->func_decl_data.params;
     int paramCnt = node->func_decl_data.param_count;
 
     TAC* code_param_list = genCodeForParamList(paramList, paramCnt);
-    // generate TAC for function body using normal generation
+
+    // Generate body TACs
     TAC* code_body = generateCode(node->func_decl_data.body, bool_info);
-    
-    // Add implicit return with default value
-    if(codeList->tail->op != TAC_RETURN){        
+
+    // Determine function entry point
+    TAC* func_entry = NULL;
+
+    if(code_param_list != NULL)
+        func_entry = code_param_list;
+    else if(code_body != NULL)
+        func_entry = code_body;
+
+    // Function generated absolutely no code (e.g. void foo() {})
+    if(func_entry == NULL){
         Operand* opr1 = makeOperand(VOID_VAL, NULL);
-        TAC* code_ret_val = createTAC(TAC_ASSIGN, (char*)ret_val_var, opr1, NULL);
-        TAC* code_end = createTAC(TAC_RETURN, NULL, NULL, NULL);
-        appendTAC(codeList, code_ret_val);
+
+        TAC* implicit_ret =
+            createTAC(
+                TAC_ASSIGN,
+                (char*)ret_val_var,
+                opr1,
+                NULL
+            );
+
+        TAC* code_end =
+            createTAC(
+                TAC_RETURN,
+                NULL,
+                NULL,
+                NULL
+            );
+
+        appendTAC(codeList, implicit_ret);
         appendTAC(codeList, code_end);
+
+        appendComments(code_end, "IMPLICIT RETURN");
+
+        func_entry = implicit_ret;
+    }
+
+    // If this function generated code but did not end with RETURN,
+    // append an implicit return.
+    else if(codeList->tail != NULL &&
+            codeList->tail->op != TAC_RETURN)
+    {
+        Operand* opr1 = makeOperand(VOID_VAL, NULL);
+
+        TAC* implicit_ret =
+            createTAC(
+                TAC_ASSIGN,
+                (char*)ret_val_var,
+                opr1,
+                NULL
+            );
+
+        TAC* code_end =
+            createTAC(
+                TAC_RETURN,
+                NULL,
+                NULL,
+                NULL
+            );
+
+        appendTAC(codeList, implicit_ret);
+        appendTAC(codeList, code_end);
+
         appendComments(code_end, "IMPLICIT RETURN");
     }
 
+    // Backpatch calls
     TACList* list = funcCalls[node->func_decl_data.global_id - 1];
-    
-    TAC* funCallNode = list == NULL ? NULL : list->head;
+    TAC* funCallNode = (list == NULL) ? NULL : list->head;
 
-    if (isDebug) {
-        printf("[DEBUG] Backpatching fun calls for Func: %s, id: %d. Func Call List Null? = %d\n", node->func_decl_data.id->id_data.sym->name, node->func_decl_data.global_id, list == NULL);
-        printf("[DEBUG] Code param list null? = %d\n", code_param_list == NULL);
+    if(isDebug){
+        printf(
+            "[DEBUG] Backpatching fun calls for Func: %s, id: %d. Func Call List Null? = %d\n",
+            node->func_decl_data.id->id_data.sym->name,
+            node->func_decl_data.global_id,
+            list == NULL
+        );
+
+        printf("[DEBUG] code_param_list=%p\n", (void*)code_param_list);
+        printf("[DEBUG] code_body=%p\n", (void*)code_body);
+        printf("[DEBUG] func_entry=%p\n", (void*)func_entry);
     }
-        
-    if (code_param_list != NULL) {
-        while(funCallNode != NULL && funCallNode->op == TAC_CALL){
-            funCallNode->target_jump = code_param_list->tac_id;
-            funCallNode = funCallNode->next;
-        }
 
-        appendComments(code_param_list, "FUNC START");
-        appendComments(code_param_list, node->func_decl_data.id->id_data.sym->name);
-    } else {
-        while(funCallNode != NULL && funCallNode->op == TAC_CALL){
-            funCallNode->target_jump = code_body->tac_id;
-            funCallNode = funCallNode->next;
-        }
-
-        appendComments(code_body, "FUNC START");
-        appendComments(code_body, node->func_decl_data.id->id_data.sym->name); 
+    while(funCallNode != NULL && funCallNode->op == TAC_CALL){
+        funCallNode->target_jump = func_entry->tac_id;
+        funCallNode = funCallNode->next;
     }
-    
-    appendComments(codeList->tail, "FUNC END");
-    appendComments(codeList->tail, node->func_decl_data.id->id_data.sym->name);
-    return code_param_list;
+
+    appendComments(func_entry, "FUNC START");
+    appendComments(
+        func_entry,
+        node->func_decl_data.id->id_data.sym->name
+    );
+
+    if(codeList->tail != NULL){
+        appendComments(codeList->tail, "FUNC END");
+        appendComments(
+            codeList->tail,
+            node->func_decl_data.id->id_data.sym->name
+        );
+    }
+
+    return func_entry;
 }
 
 TAC* genCodeForFuncCall(ASTNode* node){
