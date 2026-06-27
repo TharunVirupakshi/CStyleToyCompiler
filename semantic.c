@@ -201,6 +201,13 @@ SemanticStatus performSemanticAnalysis(ASTNode* root, SymbolTable* globalTable, 
     if (isDebugOn) printf("------Validating Symbol Usage COMPLETED!\n\n");
     logSemanticPassStatus(currentSemanticPass, "COMPLETE", "SYMBOL USAGE VALIDATION COMPLETE");
 
+    if(errorCount > 0){
+        printErrors();
+        errorCount = 0;
+        currentSemanticPass = NULL;
+        return SEMANTIC_ERROR;
+    }
+
     currentSemanticPass = "validateLoops";
     logSemanticPassStatus(currentSemanticPass, "START", "VALIDATING LOOPS");
     if (isDebugOn) printf("------Validating Loops....\n");
