@@ -268,6 +268,93 @@ void log_step(Step step) {
             fprintf(log_file, ", \"total_errors\": \"%d\" }},\n", step.SemanticAnalysisComplete.total_errors);
             break;
 
+        case ICG_NODE_VISIT:
+            fprintf(log_file, "    { \"type\": \"ICG_NODE_VISIT\", \"data\": {\"ast_node_id\": \"%d\", \"node_type\": ",
+                step.ICGNodeVisit.ast_node_id);
+            write_json_string(log_file, step.ICGNodeVisit.node_type);
+            fprintf(log_file, ", \"line_no\": \"%d\", \"char_no\": \"%d\", \"action\": ",
+                step.ICGNodeVisit.line_no, step.ICGNodeVisit.char_no);
+            write_json_string(log_file, step.ICGNodeVisit.action);
+            if (step.ICGNodeVisit.operator_name) {
+                fprintf(log_file, ", \"operator\": ");
+                write_json_string(log_file, step.ICGNodeVisit.operator_name);
+            }
+            fprintf(log_file, " }},\n");
+            break;
+
+        case ICG_CREATE_TEMP:
+            fprintf(log_file, "    { \"type\": \"ICG_CREATE_TEMP\", \"data\": {\"ast_node_id\": \"%d\", \"node_type\": ",
+                step.ICGCreateTemp.ast_node_id);
+            write_json_string(log_file, step.ICGCreateTemp.node_type);
+            fprintf(log_file, ", \"line_no\": \"%d\", \"char_no\": \"%d\", \"temp_name\": ",
+                step.ICGCreateTemp.line_no, step.ICGCreateTemp.char_no);
+            write_json_string(log_file, step.ICGCreateTemp.temp_name);
+            fprintf(log_file, " }},\n");
+            break;
+
+        case ICG_CREATE_LABEL:
+            fprintf(log_file, "    { \"type\": \"ICG_CREATE_LABEL\", \"data\": {\"ast_node_id\": \"%d\", \"node_type\": ",
+                step.ICGCreateLabel.ast_node_id);
+            write_json_string(log_file, step.ICGCreateLabel.node_type);
+            fprintf(log_file, ", \"line_no\": \"%d\", \"char_no\": \"%d\", \"label_name\": ",
+                step.ICGCreateLabel.line_no, step.ICGCreateLabel.char_no);
+            write_json_string(log_file, step.ICGCreateLabel.label_name);
+            fprintf(log_file, ", \"target_tac_id\": \"%d\" }},\n", step.ICGCreateLabel.target_tac_id);
+            break;
+
+        case ICG_EMIT:
+            fprintf(log_file, "    { \"type\": \"ICG_EMIT\", \"data\": {\"ast_node_id\": \"%d\", \"node_type\": ",
+                step.ICGEmit.ast_node_id);
+            write_json_string(log_file, step.ICGEmit.node_type);
+            fprintf(log_file, ", \"line_no\": \"%d\", \"char_no\": \"%d\", \"instruction_no\": \"%d\", \"source_tac_id\": \"%d\", \"opcode\": ",
+                step.ICGEmit.line_no, step.ICGEmit.char_no, step.ICGEmit.instruction_no, step.ICGEmit.source_tac_id);
+            write_json_string(log_file, step.ICGEmit.opcode);
+            fprintf(log_file, ", \"result\": ");
+            write_json_string(log_file, step.ICGEmit.result);
+            fprintf(log_file, ", \"arg1\": ");
+            write_json_string(log_file, step.ICGEmit.arg1);
+            fprintf(log_file, ", \"arg2\": ");
+            write_json_string(log_file, step.ICGEmit.arg2);
+            fprintf(log_file, ", \"target_label\": ");
+            write_json_string(log_file, step.ICGEmit.target_label);
+            fprintf(log_file, ", \"text\": ");
+            write_json_string(log_file, step.ICGEmit.text);
+            fprintf(log_file, " }},\n");
+            break;
+
+        case ICG_PATCH_LABEL:
+            fprintf(log_file, "    { \"type\": \"ICG_PATCH_LABEL\", \"data\": {\"ast_node_id\": \"%d\", \"node_type\": ",
+                step.ICGPatchLabel.ast_node_id);
+            write_json_string(log_file, step.ICGPatchLabel.node_type);
+            fprintf(log_file, ", \"line_no\": \"%d\", \"char_no\": \"%d\", \"instruction_no\": \"%d\", \"label_name\": ",
+                step.ICGPatchLabel.line_no, step.ICGPatchLabel.char_no, step.ICGPatchLabel.instruction_no);
+            write_json_string(log_file, step.ICGPatchLabel.label_name);
+            fprintf(log_file, ", \"text\": ");
+            write_json_string(log_file, step.ICGPatchLabel.text);
+            fprintf(log_file, " }},\n");
+            break;
+
+        case ICG_ENTER_FUNCTION:
+        case ICG_EXIT_FUNCTION:
+            fprintf(log_file, "    { \"type\": \"%s\", \"data\": {\"ast_node_id\": \"%d\", \"node_type\": ",
+                step.type == ICG_ENTER_FUNCTION ? "ICG_ENTER_FUNCTION" : "ICG_EXIT_FUNCTION",
+                step.ICGFunctionEvent.ast_node_id);
+            write_json_string(log_file, step.ICGFunctionEvent.node_type);
+            fprintf(log_file, ", \"line_no\": \"%d\", \"char_no\": \"%d\", \"function_name\": ",
+                step.ICGFunctionEvent.line_no, step.ICGFunctionEvent.char_no);
+            write_json_string(log_file, step.ICGFunctionEvent.function_name);
+            fprintf(log_file, " }},\n");
+            break;
+
+        case ICG_COMPLETE:
+            fprintf(log_file, "    { \"type\": \"ICG_COMPLETE\", \"data\": {\"status\": ");
+            write_json_string(log_file, step.ICGComplete.status);
+            fprintf(log_file, ", \"instruction_count\": \"%d\", \"temporary_count\": \"%d\", \"label_count\": \"%d\" }},\n",
+                step.ICGComplete.instruction_count,
+                step.ICGComplete.temporary_count,
+                step.ICGComplete.label_count);
+            break;
+
         default:
             fprintf(log_file, "    { \"type\": \"UNKNOWN\" },\n");
             break;

@@ -96,6 +96,10 @@ typedef struct TAC {
     int target_jump;
 
     char* comments;
+    ASTNode* origin_node;
+    ASTNode* function_node;
+    const char* enter_function;
+    const char* exit_function;
 
     struct TAC* next;  // Linked list of instructions
 } TAC;
@@ -171,6 +175,7 @@ ASTNode* dequeue(FuncQ* funcQ);
 
 // Function to print the generated TAC
 void printTAC();
+void logICGPlaybackTrace();
 
 
 #endif

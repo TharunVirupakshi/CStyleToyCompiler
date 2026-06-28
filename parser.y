@@ -1164,7 +1164,10 @@ int main(int argc, char *argv[]){
     if(sem_stat == SEMANTIC_SUCCESS){
         printf("\nPARSING SUCCESS\n");
 
+        start_phase(PHASE_ICG);
         startICG(root);
+        logICGPlaybackTrace();
+        end_phase();
 
         printf("\nThreeAddressCode------------------------\n\n");
         printTAC();

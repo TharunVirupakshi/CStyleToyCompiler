@@ -36,7 +36,17 @@ typedef enum {
     SEMANTIC_SYMBOL_HIGHLIGHT,
     SEMANTIC_NODE_HIGHLIGHT,
     SEMANTIC_ERROR_LOG,
-    SEMANTIC_ANALYSIS_COMPLETE
+    SEMANTIC_ANALYSIS_COMPLETE,
+
+    /* --- INTERMEDIATE CODE GENERATION --- */
+    ICG_NODE_VISIT,
+    ICG_CREATE_TEMP,
+    ICG_CREATE_LABEL,
+    ICG_EMIT,
+    ICG_PATCH_LABEL,
+    ICG_ENTER_FUNCTION,
+    ICG_EXIT_FUNCTION,
+    ICG_COMPLETE
 } StepType;
 
 
@@ -163,6 +173,72 @@ typedef struct SemanticAnalysisComplete {
     int total_errors;
 } SemanticAnalysisComplete;
 
+typedef struct ICGNodeVisit {
+    int ast_node_id;
+    const char* node_type;
+    int line_no;
+    int char_no;
+    const char* action;
+    const char* operator_name;
+} ICGNodeVisit;
+
+typedef struct ICGCreateTemp {
+    int ast_node_id;
+    const char* node_type;
+    int line_no;
+    int char_no;
+    const char* temp_name;
+} ICGCreateTemp;
+
+typedef struct ICGCreateLabel {
+    int ast_node_id;
+    const char* node_type;
+    int line_no;
+    int char_no;
+    const char* label_name;
+    int target_tac_id;
+} ICGCreateLabel;
+
+typedef struct ICGEmit {
+    int ast_node_id;
+    const char* node_type;
+    int line_no;
+    int char_no;
+    int instruction_no;
+    int source_tac_id;
+    const char* opcode;
+    const char* result;
+    const char* arg1;
+    const char* arg2;
+    const char* target_label;
+    const char* text;
+} ICGEmit;
+
+typedef struct ICGPatchLabel {
+    int ast_node_id;
+    const char* node_type;
+    int line_no;
+    int char_no;
+    int instruction_no;
+    const char* label_name;
+    const char* text;
+} ICGPatchLabel;
+
+typedef struct ICGFunctionEvent {
+    int ast_node_id;
+    const char* node_type;
+    int line_no;
+    int char_no;
+    const char* function_name;
+} ICGFunctionEvent;
+
+typedef struct ICGComplete {
+    const char* status;
+    int instruction_count;
+    int temporary_count;
+    int label_count;
+} ICGComplete;
+
 typedef struct Step {
     StepType type;
     union {
@@ -189,6 +265,13 @@ typedef struct Step {
         SemanticNodeHighlight SemanticNodeHighlight;
         SemanticErrorLog SemanticErrorLog;
         SemanticAnalysisComplete SemanticAnalysisComplete;
+        ICGNodeVisit ICGNodeVisit;
+        ICGCreateTemp ICGCreateTemp;
+        ICGCreateLabel ICGCreateLabel;
+        ICGEmit ICGEmit;
+        ICGPatchLabel ICGPatchLabel;
+        ICGFunctionEvent ICGFunctionEvent;
+        ICGComplete ICGComplete;
     };
 } Step;
 

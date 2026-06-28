@@ -3,9 +3,10 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "logger.h"
 
-int tempVarCounter = 0;
-int labelCounter = 0;
+int tempVarCounter = 1;
+int labelCounter = 1;
 int instructionCounter = 1;
 const char* ret_val_var = "ret_val";
 
@@ -65,10 +66,20 @@ BoolExprInfo global_bool_info = {NULL, NULL, NULL, NULL, NULL};
 
 TACList* codeList;
 FuncQ* funcQ;
+static ASTNode* currentICGOrigin = NULL;
+static ASTNode* icgRoot = NULL;
 
 // Runner
 void startICG(ASTNode* root){
     if(isDebug) printf("[DEBUG] Starting ICG generation...\n");
+    tempVarCounter = 1;
+    labelCounter = 1;
+    instructionCounter = 1;
+    functionCount = 1;
+    loopStackTop = -1;
+    currentICGOrigin = NULL;
+    icgRoot = root;
+    memset(funcCalls, 0, sizeof(funcCalls));
     codeList = createTACList();
     funcQ = createFuncQ();
 
@@ -87,7 +98,10 @@ void startICGforFunctions(FuncQ* funcQ){
     ASTNode* func_decl;
     while ((func_decl = dequeue(funcQ)) != NULL) {
         if (isDebug) printf("[DEBUG] Generating TAC for function...\n");
+        ASTNode* previousOrigin = currentICGOrigin;
+        currentICGOrigin = func_decl;
         genCodeForFuncDecl(func_decl, &global_bool_info);
+        currentICGOrigin = previousOrigin;
     }
 
     if (isDebug) printf("[DEBUG] Completed ICG for all functions.\n");
@@ -145,6 +159,10 @@ TAC* createTAC(TACOp op, char* result, Operand* operand1, Operand* operand2) {
     instr->operand2 = operand2;
     instr->next = NULL;
     instr->comments = NULL;
+    instr->origin_node = NULL;
+    instr->function_node = NULL;
+    instr->enter_function = NULL;
+    instr->exit_function = NULL;
     if(isDebug){
         printf("[DEBUG] Created TAC for operation: %s, Result: %s\n", getOperatorString(op), result ? result : "NULL");
     } 
@@ -396,6 +414,7 @@ void appendTAC(TACList* list, TAC* newTAC) {
         list->tail->next = newTAC;
     }
     list->tail = newTAC;
+    newTAC->origin_node = currentICGOrigin ? currentICGOrigin : icgRoot;
     newTAC->tac_id = instructionCounter;
     instructionCounter++;
     if (isDebug) printf("[DEBUG] Appended TAC %d\n", newTAC->tac_id);
@@ -1653,6 +1672,8 @@ TAC* genCodeForFuncDecl(ASTNode* node, BoolExprInfo* bool_info){
         func_entry,
         node->func_decl_data.id->id_data.sym->name
     );
+    func_entry->function_node = node;
+    func_entry->enter_function = node->func_decl_data.id->id_data.sym->name;
 
     if(codeList->tail != NULL){
         appendComments(codeList->tail, "FUNC END");
@@ -1660,6 +1681,9 @@ TAC* genCodeForFuncDecl(ASTNode* node, BoolExprInfo* bool_info){
             codeList->tail,
             node->func_decl_data.id->id_data.sym->name
         );
+        codeList->tail->function_node = node;
+        codeList->tail->exit_function =
+            node->func_decl_data.id->id_data.sym->name;
     }
 
     return func_entry;
@@ -1699,141 +1723,490 @@ TAC* generateCode(ASTNode* node, BoolExprInfo* bool_info) {
     if (!node) return NULL;
     if (isDebug) printf("[DEBUG] generateCode() for %s\n", getNodeName(node->type));
 
+    ASTNode* previousOrigin = currentICGOrigin;
+    currentICGOrigin = node;
+    TAC* result = NULL;
+
     switch (node->type) {
         case NODE_PROGRAM:{
-            return generateCode(node->program_data.stmt_list, bool_info);
+            result = generateCode(node->program_data.stmt_list, bool_info);
+            break;
         }
         case NODE_STMT_LIST:{
             generateCode(node->stmt_list_data.stmt_list, bool_info);
-            return generateCode(node->stmt_list_data.stmt, bool_info);
+            result = generateCode(node->stmt_list_data.stmt, bool_info);
+            break;
         }
         case NODE_STMT:{
-            return generateCode(node->stmt_data.stmt, bool_info);
+            result = generateCode(node->stmt_data.stmt, bool_info);
+            break;
         }
         case NODE_EXPR_COMMA_LIST:{
             generateCode(node->expr_comma_list_data.expr_comma_list, bool_info);
             TAC* code = generateCode(node->expr_comma_list_data.expr_comma_list_item, bool_info);
             if(bool_info->begin_tac == NULL) bool_info->begin_tac = code;
             bool_info->end_tac = code;
-            return code;
+            result = code;
+            break;
         }
         case NODE_DECL:{
-            return generateCodeForDecl(node);
+            result = generateCodeForDecl(node);
+            break;
         }
         case NODE_EXPR_BINARY:{
-            return generateCodeForBinaryExpr(node, bool_info);
+            result = generateCodeForBinaryExpr(node, bool_info);
+            break;
         }
         case NODE_EXPR_UNARY:
-            return genCodeForUnaryExpr(node, bool_info);
+            result = genCodeForUnaryExpr(node, bool_info);
+            break;
         case NODE_EXPR_TERM:
-            return genCodeForTermExpr(node); 
+            result = genCodeForTermExpr(node);
+            break;
         case NODE_ASSGN:
-            return generateCodeForAssignment(node);
+            result = generateCodeForAssignment(node);
+            break;
 
         case NODE_BLOCK_STMT:
-            return generateCode(node->block_stmt_data.stmt_list, bool_info);
-            // return generateCodeForAssignment(node);
+            result = generateCode(node->block_stmt_data.stmt_list, bool_info);
+            break;
         case NODE_IF_ELSE:
-            return genCodeForIfElse(node, bool_info);
+            result = genCodeForIfElse(node, bool_info);
+            break;
         case NODE_WHILE:
-            return genCodeForWhileLoop(node, bool_info);
+            result = genCodeForWhileLoop(node, bool_info);
+            break;
         case NODE_FOR:
-            return genCodeForFORLoop(node, bool_info);
+            result = genCodeForFORLoop(node, bool_info);
+            break;
         case NODE_BREAK_STMT:
         case NODE_CONTINUE_STMT:
-            return genCodeForBrkContStmts(node);
+            result = genCodeForBrkContStmts(node);
+            break;
         case NODE_RETURN:
-            return genCodeForReturn(node);
+            result = genCodeForReturn(node);
+            break;
         case NODE_FUNC_DECL:{
             if (functionCount >= MAX_FUNCTIONS) {
                 fprintf(stderr, "Too many functions declared\n");
                 exit(1);
             }
             appendFuncDecl(funcQ, node);
-            return NULL;  // Skip code generation now
+            result = NULL;
+            break;
         }
         case NODE_FUNC_BODY:
-            return generateCode(node->block_stmt_data.stmt_list, bool_info);
+            result = generateCode(node->block_stmt_data.stmt_list, bool_info);
+            break;
         case NODE_FUNC_CALL:
-            return genCodeForFuncCall(node);
+            result = genCodeForFuncCall(node);
+            break;
         default:
             fprintf(stderr, "Unsupported AST node type\n");
             exit(1);
     }
+
+    currentICGOrigin = previousOrigin;
+    return result;
+}
+
+typedef struct {
+    int target_tac_id;
+    char name[24];
+    int bound;
+} ICGTraceLabel;
+
+typedef struct {
+    TAC* tac;
+    int instruction_no;
+    int label_index;
+} ICGPendingPatch;
+
+static const char* getTACOpcodeName(TACOp op) {
+    switch (op) {
+        case TAC_ADD: return "ADD";
+        case TAC_SUB: return "SUB";
+        case TAC_MUL: return "MUL";
+        case TAC_DIV: return "DIV";
+        case TAC_AND: return "AND";
+        case TAC_OR: return "OR";
+        case TAC_NOT: return "NOT";
+        case TAC_NEG: return "NEG";
+        case TAC_EQ: return "EQ";
+        case TAC_NEQ: return "NEQ";
+        case TAC_LT: return "LT";
+        case TAC_GT: return "GT";
+        case TAC_LEQ: return "LEQ";
+        case TAC_GEQ: return "GEQ";
+        case TAC_POST_INC: return "POST_INC";
+        case TAC_POST_DEC: return "POST_DEC";
+        case TAC_PRE_INC: return "PRE_INC";
+        case TAC_PRE_DEC: return "PRE_DEC";
+        case TAC_ASSIGN: return "ASSIGN";
+        case TAC_LABEL: return "LABEL";
+        case TAC_GOTO: return "GOTO";
+        case TAC_IF_GOTO: return "IF_GOTO";
+        case TAC_IF_FALSE_GOTO: return "IF_FALSE_GOTO";
+        case TAC_CALL: return "CALL";
+        case TAC_PUSH_ARG: return "PUSH_ARG";
+        case TAC_POP_ARG: return "POP_ARG";
+        case TAC_RETURN: return "RETURN";
+        case TAC_END: return "END";
+        default: return "UNKNOWN";
+    }
+}
+
+static int isJumpOp(TACOp op) {
+    return op == TAC_GOTO || op == TAC_IF_GOTO || op == TAC_IF_FALSE_GOTO;
+}
+
+static int isTemporaryName(const char* value) {
+    if (!value || value[0] != 't' || value[1] == '\0') return 0;
+    for (const char* cursor = value + 1; *cursor; cursor++) {
+        if (*cursor < '0' || *cursor > '9') return 0;
+    }
+    return 1;
+}
+
+static void formatTACText(
+    TAC* instr,
+    const char* target_label,
+    char* buffer,
+    size_t buffer_size
+) {
+    const char* result = instr->result ? instr->result : "";
+    char* formatted1 = getFormattedValueFromOperand(instr->operand1);
+    char* formatted2 = getFormattedValueFromOperand(instr->operand2);
+    const char* arg1 = formatted1 ? formatted1 : "";
+    const char* arg2 = formatted2 ? formatted2 : "";
+    const char* target = target_label ? target_label : "?";
+
+    switch (instr->op) {
+        case TAC_ASSIGN:
+            snprintf(buffer, buffer_size, "%s = %s", result, arg1[0] ? arg1 : "_");
+            break;
+        case TAC_POP_ARG:
+            snprintf(buffer, buffer_size, "%s = popArg %s", result, arg1);
+            break;
+        case TAC_PUSH_ARG:
+            snprintf(buffer, buffer_size, "param %s", arg1);
+            break;
+        case TAC_CALL:
+            snprintf(buffer, buffer_size, "%s = call %s", result, arg1);
+            break;
+        case TAC_ADD:
+        case TAC_SUB:
+        case TAC_MUL:
+        case TAC_DIV:
+        case TAC_EQ:
+        case TAC_NEQ:
+        case TAC_GT:
+        case TAC_LT:
+        case TAC_GEQ:
+        case TAC_LEQ:
+        case TAC_AND:
+        case TAC_OR:
+            snprintf(buffer, buffer_size, "%s = %s %s %s", result, arg1, getOperatorString(instr->op), arg2);
+            break;
+        case TAC_NEG:
+            snprintf(buffer, buffer_size, "%s = -%s", result, arg1);
+            break;
+        case TAC_NOT:
+            snprintf(buffer, buffer_size, "%s = !%s", result, arg1);
+            break;
+        case TAC_POST_INC:
+            snprintf(buffer, buffer_size, "%s = %s++", result, arg1);
+            break;
+        case TAC_POST_DEC:
+            snprintf(buffer, buffer_size, "%s = %s--", result, arg1);
+            break;
+        case TAC_PRE_INC:
+            snprintf(buffer, buffer_size, "%s = ++%s", result, arg1);
+            break;
+        case TAC_PRE_DEC:
+            snprintf(buffer, buffer_size, "%s = --%s", result, arg1);
+            break;
+        case TAC_IF_GOTO:
+            snprintf(buffer, buffer_size, "if %s goto %s", arg1, target);
+            break;
+        case TAC_IF_FALSE_GOTO:
+            snprintf(buffer, buffer_size, "ifFalse %s goto %s", arg1, target);
+            break;
+        case TAC_GOTO:
+            snprintf(buffer, buffer_size, "goto %s", target);
+            break;
+        case TAC_RETURN:
+            snprintf(buffer, buffer_size, "return");
+            break;
+        case TAC_END:
+            snprintf(buffer, buffer_size, "end");
+            break;
+        default:
+            snprintf(buffer, buffer_size, "%s", getTACOpcodeName(instr->op));
+            break;
+    }
+}
+
+static ASTNode* traceOrigin(TAC* tac) {
+    return tac && tac->origin_node ? tac->origin_node : icgRoot;
+}
+
+static void setVisitOrigin(ICGNodeVisit* event, ASTNode* node) {
+    event->ast_node_id = node ? node->node_id : -1;
+    event->node_type = node ? getNodeName(node->type) : "UNKNOWN";
+    event->line_no = node ? node->line_no : 0;
+    event->char_no = node ? node->char_no : 0;
+}
+
+static int findOrCreateTraceLabel(
+    ICGTraceLabel* labels,
+    int* label_count,
+    int target_tac_id
+) {
+    for (int i = 0; i < *label_count; i++) {
+        if (labels[i].target_tac_id == target_tac_id) return i;
+    }
+
+    int index = (*label_count)++;
+    labels[index].target_tac_id = target_tac_id;
+    labels[index].bound = 0;
+    snprintf(labels[index].name, sizeof(labels[index].name), "L%d", index + 1);
+    return index;
+}
+
+static void logTracePatch(
+    ICGPendingPatch* patch,
+    ICGTraceLabel* label
+) {
+    char text[256];
+    formatTACText(patch->tac, label->name, text, sizeof(text));
+    ASTNode* origin = traceOrigin(patch->tac);
+    Step step = {0};
+    step.type = ICG_PATCH_LABEL;
+    step.ICGPatchLabel.ast_node_id = origin ? origin->node_id : -1;
+    step.ICGPatchLabel.node_type = origin ? getNodeName(origin->type) : "UNKNOWN";
+    step.ICGPatchLabel.line_no = origin ? origin->line_no : 0;
+    step.ICGPatchLabel.char_no = origin ? origin->char_no : 0;
+    step.ICGPatchLabel.instruction_no = patch->instruction_no;
+    step.ICGPatchLabel.label_name = label->name;
+    step.ICGPatchLabel.text = text;
+    log_step(step);
+}
+
+void logICGPlaybackTrace() {
+    if (!codeList) return;
+
+    int capacity = instructionCounter + 8;
+    ICGTraceLabel* labels = calloc((size_t)capacity, sizeof(ICGTraceLabel));
+    ICGPendingPatch* pending = calloc((size_t)capacity, sizeof(ICGPendingPatch));
+    char** seenTemps = calloc((size_t)capacity, sizeof(char*));
+    int label_count = 0;
+    int pending_count = 0;
+    int seen_temp_count = 0;
+    int display_instruction_no = 1;
+
+    for (TAC* tac = codeList->head; tac; tac = tac->next) {
+        if (isJumpOp(tac->op) && tac->target_jump > 0) {
+            findOrCreateTraceLabel(labels, &label_count, tac->target_jump);
+        }
+    }
+
+    for (TAC* tac = codeList->head; tac; tac = tac->next) {
+        ASTNode* origin = traceOrigin(tac);
+
+        for (int label_index = 0; label_index < label_count; label_index++) {
+            ICGTraceLabel* label = &labels[label_index];
+            if (label->target_tac_id != tac->tac_id || label->bound) continue;
+
+            label->bound = 1;
+            Step createLabel = {0};
+            createLabel.type = ICG_CREATE_LABEL;
+            createLabel.ICGCreateLabel.ast_node_id = origin ? origin->node_id : -1;
+            createLabel.ICGCreateLabel.node_type = origin ? getNodeName(origin->type) : "UNKNOWN";
+            createLabel.ICGCreateLabel.line_no = origin ? origin->line_no : 0;
+            createLabel.ICGCreateLabel.char_no = origin ? origin->char_no : 0;
+            createLabel.ICGCreateLabel.label_name = label->name;
+            createLabel.ICGCreateLabel.target_tac_id = label->target_tac_id;
+            log_step(createLabel);
+
+            char labelText[32];
+            snprintf(labelText, sizeof(labelText), "%s:", label->name);
+            Step emitLabel = {0};
+            emitLabel.type = ICG_EMIT;
+            emitLabel.ICGEmit.ast_node_id = origin ? origin->node_id : -1;
+            emitLabel.ICGEmit.node_type = origin ? getNodeName(origin->type) : "UNKNOWN";
+            emitLabel.ICGEmit.line_no = origin ? origin->line_no : 0;
+            emitLabel.ICGEmit.char_no = origin ? origin->char_no : 0;
+            emitLabel.ICGEmit.instruction_no = display_instruction_no++;
+            emitLabel.ICGEmit.source_tac_id = 0;
+            emitLabel.ICGEmit.opcode = "LABEL";
+            emitLabel.ICGEmit.result = label->name;
+            emitLabel.ICGEmit.text = labelText;
+            log_step(emitLabel);
+
+            for (int i = 0; i < pending_count; i++) {
+                if (pending[i].label_index == label_index) {
+                    logTracePatch(&pending[i], label);
+                    pending[i].label_index = -1;
+                }
+            }
+        }
+
+        if (tac->enter_function) {
+            ASTNode* functionNode = tac->function_node ? tac->function_node : origin;
+            Step enter = {0};
+            enter.type = ICG_ENTER_FUNCTION;
+            enter.ICGFunctionEvent.ast_node_id = functionNode ? functionNode->node_id : -1;
+            enter.ICGFunctionEvent.node_type = functionNode ? getNodeName(functionNode->type) : "UNKNOWN";
+            enter.ICGFunctionEvent.line_no = functionNode ? functionNode->line_no : 0;
+            enter.ICGFunctionEvent.char_no = functionNode ? functionNode->char_no : 0;
+            enter.ICGFunctionEvent.function_name = tac->enter_function;
+            log_step(enter);
+        }
+
+        Step visit = {0};
+        visit.type = ICG_NODE_VISIT;
+        setVisitOrigin(&visit.ICGNodeVisit, origin);
+        visit.ICGNodeVisit.action = "Lower AST node";
+        visit.ICGNodeVisit.operator_name =
+            origin && (origin->type == NODE_EXPR_BINARY || origin->type == NODE_EXPR_UNARY)
+                ? origin->expr_data.op
+                : NULL;
+        log_step(visit);
+
+        if (isTemporaryName(tac->result)) {
+            int alreadySeen = 0;
+            for (int i = 0; i < seen_temp_count; i++) {
+                if (strcmp(seenTemps[i], tac->result) == 0) {
+                    alreadySeen = 1;
+                    break;
+                }
+            }
+            if (!alreadySeen) {
+                seenTemps[seen_temp_count++] = (char*)tac->result;
+                Step createTemp = {0};
+                createTemp.type = ICG_CREATE_TEMP;
+                createTemp.ICGCreateTemp.ast_node_id = origin ? origin->node_id : -1;
+                createTemp.ICGCreateTemp.node_type = origin ? getNodeName(origin->type) : "UNKNOWN";
+                createTemp.ICGCreateTemp.line_no = origin ? origin->line_no : 0;
+                createTemp.ICGCreateTemp.char_no = origin ? origin->char_no : 0;
+                createTemp.ICGCreateTemp.temp_name = tac->result;
+                log_step(createTemp);
+            }
+        }
+
+        int label_index = -1;
+        if (isJumpOp(tac->op) && tac->target_jump > 0) {
+            label_index = findOrCreateTraceLabel(labels, &label_count, tac->target_jump);
+        }
+
+        char text[256];
+        formatTACText(tac, NULL, text, sizeof(text));
+        char* arg1 = getFormattedValueFromOperand(tac->operand1);
+        char* arg2 = getFormattedValueFromOperand(tac->operand2);
+        int emitted_no = display_instruction_no++;
+        Step emit = {0};
+        emit.type = ICG_EMIT;
+        emit.ICGEmit.ast_node_id = origin ? origin->node_id : -1;
+        emit.ICGEmit.node_type = origin ? getNodeName(origin->type) : "UNKNOWN";
+        emit.ICGEmit.line_no = origin ? origin->line_no : 0;
+        emit.ICGEmit.char_no = origin ? origin->char_no : 0;
+        emit.ICGEmit.instruction_no = emitted_no;
+        emit.ICGEmit.source_tac_id = tac->tac_id;
+        emit.ICGEmit.opcode = getTACOpcodeName(tac->op);
+        emit.ICGEmit.result = tac->result;
+        emit.ICGEmit.arg1 = arg1;
+        emit.ICGEmit.arg2 = arg2;
+        emit.ICGEmit.target_label = label_index >= 0 ? labels[label_index].name : NULL;
+        emit.ICGEmit.text = text;
+        log_step(emit);
+
+        if (label_index >= 0) {
+            pending[pending_count].tac = tac;
+            pending[pending_count].instruction_no = emitted_no;
+            pending[pending_count].label_index = label_index;
+            if (labels[label_index].bound) {
+                logTracePatch(&pending[pending_count], &labels[label_index]);
+                pending[pending_count].label_index = -1;
+            }
+            pending_count++;
+        }
+
+        if (tac->exit_function) {
+            ASTNode* functionNode = tac->function_node ? tac->function_node : origin;
+            Step exitStep = {0};
+            exitStep.type = ICG_EXIT_FUNCTION;
+            exitStep.ICGFunctionEvent.ast_node_id = functionNode ? functionNode->node_id : -1;
+            exitStep.ICGFunctionEvent.node_type = functionNode ? getNodeName(functionNode->type) : "UNKNOWN";
+            exitStep.ICGFunctionEvent.line_no = functionNode ? functionNode->line_no : 0;
+            exitStep.ICGFunctionEvent.char_no = functionNode ? functionNode->char_no : 0;
+            exitStep.ICGFunctionEvent.function_name = tac->exit_function;
+            log_step(exitStep);
+        }
+    }
+
+    for (int label_index = 0; label_index < label_count; label_index++) {
+        ICGTraceLabel* label = &labels[label_index];
+        if (label->bound) continue;
+        label->bound = 1;
+        ASTNode* origin = icgRoot;
+        Step createLabel = {0};
+        createLabel.type = ICG_CREATE_LABEL;
+        createLabel.ICGCreateLabel.ast_node_id = origin ? origin->node_id : -1;
+        createLabel.ICGCreateLabel.node_type = origin ? getNodeName(origin->type) : "UNKNOWN";
+        createLabel.ICGCreateLabel.line_no = origin ? origin->line_no : 0;
+        createLabel.ICGCreateLabel.char_no = origin ? origin->char_no : 0;
+        createLabel.ICGCreateLabel.label_name = label->name;
+        createLabel.ICGCreateLabel.target_tac_id = label->target_tac_id;
+        log_step(createLabel);
+
+        char labelText[32];
+        snprintf(labelText, sizeof(labelText), "%s:", label->name);
+        Step emitLabel = {0};
+        emitLabel.type = ICG_EMIT;
+        emitLabel.ICGEmit.ast_node_id = origin ? origin->node_id : -1;
+        emitLabel.ICGEmit.node_type = origin ? getNodeName(origin->type) : "UNKNOWN";
+        emitLabel.ICGEmit.line_no = origin ? origin->line_no : 0;
+        emitLabel.ICGEmit.char_no = origin ? origin->char_no : 0;
+        emitLabel.ICGEmit.instruction_no = display_instruction_no++;
+        emitLabel.ICGEmit.source_tac_id = 0;
+        emitLabel.ICGEmit.opcode = "LABEL";
+        emitLabel.ICGEmit.result = label->name;
+        emitLabel.ICGEmit.text = labelText;
+        log_step(emitLabel);
+
+        for (int i = 0; i < pending_count; i++) {
+            if (pending[i].label_index == label_index) {
+                logTracePatch(&pending[i], label);
+            }
+        }
+    }
+
+    Step complete = {0};
+    complete.type = ICG_COMPLETE;
+    complete.ICGComplete.status = "SUCCESS";
+    complete.ICGComplete.instruction_count = display_instruction_no - 1;
+    complete.ICGComplete.temporary_count = seen_temp_count;
+    complete.ICGComplete.label_count = label_count;
+    log_step(complete);
+
+    free(labels);
+    free(pending);
+    free(seenTemps);
 }
 
 // Function to print the TAC instruction based on its operation type
 void printTACInstruction(TAC* instr) {
     if (!instr) return;
 
-    char* opr1 = getFormattedValueFromOperand(instr->operand1);
-    char* opr2 = getFormattedValueFromOperand(instr->operand2);
     char instr_buffer[256];
-    switch (instr->op) {
-        case TAC_ASSIGN:
-            sprintf(instr_buffer, "%s = %s", instr->result, opr1);
-            break;
-        case TAC_POP_ARG:
-            sprintf(instr_buffer, "%s = POP(%s)", instr->result, opr1);
-            break;
-        case TAC_PUSH_ARG:
-            sprintf(instr_buffer, "PUSH(%s)", opr1); 
-            break;
-        case TAC_CALL:
-            sprintf(instr_buffer, "CALL %d (%s)", instr->target_jump, opr1);
-            break;
-        case TAC_ADD:
-            sprintf(instr_buffer, "%s = %s + %s", instr->result, opr1, opr2);
-            break;
-        case TAC_SUB:
-            sprintf(instr_buffer, "%s = %s - %s", instr->result, opr1, opr2);
-            break;
-        case TAC_MUL:
-            sprintf(instr_buffer, "%s = %s * %s", instr->result, opr1, opr2);
-            break;
-        case TAC_DIV:
-            sprintf(instr_buffer, "%s = %s / %s", instr->result, opr1, opr2);
-            break;
-        case TAC_EQ:
-            sprintf(instr_buffer, "%s = %s == %s", instr->result, opr1, opr2);
-            break;
-        case TAC_NEQ:
-            sprintf(instr_buffer, "%s = %s != %s", instr->result, opr1, opr2);
-            break;
-        case TAC_GT:
-            sprintf(instr_buffer, "%s = %s > %s", instr->result, opr1, opr2);
-            break;
-        case TAC_LT:
-            sprintf(instr_buffer, "%s = %s < %s", instr->result, opr1, opr2);
-            break;
-        case TAC_GEQ:
-            sprintf(instr_buffer, "%s = %s >= %s", instr->result, opr1, opr2);
-            break;
-        case TAC_LEQ:
-            sprintf(instr_buffer, "%s = %s <= %s", instr->result, opr1, opr2);
-            break;
-        case TAC_NEG:
-            sprintf(instr_buffer, "%s = -%s", instr->result, opr1);
-            break;        
-        case TAC_IF_GOTO:
-            sprintf(instr_buffer, "IF %s GOTO %d", opr1, instr->target_jump); 
-            break;
-        case TAC_IF_FALSE_GOTO:
-            sprintf(instr_buffer, "IF FALSE %s GOTO %d", opr1, instr->target_jump);
-            break;
-        case TAC_GOTO:
-            sprintf(instr_buffer, "GOTO %d", instr->target_jump);
-            break;
-        case TAC_RETURN:
-            sprintf(instr_buffer, "RETURN");
-            break;
-        case TAC_END:
-            sprintf(instr_buffer, "END");
-            break;
-        default:
-            fprintf(stderr, "Unknown TAC operation\n");
-            break;
+    char target_buffer[32];
+    const char* target = NULL;
+    if (isJumpOp(instr->op) && instr->target_jump > 0) {
+        snprintf(target_buffer, sizeof(target_buffer), "%d", instr->target_jump);
+        target = target_buffer;
     }
+    formatTACText(instr, target, instr_buffer, sizeof(instr_buffer));
 
     if (instr->comments != NULL) {
         // Allocate memory for the complete comment string with prefix
